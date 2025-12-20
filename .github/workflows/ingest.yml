@@ -1,0 +1,33 @@
+name: Daily Concert Ingestion
+
+on:
+  schedule:
+    - cron: '0 8 * * *' # Run daily at 8am UTC
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Install Dependencies
+        working-directory: ./ingestion
+        run: uv sync
+
+      - name: Run Ingestion Script
+        working-directory: ./ingestion
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          TICKETMASTER_API_KEY: ${{ secrets.TICKETMASTER_API_KEY }}
+          # Scraping connectors don't need keys
+        run: uv run main.py
