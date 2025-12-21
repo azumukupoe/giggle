@@ -56,8 +56,8 @@ class SongkickConnector(BaseConnector):
 
                                 evt = self._parse_json_ld(item, artist_name)
                                 if evt: events.append(evt)
-                    except:
-                        pass
+                    except Exception as e:
+                        print(f"    [Script {i}] JSON Load Error: {e}")
             
             return events
 
