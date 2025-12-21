@@ -42,6 +42,17 @@ def main():
 
     all_events: List[Event] = []
 
+    # --- PHASE 1: Japan Discovery (Broad Search) ---
+    # Fetch general upcoming music in Japan to populate the feed even without user artists.
+    print("--- Phase 1: Japan Discovery (Ticketmaster) ---")
+    tm_connector = TicketmasterConnector()
+    discovery_events = tm_connector.get_events(country_code="JP", limit=50)
+    print(f"  Found {len(discovery_events)} discovery events in Japan.")
+    all_events.extend(discovery_events)
+
+    # --- PHASE 2: Personalized/Specific Scrape ---
+
+    # --- PHASE 2: Personalized/Specific Scrape ---
     for artist in artists_to_sync:
         print(f"Syncing artist: {artist}")
         for connector in connectors:
