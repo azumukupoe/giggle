@@ -18,21 +18,36 @@ class TicketmasterConnector(BaseConnector):
             print("Ticketmaster API Key missing.")
             return []
 
-        # Fetch distinct pages to get a good mix (Ticketmaster max page size is usually 20-200)
-        # We'll just fetch one big batch or a few pages
+        # 1. Broad Search: Japan
         url = f"{self.base_url}/events.json?classificationName=music&countryCode={country_code}&size={limit}&sort=date,asc&apikey={self.api_key}"
         
         try:
-            print(f"  [Ticketmaster] Broad search for {country_code} music...")
+            print(f"  [Ticketmaster] Broad search URL: {url.replace(self.api_key, 'HIDDEN_KEY')}")
             resp = requests.get(url)
-            resp.raise_for_status()
+            print(f"  [Ticketmaster] Status: {resp.status_code}")
+            
+            if resp.status_code != 200:
+                print(f"  [Ticketmaster] Error Body: {resp.text}")
+                resp.raise_for_status()
+
             data = resp.json()
             
-            if '_embedded' not in data:
-                return []
+            # Fallback: Try "Tokyo" explicit city search if country search fails (sometimes works better)
+            if '_embedded' not in data or not data['_embedded'].get('events'):
+                print("  [Ticketmaster] 'countryCode=JP' returned 0. Retrying with 'city=Tokyo'...")
+                url = f"{self.base_url}/events.json?classificationName=music&city=Tokyo&size={limit}&apikey={self.api_key}"
+                resp = requests.get(url)
+                data = resp.json()
 
+            if '_embedded' not in data:
+                print(f"  [Ticketmaster] Zero results found. Raw Data Keys: {data.keys()}")
+                return []
+            
+            events_data = data['_embedded'].get('events', [])
+            print(f"  [Ticketmaster] Raw event count: {len(events_data)}")
+            
             events = []
-            for item in data['_embedded'].get('events', []):
+            for item in events_data:
                 # Ticketmaster dates
                 start = item.get('dates', {}).get('start', {})
                 date_str = f"{start.get('localDate')}T{start.get('localTime', '00:00:00')}"
