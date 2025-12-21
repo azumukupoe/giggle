@@ -4,6 +4,7 @@ from datetime import datetime
 from .base import BaseConnector, Event
 from bs4 import BeautifulSoup
 import urllib.parse
+import json
 
 class SongkickConnector(BaseConnector):
     def __init__(self):
