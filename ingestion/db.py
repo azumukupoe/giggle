@@ -27,6 +27,9 @@ def upsert_events(supabase: Client, events: list):
         # Pydantic-style dict or manual
         if hasattr(e, "dict"):
             event_dict = e.dict()
+            # Pydantic dict() leaves datetime objects; Supabase needs strings for JSON
+            if "date" in event_dict and event_dict["date"]:
+                event_dict["date"] = event_dict["date"].isoformat()
         else:
             event_dict = {
                 "title": e.title,
