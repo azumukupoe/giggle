@@ -42,7 +42,7 @@ NEXTAUTH_URL=http://localhost:3000 (or your vercel domain)
 See `ingestion/.env.example`.
 ```bash
 SUPABASE_URL=your_supabase_url
-SUPABASE_KEY=your_service_role_key_OR_anon_key
+SUPABASE_KEY=your_service_role_key (SECRET! Do not use anon key here)
 TICKETMASTER_API_KEY=your_ticketmaster_key
 ```
 
