@@ -18,7 +18,7 @@ class TicketmasterConnector(BaseConnector):
             print("Ticketmaster API Key missing.")
             return []
 
-        url = f"{self.base_url}/events.json?keyword={artist_name}&apikey={self.api_key}&classificationName=music"
+        url = f"{self.base_url}/events.json?keyword={artist_name}&apikey={self.api_key}&classificationName=music&countryCode=JP"
         
         try:
             resp = requests.get(url)

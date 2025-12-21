@@ -48,7 +48,16 @@ def main():
             print(f"  Fetching from {connector.__class__.__name__}...")
             events = connector.get_artist_events(artist)
             print(f"    Found {len(events)} events.")
-            all_events.extend(events)
+            
+            # Japan Geofencing
+            japan_events = [
+                e for e in events 
+                if e.location and ("Japan" in e.location or "JP" in e.location or "Tokyo" in e.location or "Osaka" in e.location or "Kyoto" in e.location)
+            ]
+            if len(japan_events) < len(events):
+                print(f"    Filtered {len(events) - len(japan_events)} non-Japan events.")
+
+            all_events.extend(japan_events)
 
     # Save to Supabase
     if all_events:
