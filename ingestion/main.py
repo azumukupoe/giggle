@@ -34,8 +34,19 @@ def main():
             print(f"    Found {len(events)} events.")
             all_events.extend(events)
 
-    # Save to Supabase (Mocked for now until DB is properly set up with a table)
-    # supabase = get_supabase_client()
+    # Save to Supabase
+    if all_events:
+        print(f"Saving {len(all_events)} events to Supabase...")
+        try:
+             supabase = get_supabase_client()
+             from db import upsert_events
+             upsert_events(supabase, all_events)
+             print("Success!")
+        except Exception as e:
+             print(f"Error saving to DB: {e}")
+    else:
+        print("No events found to save.")
+
     print(f"Total events found: {len(all_events)}")
     for e in all_events:
         print(f" - {e.title} @ {e.venue} ({e.date})")
