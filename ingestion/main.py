@@ -63,11 +63,26 @@ def main():
     #    print(f"  [RA] Found {len(events)} events in {loc}.")
     #    all_events.extend(events)
 
-    # 3. Tokyo Cheapo (Events & Festivals)
-    tc_connector = TokyoCheapoConnector()
-    print("  [Cheapo] Scraping Top Events...")
+    # 3. Kaala (Japanese Underground/Metal/Noise)
+    from connectors.kaala import KaalaConnector
+    kaala = KaalaConnector()
+    print("  [Kaala] Scraping Underground Events...")
     try:
-        tc_events = tc_connector.get_events()
+        k_events = kaala.get_events()
+        print(f"  [Kaala] Found {len(k_events)} events.")
+        all_events.extend(k_events)
+    except Exception as e:
+        print(f"  [Kaala] Error: {e}")
+
+    # 4. Tokyo Cheapo (Disabled: User requested music-focus only)
+    # tc_connector = TokyoCheapoConnector()
+    # print("  [Cheapo] Scraping Top Events...")
+    # try:
+    #     tc_events = tc_connector.get_events()
+    #     print(f"  [Cheapo] Found {len(tc_events)} events.")
+    #     all_events.extend(tc_events)
+    # except Exception as e:
+    #     print(f"  [Cheapo] Error: {e}")
         print(f"  [Cheapo] Found {len(tc_events)} events.")
         all_events.extend(tc_events)
     except Exception as e:
