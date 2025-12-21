@@ -26,15 +26,25 @@ class SongkickConnector(BaseConnector):
         
         try:
             resp = requests.get(url, headers=self.headers)
+            print(f"  [Songkick] Status: {resp.status_code}, URL: {resp.url}")
+            
+            if resp.status_code != 200:
+                print(f"  [Songkick] Failed to fetch. Status: {resp.status_code}")
+                return []
+            
             soup = BeautifulSoup(resp.content, 'html.parser')
             
             events = []
             scripts = soup.find_all('script', type='application/ld+json')
-            for script in scripts:
+            print(f"  [Songkick] Found {len(scripts)} JSON-LD scripts.")
+            
+            for i, script in enumerate(scripts):
                 if 'MusicEvent' in script.text:
+                    print(f"    [Script {i}] Found MusicEvent in text (len={len(script.text)})")
                     try:
                         data = json.loads(script.text)
                         items = data if isinstance(data, list) else [data]
+                        print(f"    [Script {i}] Parsed {len(items)} items.")
                         for item in items:
                             if item.get('@type') == 'MusicEvent':
                                 # Identify artist from performer list if possible
