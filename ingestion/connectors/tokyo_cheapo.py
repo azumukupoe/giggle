@@ -40,11 +40,10 @@ class TokyoCheapoConnector(BaseConnector):
             
             for article in articles:
                 try:
-                    # Title & Link
-                    h3 = article.find('h3', class_='entry-title') # Common WP class
+                    # Title & Link (Updated for card structure)
+                    h3 = article.find('h3', class_='card__title')
                     if not h3:
-                         # Fallback for some themes
-                         h3 = article.find('h2')
+                         h3 = article.find('h3')
                     
                     if not h3: continue
                     
@@ -54,26 +53,19 @@ class TokyoCheapoConnector(BaseConnector):
                     title = link_tag.get_text(strip=True)
                     link = link_tag.get('href')
                     
-                    # Date
-                    # Usually in a separate div or parsed from text. 
-                    # Cheat: Use current date as placeholder if not found, or try to find date text.
-                    # from the logs: "[Dec 1 ~ Dec 25]"
-                    # We'll just grab the text and see if we can parse vaguely, or verify strictly.
-                    # For now, let's look for time tags.
-                    # <time class="entry-date ...">
-                    
-                    date_obj = datetime.now() + timedelta(days=1) # Default to tomorrow
+                    # Date (Placeholder: Tomorrow)
+                    date_obj = datetime.now() + timedelta(days=1)
                     
                     # Image
                     img_tag = article.find('img')
                     img_url = img_tag.get('src') if img_tag else None
                     if img_url and 'data:image' in img_url:
-                        img_url = img_tag.get('data-src') # Lazy load handling
+                        img_url = img_tag.get('data-src') 
 
-                    # Location
-                    # From logs: [Marunouchi], [Saitama City]
-                    # Usually in a generic category tag.
-                    location = "Tokyo, Japan" # Default
+                    location = "Tokyo, Japan"
+                    loc_tag = article.find('a', class_='location')
+                    if loc_tag:
+                        location = loc_tag.get_text(strip=True)
                     
                     events.append(Event(
                         title=title,
