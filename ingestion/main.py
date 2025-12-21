@@ -51,15 +51,25 @@ def main():
         all_events.extend(events)
 
     # 2. Resident Advisor (Major Cities)
-    # RA uses URL slugs like 'jp/tokyo', 'jp/osaka'
-    ra_connector = ResidentAdvisorConnector()
-    ra_locations = ['jp/tokyo', 'jp/osaka']
+    # RA is blocking GH Actions (403). Disabled.
+    # ra_connector = ResidentAdvisorConnector()
+    # ra_locations = ['jp/tokyo', 'jp/osaka']
     
-    for loc in ra_locations:
-        print(f"  [RA] Scraping {loc}...")
-        events = ra_connector.get_location_events(location_slug=loc)
-        print(f"  [RA] Found {len(events)} events in {loc}.")
-        all_events.extend(events)
+    # for loc in ra_locations:
+    #    print(f"  [RA] Scraping {loc}...")
+    #    events = ra_connector.get_location_events(location_slug=loc)
+    #    print(f"  [RA] Found {len(events)} events in {loc}.")
+    #    all_events.extend(events)
+
+    # 3. Tokyo Cheapo (Events & Festivals)
+    tc_connector = TokyoCheapoConnector()
+    print("  [Cheapo] Scraping Top Events...")
+    try:
+        tc_events = tc_connector.get_events()
+        print(f"  [Cheapo] Found {len(tc_events)} events.")
+        all_events.extend(tc_events)
+    except Exception as e:
+        print(f"  [Cheapo] Failed: {e}")
 
 
     # Save to Supabase
