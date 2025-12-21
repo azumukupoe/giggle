@@ -7,6 +7,7 @@ from connectors.bandsintown import BandsInTownConnector
 from connectors.songkick import SongkickConnector
 from connectors.seatgeek import SeatGeekConnector
 from connectors.resident_advisor import ResidentAdvisorConnector
+from connectors.tokyo_cheapo import TokyoCheapoConnector
 from db import get_supabase_client, get_all_artists
 from dotenv import load_dotenv
 
