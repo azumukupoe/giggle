@@ -28,7 +28,19 @@ def main():
     sk_connector = SongkickConnector()
     sk_metros = {
         'Tokyo': '30717-japan-tokyo',
-        # 'Osaka': '30718-japan-osaka', # Placeholder: Needs correct ID
+        'Osaka': '30647-japan-osaka',
+        'Nagoya': '30611-japan-nagoya',
+        'Sapporo': '30668-japan-sapporo',
+        'Fukuoka': '30434-japan-fukuoka',
+        'Sendai': '30673-japan-sendai',
+        'Hiroshima': '30470-japan-hiroshima',
+        'Kyoto': '30571-japan-kyoto',
+        'Okinawa (Naha)': '30612-japan-naha',
+        'Yokohama': '30754-japan-yokohama',
+        'Kobe': '30545-japan-kobe',
+        'Kagoshima': '30510-japan-kagoshima',
+        'Kanazawa': '30518-japan-kanazawa',
+        'Niigata': '30619-japan-niigata'
     }
     
     for city, metro_id in sk_metros.items():
