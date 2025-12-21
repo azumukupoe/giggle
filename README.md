@@ -1,7 +1,6 @@
 # Giggle 🎸
-> *The Google for Gigs.*
 
-description: A free, hybrid-architecture web application that aggregates concert dates for your favorite Spotify artists from Bandsintown, Songkick, SeatGeek, and Ticketmaster.
+A free, hybrid-architecture web application (Google for Gigs) that aggregates concert dates for your favorite Spotify artists from Bandsintown, Songkick, SeatGeek, and Ticketmaster.
 
 ## 🌟 Features
 

@@ -6,8 +6,8 @@ import { AuthProvider } from "@/components/AuthProvider";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Giggle | Google for Gigs",
-  description: "Find concerts for your favorite Spotify artists. The google for gigs.",
+  title: "Giggle",
+  description: "Google for Gigs - Find concerts for your favorite Spotify artists.",
 };
 
 export default function RootLayout({
