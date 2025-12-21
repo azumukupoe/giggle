@@ -1,24 +1,26 @@
 import requests
 from bs4 import BeautifulSoup
 from datetime import datetime
-try:
-    from connectors.base import Connector, Event
-except ImportError:
-    from .base import Connector, Event
+from .base import BaseConnector, Event
 import re
 
-class KaalaConnector(Connector):
-    def get_events(self):
-        url = "https://www.kaalamusic.com/events"
-        print(f"  [Kaala] Scraping: {url}")
-        
-        headers = {
+class KaalaConnector(BaseConnector):
+    def __init__(self):
+        super().__init__()
+        self.base_url = "https://www.kaalamusic.com/events"
+        self.headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         }
+
+    def get_artist_events(self, artist_name: str):
+        return []
+
+    def get_events(self, query: str = None):
+        print(f"  [Kaala] Scraping: {self.base_url}")
         
         events = []
         try:
-            response = requests.get(url, headers=headers, timeout=10)
+            response = requests.get(self.base_url, headers=self.headers, timeout=10)
             if response.status_code != 200:
                 print(f"  [Kaala] Failed to fetch: {response.status_code}")
                 return []
@@ -48,14 +50,6 @@ class KaalaConnector(Connector):
                     else:
                         date_obj = datetime.now()
 
-                    # Time
-                    time_tag = article.find('time', class_='event-time-localized-start')
-                    if time_tag:
-                         # 5:30 PM. Combine with date if needed, but for now we just store the date object
-                         # potentially adding time if we parsed it properly.
-                         # simple approach: keep date_obj as date-only or strict datetime
-                         pass
-
                     # Image
                     img_tag = article.find('img')
                     img_url = None
@@ -75,11 +69,14 @@ class KaalaConnector(Connector):
 
                     events.append(Event(
                         title=title,
+                        artist="Various",
+                        venue="Kaala Event",
                         date=date_obj,
                         location=location,
                         url=link,
-                        image=img_url,
-                        source="Kaala"
+                        image_url=img_url,
+                        source="Kaala",
+                        external_id=link
                     ))
                 except Exception as e:
                     print(f"  [Kaala] Error parsing item: {e}")
