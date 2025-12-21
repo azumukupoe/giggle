@@ -15,7 +15,7 @@ export const Navbar = () => {
                     <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center">
                         <Music className="w-5 h-5 text-white" />
                     </div>
-                    <span>GigPulse</span>
+                    <span>Giggle</span>
                 </div>
 
                 <div className="flex items-center gap-4">

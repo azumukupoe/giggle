@@ -6,7 +6,7 @@ import { AuthProvider } from "@/components/AuthProvider";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "GigPulse",
+  title: "Giggle",
   description: "Find concerts for your favorite Spotify artists.",
 };
 
