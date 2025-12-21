@@ -1,0 +1,393 @@
+ingest	Set up job	﻿2025-12-21T18:06:18.6264297Z Current runner version: '2.330.0'
+ingest	Set up job	2025-12-21T18:06:18.6287781Z ##[group]Runner Image Provisioner
+ingest	Set up job	2025-12-21T18:06:18.6288601Z Hosted Compute Agent
+ingest	Set up job	2025-12-21T18:06:18.6289284Z Version: 20251211.462
+ingest	Set up job	2025-12-21T18:06:18.6289866Z Commit: 6cbad8c2bb55d58165063d031ccabf57e2d2db61
+ingest	Set up job	2025-12-21T18:06:18.6290881Z Build Date: 2025-12-11T16:28:49Z
+ingest	Set up job	2025-12-21T18:06:18.6291674Z Worker ID: {9e138a86-47c3-4fb7-a6b8-30e157db8c56}
+ingest	Set up job	2025-12-21T18:06:18.6292334Z ##[endgroup]
+ingest	Set up job	2025-12-21T18:06:18.6292799Z ##[group]Operating System
+ingest	Set up job	2025-12-21T18:06:18.6293479Z Ubuntu
+ingest	Set up job	2025-12-21T18:06:18.6294032Z 24.04.3
+ingest	Set up job	2025-12-21T18:06:18.6294531Z LTS
+ingest	Set up job	2025-12-21T18:06:18.6295091Z ##[endgroup]
+ingest	Set up job	2025-12-21T18:06:18.6295586Z ##[group]Runner Image
+ingest	Set up job	2025-12-21T18:06:18.6296107Z Image: ubuntu-24.04
+ingest	Set up job	2025-12-21T18:06:18.6296694Z Version: 20251215.174.1
+ingest	Set up job	2025-12-21T18:06:18.6297736Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20251215.174/images/ubuntu/Ubuntu2404-Readme.md
+ingest	Set up job	2025-12-21T18:06:18.6299082Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20251215.174
+ingest	Set up job	2025-12-21T18:06:18.6300351Z ##[endgroup]
+ingest	Set up job	2025-12-21T18:06:18.6301702Z ##[group]GITHUB_TOKEN Permissions
+ingest	Set up job	2025-12-21T18:06:18.6303869Z Contents: read
+ingest	Set up job	2025-12-21T18:06:18.6304539Z Metadata: read
+ingest	Set up job	2025-12-21T18:06:18.6305041Z Packages: read
+ingest	Set up job	2025-12-21T18:06:18.6305551Z ##[endgroup]
+ingest	Set up job	2025-12-21T18:06:18.6308019Z Secret source: Actions
+ingest	Set up job	2025-12-21T18:06:18.6308771Z Prepare workflow directory
+ingest	Set up job	2025-12-21T18:06:18.6624436Z Prepare all required actions
+ingest	Set up job	2025-12-21T18:06:18.6662434Z Getting action download info
+ingest	Set up job	2025-12-21T18:06:18.9084559Z Download action repository 'actions/checkout@v3' (SHA:f43a0e5ff2bd294095638e18286ca9a3d1956744)
+ingest	Set up job	2025-12-21T18:06:19.0058290Z Download action repository 'astral-sh/setup-uv@v4' (SHA:38f3f104447c67c051c4a08e39b64a148898af3a)
+ingest	Set up job	2025-12-21T18:06:19.4255169Z Complete job name: ingest
+ingest	Checkout code	﻿2025-12-21T18:06:19.4915507Z ##[group]Run actions/checkout@v3
+ingest	Checkout code	2025-12-21T18:06:19.4916349Z with:
+ingest	Checkout code	2025-12-21T18:06:19.4916761Z   repository: azumukupoe/giggle
+ingest	Checkout code	2025-12-21T18:06:19.4917422Z   token: ***
+ingest	Checkout code	2025-12-21T18:06:19.4917807Z   ssh-strict: true
+ingest	Checkout code	2025-12-21T18:06:19.4918223Z   persist-credentials: true
+ingest	Checkout code	2025-12-21T18:06:19.4918674Z   clean: true
+ingest	Checkout code	2025-12-21T18:06:19.4919076Z   sparse-checkout-cone-mode: true
+ingest	Checkout code	2025-12-21T18:06:19.4919551Z   fetch-depth: 1
+ingest	Checkout code	2025-12-21T18:06:19.4919941Z   fetch-tags: false
+ingest	Checkout code	2025-12-21T18:06:19.4920327Z   lfs: false
+ingest	Checkout code	2025-12-21T18:06:19.4920917Z   submodules: false
+ingest	Checkout code	2025-12-21T18:06:19.4921336Z   set-safe-directory: true
+ingest	Checkout code	2025-12-21T18:06:19.4922033Z ##[endgroup]
+ingest	Checkout code	2025-12-21T18:06:19.5759060Z Syncing repository: azumukupoe/giggle
+ingest	Checkout code	2025-12-21T18:06:19.5761129Z ##[group]Getting Git version info
+ingest	Checkout code	2025-12-21T18:06:19.5761837Z Working directory is '/home/runner/work/giggle/giggle'
+ingest	Checkout code	2025-12-21T18:06:19.5762911Z [command]/usr/bin/git version
+ingest	Checkout code	2025-12-21T18:06:19.5839494Z git version 2.52.0
+ingest	Checkout code	2025-12-21T18:06:19.5866049Z ##[endgroup]
+ingest	Checkout code	2025-12-21T18:06:19.5880345Z Temporarily overriding HOME='/home/runner/work/_temp/08c6bbf7-7042-4454-b214-daf04e9a0780' before making global git config changes
+ingest	Checkout code	2025-12-21T18:06:19.5881973Z Adding repository directory to the temporary git global config as a safe directory
+ingest	Checkout code	2025-12-21T18:06:19.5883835Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/giggle/giggle
+ingest	Checkout code	2025-12-21T18:06:19.5921587Z Deleting the contents of '/home/runner/work/giggle/giggle'
+ingest	Checkout code	2025-12-21T18:06:19.5925590Z ##[group]Initializing the repository
+ingest	Checkout code	2025-12-21T18:06:19.5928216Z [command]/usr/bin/git init /home/runner/work/giggle/giggle
+ingest	Checkout code	2025-12-21T18:06:19.6041551Z hint: Using 'master' as the name for the initial branch. This default branch name
+ingest	Checkout code	2025-12-21T18:06:19.6044874Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+ingest	Checkout code	2025-12-21T18:06:19.6046399Z hint: to use in all of your new repositories, which will suppress this warning,
+ingest	Checkout code	2025-12-21T18:06:19.6047598Z hint: call:
+ingest	Checkout code	2025-12-21T18:06:19.6048078Z hint:
+ingest	Checkout code	2025-12-21T18:06:19.6048565Z hint: 	git config --global init.defaultBranch <name>
+ingest	Checkout code	2025-12-21T18:06:19.6049401Z hint:
+ingest	Checkout code	2025-12-21T18:06:19.6049936Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+ingest	Checkout code	2025-12-21T18:06:19.6051071Z hint: 'development'. The just-created branch can be renamed via this command:
+ingest	Checkout code	2025-12-21T18:06:19.6051767Z hint:
+ingest	Checkout code	2025-12-21T18:06:19.6052145Z hint: 	git branch -m <name>
+ingest	Checkout code	2025-12-21T18:06:19.6052587Z hint:
+ingest	Checkout code	2025-12-21T18:06:19.6053166Z hint: Disable this message with "git config set advice.defaultBranchName false"
+ingest	Checkout code	2025-12-21T18:06:19.6054130Z Initialized empty Git repository in /home/runner/work/giggle/giggle/.git/
+ingest	Checkout code	2025-12-21T18:06:19.6061241Z [command]/usr/bin/git remote add origin https://github.com/azumukupoe/giggle
+ingest	Checkout code	2025-12-21T18:06:19.6099874Z ##[endgroup]
+ingest	Checkout code	2025-12-21T18:06:19.6101434Z ##[group]Disabling automatic garbage collection
+ingest	Checkout code	2025-12-21T18:06:19.6103611Z [command]/usr/bin/git config --local gc.auto 0
+ingest	Checkout code	2025-12-21T18:06:19.6131111Z ##[endgroup]
+ingest	Checkout code	2025-12-21T18:06:19.6132390Z ##[group]Setting up auth
+ingest	Checkout code	2025-12-21T18:06:19.6137352Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+ingest	Checkout code	2025-12-21T18:06:19.6164945Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+ingest	Checkout code	2025-12-21T18:06:19.6527158Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+ingest	Checkout code	2025-12-21T18:06:19.6559148Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+ingest	Checkout code	2025-12-21T18:06:19.6810779Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+ingest	Checkout code	2025-12-21T18:06:19.6848228Z ##[endgroup]
+ingest	Checkout code	2025-12-21T18:06:19.6849517Z ##[group]Fetching the repository
+ingest	Checkout code	2025-12-21T18:06:19.6858670Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --progress --no-recurse-submodules --depth=1 origin +662d0147deb483f7f521bc2261ee4a92c19d691a:refs/remotes/origin/main
+ingest	Checkout code	2025-12-21T18:06:19.8312652Z remote: Enumerating objects: 58, done.        
+ingest	Checkout code	2025-12-21T18:06:19.8314381Z remote: Counting objects:   1% (1/58)        
+ingest	Checkout code	2025-12-21T18:06:19.8315579Z remote: Counting objects:   3% (2/58)        
+ingest	Checkout code	2025-12-21T18:06:19.8316681Z remote: Counting objects:   5% (3/58)        
+ingest	Checkout code	2025-12-21T18:06:19.8317730Z remote: Counting objects:   6% (4/58)        
+ingest	Checkout code	2025-12-21T18:06:19.8318697Z remote: Counting objects:   8% (5/58)        
+ingest	Checkout code	2025-12-21T18:06:19.8319636Z remote: Counting objects:  10% (6/58)        
+ingest	Checkout code	2025-12-21T18:06:19.8320311Z remote: Counting objects:  12% (7/58)        
+ingest	Checkout code	2025-12-21T18:06:19.8321251Z remote: Counting objects:  13% (8/58)        
+ingest	Checkout code	2025-12-21T18:06:19.8322025Z remote: Counting objects:  15% (9/58)        
+ingest	Checkout code	2025-12-21T18:06:19.8322612Z remote: Counting objects:  17% (10/58)        
+ingest	Checkout code	2025-12-21T18:06:19.8323228Z remote: Counting objects:  18% (11/58)        
+ingest	Checkout code	2025-12-21T18:06:19.8323862Z remote: Counting objects:  20% (12/58)        
+ingest	Checkout code	2025-12-21T18:06:19.8324453Z remote: Counting objects:  22% (13/58)        
+ingest	Checkout code	2025-12-21T18:06:19.8325019Z remote: Counting objects:  24% (14/58)        
+ingest	Checkout code	2025-12-21T18:06:19.8325583Z remote: Counting objects:  25% (15/58)        
+ingest	Checkout code	2025-12-21T18:06:19.8326148Z remote: Counting objects:  27% (16/58)        
+ingest	Checkout code	2025-12-21T18:06:19.8326707Z remote: Counting objects:  29% (17/58)        
+ingest	Checkout code	2025-12-21T18:06:19.8327262Z remote: Counting objects:  31% (18/58)        
+ingest	Checkout code	2025-12-21T18:06:19.8327870Z remote: Counting objects:  32% (19/58)        
+ingest	Checkout code	2025-12-21T18:06:19.8328487Z remote: Counting objects:  34% (20/58)        
+ingest	Checkout code	2025-12-21T18:06:19.8329047Z remote: Counting objects:  36% (21/58)        
+ingest	Checkout code	2025-12-21T18:06:19.8329603Z remote: Counting objects:  37% (22/58)        
+ingest	Checkout code	2025-12-21T18:06:19.8330155Z remote: Counting objects:  39% (23/58)        
+ingest	Checkout code	2025-12-21T18:06:19.8330994Z remote: Counting objects:  41% (24/58)        
+ingest	Checkout code	2025-12-21T18:06:19.8331578Z remote: Counting objects:  43% (25/58)        
+ingest	Checkout code	2025-12-21T18:06:19.8332395Z remote: Counting objects:  44% (26/58)        
+ingest	Checkout code	2025-12-21T18:06:19.8332950Z remote: Counting objects:  46% (27/58)        
+ingest	Checkout code	2025-12-21T18:06:19.8333506Z remote: Counting objects:  48% (28/58)        
+ingest	Checkout code	2025-12-21T18:06:19.8334109Z remote: Counting objects:  50% (29/58)        
+ingest	Checkout code	2025-12-21T18:06:19.8334662Z remote: Counting objects:  51% (30/58)        
+ingest	Checkout code	2025-12-21T18:06:19.8335242Z remote: Counting objects:  53% (31/58)        
+ingest	Checkout code	2025-12-21T18:06:19.8335800Z remote: Counting objects:  55% (32/58)        
+ingest	Checkout code	2025-12-21T18:06:19.8336347Z remote: Counting objects:  56% (33/58)        
+ingest	Checkout code	2025-12-21T18:06:19.8336957Z remote: Counting objects:  58% (34/58)        
+ingest	Checkout code	2025-12-21T18:06:19.8337514Z remote: Counting objects:  60% (35/58)        
+ingest	Checkout code	2025-12-21T18:06:19.8338094Z remote: Counting objects:  62% (36/58)        
+ingest	Checkout code	2025-12-21T18:06:19.8338642Z remote: Counting objects:  63% (37/58)        
+ingest	Checkout code	2025-12-21T18:06:19.8339203Z remote: Counting objects:  65% (38/58)        
+ingest	Checkout code	2025-12-21T18:06:19.8339753Z remote: Counting objects:  67% (39/58)        
+ingest	Checkout code	2025-12-21T18:06:19.8340309Z remote: Counting objects:  68% (40/58)        
+ingest	Checkout code	2025-12-21T18:06:19.8341143Z remote: Counting objects:  70% (41/58)        
+ingest	Checkout code	2025-12-21T18:06:19.8341700Z remote: Counting objects:  72% (42/58)        
+ingest	Checkout code	2025-12-21T18:06:19.8342254Z remote: Counting objects:  74% (43/58)        
+ingest	Checkout code	2025-12-21T18:06:19.8342814Z remote: Counting objects:  75% (44/58)        
+ingest	Checkout code	2025-12-21T18:06:19.8343373Z remote: Counting objects:  77% (45/58)        
+ingest	Checkout code	2025-12-21T18:06:19.8343924Z remote: Counting objects:  79% (46/58)        
+ingest	Checkout code	2025-12-21T18:06:19.8344520Z remote: Counting objects:  81% (47/58)        
+ingest	Checkout code	2025-12-21T18:06:19.8345067Z remote: Counting objects:  82% (48/58)        
+ingest	Checkout code	2025-12-21T18:06:19.8345623Z remote: Counting objects:  84% (49/58)        
+ingest	Checkout code	2025-12-21T18:06:19.8346182Z remote: Counting objects:  86% (50/58)        
+ingest	Checkout code	2025-12-21T18:06:19.8346888Z remote: Counting objects:  87% (51/58)        
+ingest	Checkout code	2025-12-21T18:06:19.8347758Z remote: Counting objects:  89% (52/58)        
+ingest	Checkout code	2025-12-21T18:06:19.8348322Z remote: Counting objects:  91% (53/58)        
+ingest	Checkout code	2025-12-21T18:06:19.8348874Z remote: Counting objects:  93% (54/58)        
+ingest	Checkout code	2025-12-21T18:06:19.8349422Z remote: Counting objects:  94% (55/58)        
+ingest	Checkout code	2025-12-21T18:06:19.8349972Z remote: Counting objects:  96% (56/58)        
+ingest	Checkout code	2025-12-21T18:06:19.8350645Z remote: Counting objects:  98% (57/58)        
+ingest	Checkout code	2025-12-21T18:06:19.8351214Z remote: Counting objects: 100% (58/58)        
+ingest	Checkout code	2025-12-21T18:06:19.8351811Z remote: Counting objects: 100% (58/58), done.        
+ingest	Checkout code	2025-12-21T18:06:19.8352430Z remote: Compressing objects:   2% (1/49)        
+ingest	Checkout code	2025-12-21T18:06:19.8353010Z remote: Compressing objects:   4% (2/49)        
+ingest	Checkout code	2025-12-21T18:06:19.8353588Z remote: Compressing objects:   6% (3/49)        
+ingest	Checkout code	2025-12-21T18:06:19.8354164Z remote: Compressing objects:   8% (4/49)        
+ingest	Checkout code	2025-12-21T18:06:19.8354738Z remote: Compressing objects:  10% (5/49)        
+ingest	Checkout code	2025-12-21T18:06:19.8355323Z remote: Compressing objects:  12% (6/49)        
+ingest	Checkout code	2025-12-21T18:06:19.8355902Z remote: Compressing objects:  14% (7/49)        
+ingest	Checkout code	2025-12-21T18:06:19.8356473Z remote: Compressing objects:  16% (8/49)        
+ingest	Checkout code	2025-12-21T18:06:19.8357043Z remote: Compressing objects:  18% (9/49)        
+ingest	Checkout code	2025-12-21T18:06:19.8357636Z remote: Compressing objects:  20% (10/49)        
+ingest	Checkout code	2025-12-21T18:06:19.8358222Z remote: Compressing objects:  22% (11/49)        
+ingest	Checkout code	2025-12-21T18:06:19.8358798Z remote: Compressing objects:  24% (12/49)        
+ingest	Checkout code	2025-12-21T18:06:19.8359384Z remote: Compressing objects:  26% (13/49)        
+ingest	Checkout code	2025-12-21T18:06:19.8360002Z remote: Compressing objects:  28% (14/49)        
+ingest	Checkout code	2025-12-21T18:06:19.8360961Z remote: Compressing objects:  30% (15/49)        
+ingest	Checkout code	2025-12-21T18:06:19.8361927Z remote: Compressing objects:  32% (16/49)        
+ingest	Checkout code	2025-12-21T18:06:19.8362954Z remote: Compressing objects:  34% (17/49)        
+ingest	Checkout code	2025-12-21T18:06:19.8364064Z remote: Compressing objects:  36% (18/49)        
+ingest	Checkout code	2025-12-21T18:06:19.8365066Z remote: Compressing objects:  38% (19/49)        
+ingest	Checkout code	2025-12-21T18:06:19.8366265Z remote: Compressing objects:  40% (20/49)        
+ingest	Checkout code	2025-12-21T18:06:19.8367061Z remote: Compressing objects:  42% (21/49)        
+ingest	Checkout code	2025-12-21T18:06:19.8367650Z remote: Compressing objects:  44% (22/49)        
+ingest	Checkout code	2025-12-21T18:06:19.8368236Z remote: Compressing objects:  46% (23/49)        
+ingest	Checkout code	2025-12-21T18:06:19.8369127Z remote: Compressing objects:  48% (24/49)        
+ingest	Checkout code	2025-12-21T18:06:19.8369726Z remote: Compressing objects:  51% (25/49)        
+ingest	Checkout code	2025-12-21T18:06:19.8370306Z remote: Compressing objects:  53% (26/49)        
+ingest	Checkout code	2025-12-21T18:06:19.8371226Z remote: Compressing objects:  55% (27/49)        
+ingest	Checkout code	2025-12-21T18:06:19.8371814Z remote: Compressing objects:  57% (28/49)        
+ingest	Checkout code	2025-12-21T18:06:19.8372388Z remote: Compressing objects:  59% (29/49)        
+ingest	Checkout code	2025-12-21T18:06:19.8373186Z remote: Compressing objects:  61% (30/49)        
+ingest	Checkout code	2025-12-21T18:06:19.8373793Z remote: Compressing objects:  63% (31/49)        
+ingest	Checkout code	2025-12-21T18:06:19.8374390Z remote: Compressing objects:  65% (32/49)        
+ingest	Checkout code	2025-12-21T18:06:19.8374979Z remote: Compressing objects:  67% (33/49)        
+ingest	Checkout code	2025-12-21T18:06:19.8375555Z remote: Compressing objects:  69% (34/49)        
+ingest	Checkout code	2025-12-21T18:06:19.8376137Z remote: Compressing objects:  71% (35/49)        
+ingest	Checkout code	2025-12-21T18:06:19.8376729Z remote: Compressing objects:  73% (36/49)        
+ingest	Checkout code	2025-12-21T18:06:19.8377306Z remote: Compressing objects:  75% (37/49)        
+ingest	Checkout code	2025-12-21T18:06:19.8377883Z remote: Compressing objects:  77% (38/49)        
+ingest	Checkout code	2025-12-21T18:06:19.8378462Z remote: Compressing objects:  79% (39/49)        
+ingest	Checkout code	2025-12-21T18:06:19.8379038Z remote: Compressing objects:  81% (40/49)        
+ingest	Checkout code	2025-12-21T18:06:19.8379660Z remote: Compressing objects:  83% (41/49)        
+ingest	Checkout code	2025-12-21T18:06:19.8380240Z remote: Compressing objects:  85% (42/49)        
+ingest	Checkout code	2025-12-21T18:06:19.8380958Z remote: Compressing objects:  87% (43/49)        
+ingest	Checkout code	2025-12-21T18:06:19.8381538Z remote: Compressing objects:  89% (44/49)        
+ingest	Checkout code	2025-12-21T18:06:19.8382320Z remote: Compressing objects:  91% (45/49)        
+ingest	Checkout code	2025-12-21T18:06:19.8382967Z remote: Compressing objects:  93% (46/49)        
+ingest	Checkout code	2025-12-21T18:06:19.8383599Z remote: Compressing objects:  95% (47/49)        
+ingest	Checkout code	2025-12-21T18:06:19.8384180Z remote: Compressing objects:  97% (48/49)        
+ingest	Checkout code	2025-12-21T18:06:19.8384765Z remote: Compressing objects: 100% (49/49)        
+ingest	Checkout code	2025-12-21T18:06:19.8385389Z remote: Compressing objects: 100% (49/49), done.        
+ingest	Checkout code	2025-12-21T18:06:19.8475388Z remote: Total 58 (delta 2), reused 50 (delta 2), pack-reused 0 (from 0)        
+ingest	Checkout code	2025-12-21T18:06:19.8609767Z From https://github.com/azumukupoe/giggle
+ingest	Checkout code	2025-12-21T18:06:19.8611481Z  * [new ref]         662d0147deb483f7f521bc2261ee4a92c19d691a -> origin/main
+ingest	Checkout code	2025-12-21T18:06:19.8645111Z ##[endgroup]
+ingest	Checkout code	2025-12-21T18:06:19.8645899Z ##[group]Determining the checkout info
+ingest	Checkout code	2025-12-21T18:06:19.8647390Z ##[endgroup]
+ingest	Checkout code	2025-12-21T18:06:19.8648200Z ##[group]Checking out the ref
+ingest	Checkout code	2025-12-21T18:06:19.8651960Z [command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main
+ingest	Checkout code	2025-12-21T18:06:19.8757783Z Switched to a new branch 'main'
+ingest	Checkout code	2025-12-21T18:06:19.8760245Z branch 'main' set up to track 'origin/main'.
+ingest	Checkout code	2025-12-21T18:06:19.8767389Z ##[endgroup]
+ingest	Checkout code	2025-12-21T18:06:19.8802177Z [command]/usr/bin/git log -1 --format='%H'
+ingest	Checkout code	2025-12-21T18:06:19.8824757Z '662d0147deb483f7f521bc2261ee4a92c19d691a'
+ingest	Install uv	﻿2025-12-21T18:06:19.9029871Z ##[group]Run astral-sh/setup-uv@v4
+ingest	Install uv	2025-12-21T18:06:19.9030686Z with:
+ingest	Install uv	2025-12-21T18:06:19.9031053Z   version: latest
+ingest	Install uv	2025-12-21T18:06:19.9031674Z   github-token: ***
+ingest	Install uv	2025-12-21T18:06:19.9032081Z   enable-cache: false
+ingest	Install uv	2025-12-21T18:06:19.9032515Z   cache-dependency-glob: **/uv.lock
+ingest	Install uv	2025-12-21T18:06:19.9032995Z   prune-cache: true
+ingest	Install uv	2025-12-21T18:06:19.9033413Z   ignore-nothing-to-cache: false
+ingest	Install uv	2025-12-21T18:06:19.9033930Z ##[endgroup]
+ingest	Install uv	2025-12-21T18:06:20.3050127Z Downloading uv from "https://github.com/astral-sh/uv/releases/download/0.9.18/uv-x86_64-unknown-linux-gnu.tar.gz" ...
+ingest	Install uv	2025-12-21T18:06:20.5916236Z [command]/usr/bin/tar xz --warning=no-unknown-keyword --overwrite -C /home/runner/work/_temp/3432b200-9ba4-46f2-a698-ae2285ceea93 -f /home/runner/work/_temp/2fd9dfec-3229-4643-83be-a98e8dcb9757
+ingest	Install uv	2025-12-21T18:06:21.0325664Z Added /opt/hostedtoolcache/uv/0.9.18/x86_64 to the path
+ingest	Install uv	2025-12-21T18:06:21.0326901Z Added /home/runner/.local/bin to the path
+ingest	Install uv	2025-12-21T18:06:21.0345249Z Set UV_CACHE_DIR to /home/runner/work/_temp/setup-uv-cache
+ingest	Install uv	2025-12-21T18:06:21.0345826Z Successfully installed uv version 0.9.18
+ingest	Set up Python	﻿2025-12-21T18:06:21.0479504Z ##[group]Run uv python install 3.12
+ingest	Set up Python	2025-12-21T18:06:21.0479935Z [36;1muv python install 3.12[0m
+ingest	Set up Python	2025-12-21T18:06:21.0518624Z shell: /usr/bin/bash -e {0}
+ingest	Set up Python	2025-12-21T18:06:21.0518971Z env:
+ingest	Set up Python	2025-12-21T18:06:21.0519251Z   UV_CACHE_DIR: /home/runner/work/_temp/setup-uv-cache
+ingest	Set up Python	2025-12-21T18:06:21.0519572Z ##[endgroup]
+ingest	Set up Python	2025-12-21T18:06:21.1896222Z Downloading cpython-3.12.12-linux-x86_64-gnu (download) (31.7MiB)
+ingest	Set up Python	2025-12-21T18:06:22.0655231Z  Downloaded cpython-3.12.12-linux-x86_64-gnu (download)
+ingest	Set up Python	2025-12-21T18:06:22.0707231Z Installed Python 3.12.12 in 1.00s
+ingest	Set up Python	2025-12-21T18:06:22.0709304Z  + cpython-3.12.12-linux-x86_64-gnu (python3.12)
+ingest	Install Dependencies	﻿2025-12-21T18:06:22.0841308Z ##[group]Run uv sync
+ingest	Install Dependencies	2025-12-21T18:06:22.0841637Z [36;1muv sync[0m
+ingest	Install Dependencies	2025-12-21T18:06:22.0876124Z shell: /usr/bin/bash -e {0}
+ingest	Install Dependencies	2025-12-21T18:06:22.0876445Z env:
+ingest	Install Dependencies	2025-12-21T18:06:22.0876672Z   UV_CACHE_DIR: /home/runner/work/_temp/setup-uv-cache
+ingest	Install Dependencies	2025-12-21T18:06:22.0876964Z ##[endgroup]
+ingest	Install Dependencies	2025-12-21T18:06:22.3334375Z Downloading cpython-3.13.11-linux-x86_64-gnu (download) (32.7MiB)
+ingest	Install Dependencies	2025-12-21T18:06:23.2553643Z  Downloaded cpython-3.13.11-linux-x86_64-gnu (download)
+ingest	Install Dependencies	2025-12-21T18:06:23.4055469Z Using CPython 3.13.11
+ingest	Install Dependencies	2025-12-21T18:06:23.4056058Z Creating virtual environment at: .venv
+ingest	Install Dependencies	2025-12-21T18:06:23.7332188Z Resolved 55 packages in 323ms
+ingest	Install Dependencies	2025-12-21T18:06:23.7845726Z Downloading pygments (1.2MiB)
+ingest	Install Dependencies	2025-12-21T18:06:23.7867122Z Downloading pydantic-core (2.0MiB)
+ingest	Install Dependencies	2025-12-21T18:06:23.7875153Z Downloading cryptography (4.3MiB)
+ingest	Install Dependencies	2025-12-21T18:06:23.7892307Z Downloading pyroaring (2.0MiB)
+ingest	Install Dependencies	2025-12-21T18:06:23.9282169Z  Downloaded pydantic-core
+ingest	Install Dependencies	2025-12-21T18:06:23.9422212Z  Downloaded pyroaring
+ingest	Install Dependencies	2025-12-21T18:06:23.9781077Z  Downloaded cryptography
+ingest	Install Dependencies	2025-12-21T18:06:24.0034109Z    Building pyiceberg==0.10.0
+ingest	Install Dependencies	2025-12-21T18:06:24.0168774Z  Downloaded pygments
+ingest	Install Dependencies	2025-12-21T18:06:28.9662182Z       Built pyiceberg==0.10.0
+ingest	Install Dependencies	2025-12-21T18:06:28.9730184Z Prepared 53 packages in 5.23s
+ingest	Install Dependencies	2025-12-21T18:06:28.9954258Z Installed 53 packages in 22ms
+ingest	Install Dependencies	2025-12-21T18:06:28.9954989Z  + annotated-types==0.7.0
+ingest	Install Dependencies	2025-12-21T18:06:28.9955408Z  + anyio==4.12.0
+ingest	Install Dependencies	2025-12-21T18:06:28.9955815Z  + beautifulsoup4==4.14.3
+ingest	Install Dependencies	2025-12-21T18:06:28.9956336Z  + cachetools==6.2.4
+ingest	Install Dependencies	2025-12-21T18:06:28.9956869Z  + certifi==2025.11.12
+ingest	Install Dependencies	2025-12-21T18:06:28.9957379Z  + cffi==2.0.0
+ingest	Install Dependencies	2025-12-21T18:06:28.9957859Z  + charset-normalizer==3.4.4
+ingest	Install Dependencies	2025-12-21T18:06:28.9958302Z  + click==8.3.1
+ingest	Install Dependencies	2025-12-21T18:06:28.9958723Z  + cryptography==46.0.3
+ingest	Install Dependencies	2025-12-21T18:06:28.9959140Z  + deprecation==2.1.0
+ingest	Install Dependencies	2025-12-21T18:06:28.9959502Z  + fsspec==2025.12.0
+ingest	Install Dependencies	2025-12-21T18:06:28.9959808Z  + h11==0.16.0
+ingest	Install Dependencies	2025-12-21T18:06:28.9960214Z  + h2==4.3.0
+ingest	Install Dependencies	2025-12-21T18:06:28.9961006Z  + hpack==4.1.0
+ingest	Install Dependencies	2025-12-21T18:06:28.9961682Z  + httpcore==1.0.9
+ingest	Install Dependencies	2025-12-21T18:06:28.9962173Z  + httpx==0.28.1
+ingest	Install Dependencies	2025-12-21T18:06:28.9962567Z  + hyperframe==6.1.0
+ingest	Install Dependencies	2025-12-21T18:06:28.9962920Z  + idna==3.11
+ingest	Install Dependencies	2025-12-21T18:06:28.9963406Z  + markdown-it-py==4.0.0
+ingest	Install Dependencies	2025-12-21T18:06:28.9963767Z  + mdurl==0.1.2
+ingest	Install Dependencies	2025-12-21T18:06:28.9964073Z  + mmh3==5.2.0
+ingest	Install Dependencies	2025-12-21T18:06:28.9964502Z  + multidict==6.7.0
+ingest	Install Dependencies	2025-12-21T18:06:28.9964869Z  + packaging==25.0
+ingest	Install Dependencies	2025-12-21T18:06:28.9965224Z  + postgrest==2.27.0
+ingest	Install Dependencies	2025-12-21T18:06:28.9965597Z  + propcache==0.4.1
+ingest	Install Dependencies	2025-12-21T18:06:28.9965923Z  + pycparser==2.23
+ingest	Install Dependencies	2025-12-21T18:06:28.9966264Z  + pydantic==2.12.5
+ingest	Install Dependencies	2025-12-21T18:06:28.9966634Z  + pydantic-core==2.41.5
+ingest	Install Dependencies	2025-12-21T18:06:28.9966989Z  + pygments==2.19.2
+ingest	Install Dependencies	2025-12-21T18:06:28.9968119Z  + pyiceberg==0.10.0
+ingest	Install Dependencies	2025-12-21T18:06:28.9968478Z  + pyjwt==2.10.1
+ingest	Install Dependencies	2025-12-21T18:06:28.9968796Z  + pyparsing==3.2.5
+ingest	Install Dependencies	2025-12-21T18:06:28.9969127Z  + pyroaring==1.0.3
+ingest	Install Dependencies	2025-12-21T18:06:28.9969458Z  + python-dateutil==2.9.0.post0
+ingest	Install Dependencies	2025-12-21T18:06:28.9970190Z  + python-dotenv==1.2.1
+ingest	Install Dependencies	2025-12-21T18:06:28.9970783Z  + realtime==2.27.0
+ingest	Install Dependencies	2025-12-21T18:06:28.9971105Z  + requests==2.32.5
+ingest	Install Dependencies	2025-12-21T18:06:28.9971409Z  + rich==14.2.0
+ingest	Install Dependencies	2025-12-21T18:06:28.9971709Z  + six==1.17.0
+ingest	Install Dependencies	2025-12-21T18:06:28.9972032Z  + sortedcontainers==2.4.0
+ingest	Install Dependencies	2025-12-21T18:06:28.9972402Z  + soupsieve==2.8.1
+ingest	Install Dependencies	2025-12-21T18:06:28.9972708Z  + storage3==2.27.0
+ingest	Install Dependencies	2025-12-21T18:06:28.9973019Z  + strenum==0.4.15
+ingest	Install Dependencies	2025-12-21T18:06:28.9973339Z  + strictyaml==1.7.3
+ingest	Install Dependencies	2025-12-21T18:06:28.9973671Z  + supabase==2.27.0
+ingest	Install Dependencies	2025-12-21T18:06:28.9974001Z  + supabase-auth==2.27.0
+ingest	Install Dependencies	2025-12-21T18:06:28.9974374Z  + supabase-functions==2.27.0
+ingest	Install Dependencies	2025-12-21T18:06:28.9974765Z  + tenacity==9.1.2
+ingest	Install Dependencies	2025-12-21T18:06:28.9975102Z  + typing-extensions==4.15.0
+ingest	Install Dependencies	2025-12-21T18:06:28.9975499Z  + typing-inspection==0.4.2
+ingest	Install Dependencies	2025-12-21T18:06:28.9975854Z  + urllib3==2.6.2
+ingest	Install Dependencies	2025-12-21T18:06:28.9976175Z  + websockets==15.0.1
+ingest	Install Dependencies	2025-12-21T18:06:28.9976506Z  + yarl==1.22.0
+ingest	Run Ingestion Script	﻿2025-12-21T18:06:29.0277861Z ##[group]Run uv run main.py
+ingest	Run Ingestion Script	2025-12-21T18:06:29.0278169Z [36;1muv run main.py[0m
+ingest	Run Ingestion Script	2025-12-21T18:06:29.0311009Z shell: /usr/bin/bash -e {0}
+ingest	Run Ingestion Script	2025-12-21T18:06:29.0311253Z env:
+ingest	Run Ingestion Script	2025-12-21T18:06:29.0311476Z   UV_CACHE_DIR: /home/runner/work/_temp/setup-uv-cache
+ingest	Run Ingestion Script	2025-12-21T18:06:29.0312103Z   SUPABASE_URL: ***
+ingest	Run Ingestion Script	2025-12-21T18:06:29.0313438Z   SUPABASE_KEY: ***
+ingest	Run Ingestion Script	2025-12-21T18:06:29.0313719Z   TICKETMASTER_API_KEY: ***
+ingest	Run Ingestion Script	2025-12-21T18:06:29.0313942Z ##[endgroup]
+ingest	Run Ingestion Script	2025-12-21T18:06:33.5528695Z Syncing artist: Radiohead
+ingest	Run Ingestion Script	2025-12-21T18:06:33.5529337Z   Fetching from BandsInTownConnector...
+ingest	Run Ingestion Script	2025-12-21T18:06:33.5530030Z DEBUG: Scraping URL: https://www.bandsintown.com/a/radiohead
+ingest	Run Ingestion Script	2025-12-21T18:06:33.5530984Z Artist not found: Radiohead
+ingest	Run Ingestion Script	2025-12-21T18:06:33.5531405Z     Found 0 events.
+ingest	Run Ingestion Script	2025-12-21T18:06:33.5531818Z   Fetching from SongkickConnector...
+ingest	Run Ingestion Script	2025-12-21T18:06:33.5532333Z Artist not found on Songkick: Radiohead
+ingest	Run Ingestion Script	2025-12-21T18:06:33.5532791Z     Found 0 events.
+ingest	Run Ingestion Script	2025-12-21T18:06:33.5533215Z   Fetching from SeatGeekConnector...
+ingest	Run Ingestion Script	2025-12-21T18:06:33.5533619Z     Found 0 events.
+ingest	Run Ingestion Script	2025-12-21T18:06:33.5533883Z   Fetching from TicketmasterConnector...
+ingest	Run Ingestion Script	2025-12-21T18:06:33.5534210Z     Found 20 events.
+ingest	Run Ingestion Script	2025-12-21T18:06:33.5534467Z Syncing artist: Daft Punk
+ingest	Run Ingestion Script	2025-12-21T18:06:33.5534754Z   Fetching from BandsInTownConnector...
+ingest	Run Ingestion Script	2025-12-21T18:06:33.5535172Z DEBUG: Scraping URL: https://www.bandsintown.com/a/daft-punk
+ingest	Run Ingestion Script	2025-12-21T18:06:33.5535581Z Artist not found: Daft Punk
+ingest	Run Ingestion Script	2025-12-21T18:06:33.5535839Z     Found 0 events.
+ingest	Run Ingestion Script	2025-12-21T18:06:33.5536088Z   Fetching from SongkickConnector...
+ingest	Run Ingestion Script	2025-12-21T18:06:33.5536401Z Artist not found on Songkick: Daft Punk
+ingest	Run Ingestion Script	2025-12-21T18:06:33.5536689Z     Found 0 events.
+ingest	Run Ingestion Script	2025-12-21T18:06:33.5536933Z   Fetching from SeatGeekConnector...
+ingest	Run Ingestion Script	2025-12-21T18:06:33.5537214Z     Found 0 events.
+ingest	Run Ingestion Script	2025-12-21T18:06:33.5537460Z   Fetching from TicketmasterConnector...
+ingest	Run Ingestion Script	2025-12-21T18:06:33.5537766Z     Found 13 events.
+ingest	Run Ingestion Script	2025-12-21T18:06:33.5538012Z Saving 33 events to Supabase...
+ingest	Run Ingestion Script	2025-12-21T18:06:33.5538685Z Supabase upsert error: {'message': 'new row violates row-level security policy for table "events"', 'code': '42501', 'hint': None, 'details': None}
+ingest	Run Ingestion Script	2025-12-21T18:06:33.5539731Z Error saving to DB: {'message': 'new row violates row-level security policy for table "events"', 'code': '42501', 'hint': None, 'details': None}
+ingest	Run Ingestion Script	2025-12-21T18:06:33.5540382Z Total events found: 33
+ingest	Run Ingestion Script	2025-12-21T18:06:33.5541279Z  - Just Radiohead @ O2 Academy2 Oxford (2026-09-18 18:30:00)
+ingest	Run Ingestion Script	2025-12-21T18:06:33.5542097Z  - Just Radiohead @ O2 Academy Islington (2026-11-07 18:00:00)
+ingest	Run Ingestion Script	2025-12-21T18:06:33.5542897Z  - Just Radiohead @ O2 Academy2 Birmingham (2026-11-13 19:00:00)
+ingest	Run Ingestion Script	2025-12-21T18:06:33.5543706Z  - Just Radiohead @ Brudenell Social Club (2026-02-06 19:30:00)
+ingest	Run Ingestion Script	2025-12-21T18:06:33.5544376Z  - Just Radiohead @ Hertford Corn Exchange (2026-02-20 19:30:00)
+ingest	Run Ingestion Script	2025-12-21T18:06:33.5544950Z  - Just Radiohead @ The Globe (2026-03-28 19:00:00)
+ingest	Run Ingestion Script	2025-12-21T18:06:33.5545480Z  - Just Radiohead @ Hangar 34 (2026-04-18 19:00:00)
+ingest	Run Ingestion Script	2025-12-21T18:06:33.5546018Z  - Just Radiohead @ Foundry, Sheffield (2026-05-01 19:00:00)
+ingest	Run Ingestion Script	2025-12-21T18:06:33.5547053Z  - Just Radiohead @ Sin City (2026-09-12 19:00:00)
+ingest	Run Ingestion Script	2025-12-21T18:06:33.5547622Z  - Just Radiohead @ Brighton Concorde 2 (2026-09-25 19:00:00)
+ingest	Run Ingestion Script	2025-12-21T18:06:33.5548244Z  - Just Radiohead @ Southampton 1865 (2026-09-26 19:00:00)
+ingest	Run Ingestion Script	2025-12-21T18:06:33.5548869Z  - Just Radiohead @ Manchester Academy (2026-10-02 19:30:00)
+ingest	Run Ingestion Script	2025-12-21T18:06:33.5549389Z  - Just Radiohead @ KOLA (2026-11-21 19:00:00)
+ingest	Run Ingestion Script	2025-12-21T18:06:33.5549885Z  - Just Radiohead @ The Cluny (2026-11-28 19:30:00)
+ingest	Run Ingestion Script	2025-12-21T18:06:33.5550707Z  - Karma Police: Tribute To Radiohead @ Underworld (2026-02-07 19:00:00)
+ingest	Run Ingestion Script	2025-12-21T18:06:33.5551510Z  - Idioteque - Radiohead Tribute Band @ Overflow Brewing Co. (2026-03-06 20:30:00)
+ingest	Run Ingestion Script	2025-12-21T18:06:33.5552393Z  - Lotus Flower (Radiohead Tribute) @ The Wall Saloon & Performance (2026-01-08 21:00:00)
+ingest	Run Ingestion Script	2025-12-21T18:06:33.5553227Z  - Android Paranoid: Tribute to Radiohead @ SPACE (2025-12-27 20:00:00)
+ingest	Run Ingestion Script	2025-12-21T18:06:33.5554601Z  - Lotus Flower (Radiohead Tribute Band) @ Kadıköy Sahne (2026-03-13 21:30:00)
+ingest	Run Ingestion Script	2025-12-21T18:06:33.5555964Z  - There There - A Tribute to Radiohead (18 and Over) @ The Sinclair Music Hall (2026-01-10 20:30:00)
+ingest	Run Ingestion Script	2025-12-21T18:06:33.5556733Z  - Daft Punk Night @ Stage Red (2026-02-06 20:00:00)
+ingest	Run Ingestion Script	2025-12-21T18:06:33.5557563Z  - Daft Funk Live (A Retrospective Celebration of Daft Punk Live) @ O2 City Hall Newcastle (2026-01-03 19:00:00)
+ingest	Run Ingestion Script	2025-12-21T18:06:33.5558754Z  - Daft Funk Live A Retrospective Celebration of Daft Punk Performed Live @ O2 Academy Leeds (2026-01-10 19:00:00)
+ingest	Run Ingestion Script	2025-12-21T18:06:33.5559959Z  - Daft Funk Live A Retrospective Celebration of Daft Punk Performed Live @ O2 Academy Liverpool (2026-04-25 19:00:00)
+ingest	Run Ingestion Script	2025-12-21T18:06:33.5561408Z  - Daft Funk: Live A Retrospective Celebration of Daft Punk Performed Liv @ O2 Academy2 Birmingham (2026-05-09 19:00:00)
+ingest	Run Ingestion Script	2025-12-21T18:06:33.5562624Z  - Daft Funk Live A Retrospective Celebration of Daft Punk Performed Live @ O2 Academy2 Oxford (2026-06-06 18:30:00)
+ingest	Run Ingestion Script	2025-12-21T18:06:33.5563860Z  - Daft Funk Live A Retrospective Celebration of Daft Punk Performed Live @ O2 Academy Bristol (2026-09-18 19:00:00)
+ingest	Run Ingestion Script	2025-12-21T18:06:33.5564863Z  - One More Time: A Tribute to Daft Punk @ Meow Wolf Denver (2026-01-09 20:00:00)
+ingest	Run Ingestion Script	2025-12-21T18:06:33.5565656Z  - One More Time: A Tribute to Daft Punk @ Meow Wolf Denver (2026-01-10 20:00:00)
+ingest	Run Ingestion Script	2025-12-21T18:06:33.5566500Z  - One More Time: A Tribute to Daft Punk @ Meow Wolf  Denver Convergence Station (2026-01-09 20:00:00)
+ingest	Run Ingestion Script	2025-12-21T18:06:33.5567417Z  - One More Time: A Tribute to Daft Punk @ Meow Wolf  Denver Convergence Station (2026-01-10 20:00:00)
+ingest	Run Ingestion Script	2025-12-21T18:06:33.5568006Z  - ONE MORE TIME: A DAFT PUNK TRIBUTE PARTY @ Avalon Hollywood (2026-01-18 22:00:00)
+ingest	Run Ingestion Script	2025-12-21T18:06:33.5568481Z  - One More Time (A Tribute To Daft Punk), DJ Mancat @ Music Box (2025-12-27 21:00:00)
+ingest	Post Install uv	﻿2025-12-21T18:06:33.6968060Z Post job cleanup.
+ingest	Post Checkout code	﻿2025-12-21T18:06:33.8529667Z Post job cleanup.
+ingest	Post Checkout code	2025-12-21T18:06:33.9228520Z [command]/usr/bin/git version
+ingest	Post Checkout code	2025-12-21T18:06:33.9263260Z git version 2.52.0
+ingest	Post Checkout code	2025-12-21T18:06:33.9306638Z Temporarily overriding HOME='/home/runner/work/_temp/3e88a3ba-0c16-4c86-9433-1c67f99f3859' before making global git config changes
+ingest	Post Checkout code	2025-12-21T18:06:33.9307940Z Adding repository directory to the temporary git global config as a safe directory
+ingest	Post Checkout code	2025-12-21T18:06:33.9311162Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/giggle/giggle
+ingest	Post Checkout code	2025-12-21T18:06:33.9341944Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+ingest	Post Checkout code	2025-12-21T18:06:33.9370342Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+ingest	Post Checkout code	2025-12-21T18:06:33.9601137Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+ingest	Post Checkout code	2025-12-21T18:06:33.9617106Z http.https://github.com/.extraheader
+ingest	Post Checkout code	2025-12-21T18:06:33.9633089Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+ingest	Post Checkout code	2025-12-21T18:06:33.9665353Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+ingest	Complete job	﻿2025-12-21T18:06:34.0017085Z Cleaning up orphan processes

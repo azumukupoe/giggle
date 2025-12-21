@@ -54,3 +54,13 @@ def upsert_events(supabase: Client, events: list):
     except Exception as e:
         print(f"Supabase upsert error: {e}")
         raise e
+
+def get_all_artists(supabase: Client) -> list[str]:
+    """Fetch all unique artist names from the 'artists' table."""
+    try:
+        response = supabase.table("artists").select("name").execute()
+        # response.data is a list of dicts: [{'name': 'Radiohead'}, ...]
+        return [row['name'] for row in response.data]
+    except Exception as e:
+        print(f"Error fetching artists from DB: {e}")
+        return []

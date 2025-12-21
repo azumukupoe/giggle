@@ -24,6 +24,20 @@ export const Feed = () => {
                 if (followed.length > 0) {
                     artistFilter = followed;
                     setFilterMessage(`Showing events for your ${followed.length} followed artists.`);
+
+                    // --- NEW: Dynamic Sync (Google for Gigs) ---
+                    // Sync these artist names to the public 'artists' table so the backend can scrape them.
+                    try {
+                        const artistsToInsert = followed.map((name: string) => ({ name }));
+                        // Fire and forget, don't block the UI
+                        supabase.from('artists').upsert(artistsToInsert, { onConflict: 'name', ignoreDuplicates: true }).then(({ error }) => {
+                            if (error) console.error("Error syncing artists to backend:", error);
+                        });
+                    } catch (err) {
+                        console.error("Sync error:", err)
+                    }
+                    // -------------------------------------------
+
                 } else {
                     setFilterMessage("You don't follow any artists on Spotify yet. Showing all events.");
                 }

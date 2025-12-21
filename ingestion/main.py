@@ -22,7 +22,23 @@ def main():
         # Scrapers excluded from default run to avoid bans unless explicitly tested
     ]
 
-    artists_to_sync = [args.artist] if args.artist else ["Radiohead", "Daft Punk"] # Default/Test list
+    if args.artist:
+        artists_to_sync = [args.artist]
+    else:
+        # Dynamic Sync: Fetch from DB
+        try:
+            from db import get_supabase_client, get_all_artists
+            supabase = get_supabase_client()
+            db_artists = get_all_artists(supabase)
+            if db_artists:
+                 print(f"Loaded {len(db_artists)} artists from database.")
+                 artists_to_sync = db_artists
+            else:
+                 print("No artists in database. Defaulting to test list.")
+                 artists_to_sync = ["Radiohead", "Daft Punk"]
+        except Exception as e:
+             print(f"Failed to load artists from DB: {e}")
+             artists_to_sync = ["Radiohead", "Daft Punk"]
 
     all_events: List[Event] = []
 
