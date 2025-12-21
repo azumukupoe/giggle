@@ -1,5 +1,6 @@
 import os
 import argparse
+import json
 from typing import List
 from connectors.base import Event
 from connectors.ticketmaster import TicketmasterConnector
@@ -26,29 +27,30 @@ def main():
     # 1. Songkick (Metro Areas)
     # We loop through known Metro IDs. 
     # TODO: Add Osaka/Nagoya/Kyoto once IDs are confirmed.
+    # 1. Songkick (Metro Areas)
     sk_connector = SongkickConnector()
-    sk_metros = {
-        'Tokyo': '30717-japan-tokyo',
-        'Osaka': '30647-japan-osaka',
-        'Nagoya': '30611-japan-nagoya',
-        'Sapporo': '30668-japan-sapporo',
-        'Fukuoka': '30434-japan-fukuoka',
-        'Sendai': '30673-japan-sendai',
-        'Hiroshima': '30470-japan-hiroshima',
-        'Kyoto': '30571-japan-kyoto',
-        'Okinawa (Naha)': '30612-japan-naha',
-        'Yokohama': '30754-japan-yokohama',
-        'Kobe': '30545-japan-kobe',
-        'Kagoshima': '30510-japan-kagoshima',
-        'Kanazawa': '30518-japan-kanazawa',
-        'Niigata': '30619-japan-niigata'
-    }
     
-    for city, metro_id in sk_metros.items():
-        print(f"  [Songkick] Scraping {city} ({metro_id})...")
-        events = sk_connector.get_metro_events(metro_id=metro_id)
-        print(f"  [Songkick] Found {len(events)} events in {city}.")
-        all_events.extend(events)
+    # Load Metro IDs from JSON
+    metros_file = os.path.join(os.path.dirname(__file__), 'japan_metro_ids.json')
+    if os.path.exists(metros_file):
+        with open(metros_file, 'r', encoding='utf-8') as f:
+            sk_metros_data = json.load(f)
+        print(f"  [Songkick] Loaded {len(sk_metros_data)} metro areas from file.")
+    else:
+        print("  [Songkick] Warning: japan_metro_ids.json not found. using fallback.")
+        sk_metros_data = {'30717': {'full_slug': '30717-japan-tokyo', 'name': 'Tokyo'}} # Fallback
+
+    # Iterate
+    for i, (mid, data) in enumerate(sk_metros_data.items()):
+        metro_slug = data.get('full_slug')
+        name = data.get('name', mid)
+        print(f"  [Songkick] ({i+1}/{len(sk_metros_data)}) Scraping {name} ({metro_slug})...")
+        try:
+             events = sk_connector.get_metro_events(metro_id=metro_slug)
+             print(f"    -> Found {len(events)} events.")
+             all_events.extend(events)
+        except Exception as e:
+             print(f"    -> Failed: {e}")
 
     # 2. Resident Advisor (Major Cities)
     # RA is blocking GH Actions (403). Disabled.
