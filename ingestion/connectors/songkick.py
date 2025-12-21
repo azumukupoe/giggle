@@ -133,5 +133,6 @@ class SongkickConnector(BaseConnector):
                 source='songkick',
                 external_id=item.get('url')
             )
-        except:
+        except Exception as e:
+            print(f"Error parsing JSON-LD item: {e}")
             return None
