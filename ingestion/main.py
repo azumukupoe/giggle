@@ -26,12 +26,11 @@ def main():
 
     # --- PHASE 1: Japan Discovery (Broad Search) ---
     # Fetch general upcoming music in Japan to populate the feed.
-    # We rely on Ticketmaster's API for broad discovery as other scrapers require specific artist names.
-    print("--- Phase 1: Japan Discovery (Ticketmaster) ---")
-    tm_connector = TicketmasterConnector()
-    # Fetch a larger batch to populate the database
-    discovery_events = tm_connector.get_events(country_code="JP", limit=200)
-    print(f"  Found {len(discovery_events)} discovery events in Japan.")
+    # We rely on Songkick's Metro Area for broad discovery (Ticketmaster Japan API proved empty).
+    print("--- Phase 1: Japan Discovery (Songkick Tokyo) ---")
+    sk_connector = SongkickConnector()
+    discovery_events = sk_connector.get_metro_events(metro_id="30717-japan-tokyo")
+    print(f"  Found {len(discovery_events)} discovery events in Tokyo.")
     all_events.extend(discovery_events)
     
     # Note: Other connectors (Songkick, BandsInTown) are artist-centric. 

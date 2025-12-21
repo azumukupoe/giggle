@@ -13,8 +13,43 @@ class SongkickConnector(BaseConnector):
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
         }
 
-    def get_events(self, query: str = None) -> List[Event]:
-        return []
+    def get_metro_events(self, metro_id: str = "30717-japan-tokyo") -> List[Event]:
+        """
+        Fetches events for a specific metro area (e.g., Tokyo).
+        """
+        url = f"{self.base_url}/metro-areas/{metro_id}"
+        print(f"  [Songkick] Scraping metro area: {url}")
+        
+        try:
+            resp = requests.get(url, headers=self.headers)
+            soup = BeautifulSoup(resp.content, 'html.parser')
+            
+            events = []
+            scripts = soup.find_all('script', type='application/ld+json')
+            for script in scripts:
+                if 'MusicEvent' in script.text:
+                    try:
+                        data = json.loads(script.text)
+                        items = data if isinstance(data, list) else [data]
+                        for item in items:
+                            if item.get('@type') == 'MusicEvent':
+                                # Identify artist from performer list if possible
+                                performers = item.get('performer', [])
+                                if isinstance(performers, list) and performers:
+                                    artist_name = performers[0].get('name', 'Unknown Artist')
+                                else:
+                                    artist_name = item.get('name', 'Unknown Event')
+
+                                evt = self._parse_json_ld(item, artist_name)
+                                if evt: events.append(evt)
+                    except:
+                        pass
+            
+            return events
+
+        except Exception as e:
+            print(f"Error scraping Songkick metro: {e}")
+            return []
 
     def get_artist_events(self, artist_name: str) -> List[Event]:
         # Songkick scraping is 2-step: Search -> User Page -> Calendar
