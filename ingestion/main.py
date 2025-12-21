@@ -51,8 +51,6 @@ def main():
     all_events.extend(discovery_events)
 
     # --- PHASE 2: Personalized/Specific Scrape ---
-
-    # --- PHASE 2: Personalized/Specific Scrape ---
     for artist in artists_to_sync:
         print(f"Syncing artist: {artist}")
         for connector in connectors:
