@@ -93,11 +93,26 @@ def main():
 
     # Save to Supabase
     if all_events:
-        print(f"Saving {len(all_events)} events to Supabase...")
+        print(f"Total raw events found: {len(all_events)}")
+
+        # Deduplicate to prevent Postgres 21000 error (ON CONFLICT DO UPDATE command cannot affect row a second time)
+        # This occurs if the input batch contains multiple rows with the same (source, external_id)
+        unique_events_map = {}
+        for event in all_events:
+            # unique constraint is (source, external_id)
+            key = (event.source, str(event.external_id)) 
+            if key not in unique_events_map:
+                unique_events_map[key] = event
+            else:
+                pass # Already have this event, skip duplicate
+        
+        unique_events = list(unique_events_map.values())
+        print(f"Saving {len(unique_events)} distinct events to Supabase (removed {len(all_events) - len(unique_events)} duplicates)...")
+
         try:
              supabase = get_supabase_client()
              from db import upsert_events
-             upsert_events(supabase, all_events)
+             upsert_events(supabase, unique_events)
              print("Success!")
         except Exception as e:
              print(f"Error saving to DB: {e}")
