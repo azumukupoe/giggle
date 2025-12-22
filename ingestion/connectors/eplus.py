@@ -97,10 +97,13 @@ class EplusConnector(BaseConnector):
                         # Try to find 'shutsuensha' (performers) in the first ticket info block
                         artist = "Various"
                         uketsuke_list = item.get('kanren_uketsuke_koen_list', [])
-                        if uketsuke_list:
                             performers = uketsuke_list[0].get('shutsuensha')
                             if performers:
-                                artist = performers
+                                # Filter out system messages (Streaming+ stamp/gift info)
+                                if "スタンプ&ギフト" in performers or "streamingplus" in performers:
+                                    artist = "Various"
+                                else:
+                                    artist = performers
                         
                         # Strict filtering: Skip if artist is generic
                         if artist == "Various":
