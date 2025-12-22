@@ -89,10 +89,23 @@ class EplusConnector(BaseConnector):
                     # but sometimes derived from codes. For now, leave empty or use generic.
                     img_url = None 
                     
+                    # Artist
+                    # Try to find 'shutsuensha' (performers) in the first ticket info block
+                    artist = "Various"
+                    uketsuke_list = item.get('kanren_uketsuke_koen_list', [])
+                    if uketsuke_list:
+                        performers = uketsuke_list[0].get('shutsuensha')
+                        if performers:
+                            artist = performers
+                    
+                    # Fallback to title if artist is still generic or empty
+                    if artist == "Various" and title:
+                        artist = title
+
                     if link:
                         events.append(Event(
                             title=title,
-                            artist="Various", # eplus listing is event-centric
+                            artist=artist,
                             venue=venue_name,
                             date=date_obj,
                             location=location,

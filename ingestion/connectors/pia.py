@@ -37,8 +37,13 @@ class PiaConnector(BaseConnector):
                 return []
 
             # Use resp.content so BS4 can detect encoding from bytes/meta
-            # This avoids requests' sometimes flaky text decoding
             soup = BeautifulSoup(resp.content, 'html.parser')
+
+            # Check for maintenance
+            if "ただいまシステムメンテナンス中です" in soup.get_text() or "system maintenance" in soup.get_text().lower():
+                print(f"  [Pia] WARNING: System Maintenance in progress (usually Tue/Wed 2:30-5:30 AM JST).")
+                return []
+
             event_links = soup.select('div.event_link')
             
             print(f"  [Pia] Found {len(event_links)} event items.")
