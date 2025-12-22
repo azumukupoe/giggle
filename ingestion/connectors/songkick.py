@@ -143,12 +143,23 @@ class SongkickConnector(BaseConnector):
                  loc = str(address)
 
             title = item.get('name', 'Unknown Event')
-            # Check for explicitly defined Tour or SuperEvent (Festival)
+            
+            # 1. Check JSON-LD for tour/superEvent (Fast)
             tour_info = item.get('tour') or item.get('superEvent')
+            tour_name = None
             if isinstance(tour_info, dict):
                 tour_name = tour_info.get('name')
-                if tour_name and tour_name not in title:
-                    title = f"{tour_name} - {title}"
+            
+            # 2. If not in JSON, scrape the detail page (Slow but accurate)
+            # Only do this if we have a URL and not too many requests (maybe limit concurrency or just accept it's slower)
+            url = item.get('url')
+            if not tour_name and url:
+                 # Check if we should fetch detailed info (maybe logic to skip if title is already long?)
+                 # For now, fetch to ensure correctness as per user request
+                 tour_name = self._get_tour_name_from_page(url)
+
+            if tour_name and tour_name not in title:
+                title = f"{tour_name} - {title}"
             
             return Event(
                 # Use 'name' for title (usually contains Tour Name or Event Title)
@@ -164,4 +175,35 @@ class SongkickConnector(BaseConnector):
             )
         except Exception as e:
             print(f"Error parsing JSON-LD item: {e}")
+            return None
+
+    def _get_tour_name_from_page(self, url: str) -> str:
+        """
+        Fetches the event detail page and looks for 'Tour name' in Additional Details.
+        Returns the tour name string or None.
+        """
+        try:
+            # print(f"    [Songkick] Checking detail page for tour info: {url}")
+            resp = requests.get(url, headers=self.headers, timeout=10)
+            if resp.status_code != 200: return None
+            
+            soup = BeautifulSoup(resp.content, 'html.parser')
+            
+            # Look for "Additional details" header
+            # Structure: <h2>Additional details</h2> <p>Tour name: XXX</p> or <div>Tour name:XXX</div>
+            # We can search for the text "Tour name:" directly
+            target = soup.find(string=lambda t: t and "Tour name:" in t)
+            if target:
+                # Cleanup: "Tour name: CROSSFADES" -> "CROSSFADES"
+                text = target.strip()
+                if text.startswith("Tour name:"):
+                    return text.replace("Tour name:", "").strip()
+                # If it's in a parent element
+                parent_text = target.parent.get_text(strip=True)
+                if parent_text.startswith("Tour name:"):
+                     return parent_text.replace("Tour name:", "").strip()
+
+            return None
+        except Exception as e:
+            # print(f"    [Songkick] Detail scrape failed: {e}")
             return None

@@ -87,8 +87,11 @@ class EplusConnector(BaseConnector):
                         # Location / Venue
                         venue_info = item.get('kanren_venue', {})
                         venue_name = venue_info.get('venue_name') or "Unknown Venue"
-                        pref_name = venue_info.get('todofuken_name') or "Japan"
-                        location = f"{venue_name}, {pref_name}"
+                        
+                        # User Request: Don't include venue in location, just prefecture/city
+                        # Leave blank if no data
+                        pref_name = venue_info.get('todofuken_name')
+                        location = pref_name if pref_name else None
 
                         # Image
                         img_url = None 
