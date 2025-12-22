@@ -102,9 +102,10 @@ class EplusConnector(BaseConnector):
                             if performers:
                                 artist = performers
                         
-                        # Fallback to title if artist is still generic or empty
-                        if artist == "Various" and title:
-                            artist = title
+                        # Strict filtering: Skip if artist is generic
+                        if artist == "Various":
+                             # print(f"  [eplus] Skipping {title} (No artist info)")
+                             continue
 
                         if link:
                             all_events.append(Event(

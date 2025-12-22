@@ -142,8 +142,17 @@ class SongkickConnector(BaseConnector):
             else:
                  loc = str(address)
 
+            title = item.get('name', 'Unknown Event')
+            # Check for explicitly defined Tour or SuperEvent (Festival)
+            tour_info = item.get('tour') or item.get('superEvent')
+            if isinstance(tour_info, dict):
+                tour_name = tour_info.get('name')
+                if tour_name and tour_name not in title:
+                    title = f"{tour_name} - {title}"
+            
             return Event(
-                title=item.get('name'),
+                # Use 'name' for title (usually contains Tour Name or Event Title)
+                title=title, 
                 artist=artist_name,
                 venue=venue_name,
                 location=loc,
