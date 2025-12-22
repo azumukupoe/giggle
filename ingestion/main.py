@@ -9,6 +9,8 @@ from connectors.songkick import SongkickConnector
 from connectors.seatgeek import SeatGeekConnector
 from connectors.resident_advisor import ResidentAdvisorConnector
 from connectors.tokyo_cheapo import TokyoCheapoConnector
+from connectors.eplus import EplusConnector
+from connectors.pia import PiaConnector
 from db import get_supabase_client, get_all_artists
 from dotenv import load_dotenv
 
@@ -58,14 +60,25 @@ def main():
 
     # 3. eplus (Japan Major Ticket Vendor)
     from connectors.eplus import EplusConnector
-    eplus = EplusConnector()
-    print("  [eplus] Scraping Major Events...")
+    # --- Eplus (Japan) ---
+    print("\n--- Scraping Eplus (Japan) ---")
     try:
-        e_events = eplus.get_events()
-        print(f"  [eplus] Found {len(e_events)} events.")
-        all_events.extend(e_events)
+        eplus = EplusConnector()
+        events = eplus.get_events()
+        print(f"Found {len(events)} events from Eplus.")
+        all_events.extend(events)
     except Exception as e:
-        print(f"  [eplus] Error: {e}")
+        print(f"Eplus scraping failed: {e}")
+
+    # --- Ticket Pia (Japan) ---
+    print("\n--- Scraping Ticket Pia (Japan) ---")
+    try:
+        pia = PiaConnector()
+        pia_events = pia.get_events()
+        print(f"Found {len(pia_events)} events from Ticket Pia.")
+        all_events.extend(pia_events)
+    except Exception as e:
+        print(f"Ticket Pia scraping failed: {e}")
 
     # 4. Tokyo Cheapo (Disabled)
     # tc_connector = TokyoCheapoConnector()

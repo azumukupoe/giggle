@@ -18,74 +18,82 @@ class TicketmasterConnector(BaseConnector):
             print("Ticketmaster API Key missing.")
             return []
 
+        events_data = []
+
         # 1. Broad Search: Japan
+        print(f"  [Ticketmaster] Broad search: countryCode={country_code}")
         url = f"{self.base_url}/events.json?classificationName=music&countryCode={country_code}&size={limit}&sort=date,asc&apikey={self.api_key}"
-        
         try:
-            print(f"  [Ticketmaster] Broad search URL: {url.replace(self.api_key, 'HIDDEN_KEY')}")
             resp = requests.get(url)
-            print(f"  [Ticketmaster] Status: {resp.status_code}")
-            
-            if resp.status_code != 200:
-                print(f"  [Ticketmaster] Error Body: {resp.text}")
-                resp.raise_for_status()
-
-            data = resp.json()
-            
-            # Fallback: Try "Tokyo" explicit city search if country search fails (sometimes works better)
-            if '_embedded' not in data or not data['_embedded'].get('events'):
-                print("  [Ticketmaster] 'countryCode=JP' returned 0. Retrying with 'city=Tokyo'...")
-                url = f"{self.base_url}/events.json?classificationName=music&city=Tokyo&size={limit}&apikey={self.api_key}"
-                resp = requests.get(url)
+            if resp.status_code == 200:
                 data = resp.json()
-
-            if '_embedded' not in data:
-                print(f"  [Ticketmaster] Zero results found. Raw Data Keys: {data.keys()}")
-                return []
-            
-            events_data = data['_embedded'].get('events', [])
-            print(f"  [Ticketmaster] Raw event count: {len(events_data)}")
-            
-            events = []
-            for item in events_data:
-                # Ticketmaster dates
-                start = item.get('dates', {}).get('start', {})
-                date_str = f"{start.get('localDate')}T{start.get('localTime', '00:00:00')}"
-                try:
-                    event_date = datetime.fromisoformat(date_str)
-                except:
-                    continue 
-
-                venue_info = item.get('_embedded', {}).get('venues', [{}])[0]
-                city = venue_info.get('city', {}).get('name', 'Unknown City')
-                country = venue_info.get('country', {}).get('name', 'Unknown Country')
-                location = f"{city}, {country}"
-                
-                # Filter artists
-                # Ticketmaster returns a list of attractions. We'll grab the first one as the 'primary' artist.
-                attractions = item.get('_embedded', {}).get('attractions', [])
-                artist_name = attractions[0]['name'] if attractions else item.get('name')
-
-                images = item.get('images', [])
-                image_url = images[0]['url'] if images else None
-
-                event = Event(
-                    title=item.get('name'),
-                    artist=artist_name,
-                    venue=venue_info.get('name', 'Unknown Venue'),
-                    location=location,
-                    date=event_date,
-                    url=item.get('url'),
-                    image_url=image_url,
-                    source="ticketmaster",
-                    external_id=item.get('id')
-                )
-                events.append(event)
-            return events
-
+                if '_embedded' in data:
+                   events_data.extend(data['_embedded'].get('events', []))
         except Exception as e:
-            print(f"Error fetching discovery events from Ticketmaster: {e}")
-            return []
+            print(f"  [Ticketmaster] Country search error: {e}")
+
+        # 2. Fallback: Specific City Search if Country search yields low results
+        if len(events_data) < 5:
+            cities = ["Tokyo", "Osaka", "Nagoya", "Kyoto", "Sapporo", "Fukuoka", "Yokohama"]
+            print(f"  [Ticketmaster] Low results ({len(events_data)}). Retrying with specific cities: {cities}")
+            
+            for city in cities:
+                url = f"{self.base_url}/events.json?classificationName=music&city={city}&size={limit}&apikey={self.api_key}&sort=date,asc"
+                print(f"    Searching {city}...")
+                try:
+                    resp = requests.get(url)
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        if '_embedded' in data:
+                            city_events = data['_embedded'].get('events', [])
+                            print(f"    -> Found {len(city_events)} events in {city}")
+                            # Deduplicate by ID
+                            existing_ids = {e['id'] for e in events_data}
+                            for ce in city_events:
+                                if ce['id'] not in existing_ids:
+                                    events_data.append(ce)
+                                    existing_ids.add(ce['id'])
+                except Exception as e:
+                   print(f"    Search failed for {city}: {e}")
+
+        print(f"  [Ticketmaster] Total raw event count: {len(events_data)}")
+        
+        events = []
+        for item in events_data:
+            # Ticketmaster dates
+            start = item.get('dates', {}).get('start', {})
+            date_str = f"{start.get('localDate')}T{start.get('localTime', '00:00:00')}"
+            try:
+                event_date = datetime.fromisoformat(date_str)
+            except:
+                continue 
+
+            venue_info = item.get('_embedded', {}).get('venues', [{}])[0]
+            city = venue_info.get('city', {}).get('name', 'Unknown City')
+            country = venue_info.get('country', {}).get('name', 'Unknown Country')
+            location = f"{city}, {country}"
+            
+            # Filter artists
+            # Ticketmaster returns a list of attractions. We'll grab the first one as the 'primary' artist.
+            attractions = item.get('_embedded', {}).get('attractions', [])
+            artist_name = attractions[0]['name'] if attractions else item.get('name')
+
+            images = item.get('images', [])
+            image_url = images[0]['url'] if images else None
+
+            event = Event(
+                title=item.get('name'),
+                artist=artist_name,
+                venue=venue_info.get('name', 'Unknown Venue'),
+                location=location,
+                date=event_date,
+                url=item.get('url'),
+                image_url=image_url,
+                source="ticketmaster",
+                external_id=item.get('id')
+            )
+            events.append(event)
+        return events
 
     def get_artist_events(self, artist_name: str) -> List[Event]:
         if not self.api_key:
