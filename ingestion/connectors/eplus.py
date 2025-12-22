@@ -20,106 +20,112 @@ class EplusConnector(BaseConnector):
         # NOT IMPLEMENTED FOR NOW: Only general discovery
         return []
 
-    def get_events(self, query: str = None):
-        print(f"  [eplus] Scraping: {self.base_url}")
+    def get_events(self, query: str = None, max_pages: int = 5):
+        print(f"  [eplus] Scraping base URL: {self.base_url}")
         
-        events = []
-        try:
-            response = requests.get(self.base_url, headers=self.headers, timeout=15)
-            if response.status_code != 200:
-                print(f"  [eplus] Failed to fetch: {response.status_code}")
-                return []
-
-            soup = BeautifulSoup(response.content, 'html.parser')
-            
-            # Extract the embedded JSON data
-            json_script = soup.find('script', id='json')
-            if not json_script:
-                print("  [eplus] Failed to find embedded JSON data.")
-                return []
+        all_events = []
+        
+        for page in range(1, max_pages + 1):
+            # Eplus uses &page=N
+            url = f"{self.base_url}&page={page}"
+            print(f"  [eplus] Fetching page {page}: {url}")
 
             try:
-                data = json.loads(json_script.string.strip())
-            except json.JSONDecodeError as e:
-                print(f"  [eplus] JSON parsing error: {e}")
-                return []
+                response = requests.get(url, headers=self.headers, timeout=15)
+                if response.status_code != 200:
+                    print(f"  [eplus] Failed to fetch page {page}: {response.status_code}")
+                    break
 
-            record_list = data.get('data', {}).get('record_list', [])
-            print(f"  [eplus] Found {len(record_list)} items in initial load.")
+                soup = BeautifulSoup(response.content, 'html.parser')
+                
+                # Extract the embedded JSON data
+                json_script = soup.find('script', id='json')
+                if not json_script:
+                    print(f"  [eplus] Failed to find embedded JSON data on page {page}.")
+                    break
 
-            for item in record_list:
                 try:
-                    # Title construction
-                    kogyo = item.get('kanren_kogyo_sub', {})
-                    title_1 = kogyo.get('kogyo_name_1')
-                    title_2 = kogyo.get('kogyo_name_2')
-                    title = f"{title_1} {title_2}" if title_2 else title_1
-                    if not title:
-                        title = "Unknown Event"
+                    data = json.loads(json_script.string.strip())
+                except json.JSONDecodeError as e:
+                    print(f"  [eplus] JSON parsing error on page {page}: {e}")
+                    break
 
-                    # URL
-                    detail_path = item.get('koen_detail_url_pc')
-                    link = f"https://eplus.jp{detail_path}" if detail_path else None
+                record_list = data.get('data', {}).get('record_list', [])
+                if not record_list:
+                    print(f"  [eplus] No items found on page {page}. Stopping.")
+                    break
+                
+                print(f"  [eplus] Found {len(record_list)} items on page {page}.")
 
-                    # Date
-                    # Format in JSON: '20251115～20260112' or single dates?
-                    # Looking at dump: "koenbi_hyoji_mongon": "2025/12/11(木)18:30"
-                    # Or 'uketsuke_start_datetime': '20250929100000'
-                    # Or 'kanren_uketsuke_koen_list' -> 'koenbi_term'
-                    
-                    # We'll use the first available date or 'koenbi_term' start
-                    date_term = item.get('koenbi_term', '') # e.g. "20251115～20260112"
-                    if date_term and len(date_term) >= 8:
-                        start_date_str = date_term[:8] # 20251115
-                        try:
-                            date_obj = datetime.strptime(start_date_str, "%Y%m%d")
-                        except:
+                print(f"  [eplus] Found {len(record_list)} items on page {page}.")
+
+                for item in record_list:
+                    try:
+                        # Title construction
+                        kogyo = item.get('kanren_kogyo_sub', {})
+                        title_1 = kogyo.get('kogyo_name_1')
+                        title_2 = kogyo.get('kogyo_name_2')
+                        title = f"{title_1} {title_2}" if title_2 else title_1
+                        if not title:
+                            title = "Unknown Event"
+
+                        # URL
+                        detail_path = item.get('koen_detail_url_pc')
+                        link = f"https://eplus.jp{detail_path}" if detail_path else None
+
+                        # Date
+                        date_term = item.get('koenbi_term', '') # e.g. "20251115～20260112"
+                        if date_term and len(date_term) >= 8:
+                            start_date_str = date_term[:8] # 20251115
+                            try:
+                                date_obj = datetime.strptime(start_date_str, "%Y%m%d")
+                            except:
+                                date_obj = datetime.now()
+                        else:
                             date_obj = datetime.now()
-                    else:
-                        date_obj = datetime.now()
 
-                    # Location / Venue
-                    venue_info = item.get('kanren_venue', {})
-                    venue_name = venue_info.get('venue_name') or "Unknown Venue"
-                    pref_name = venue_info.get('todofuken_name') or "Japan"
-                    location = f"{venue_name}, {pref_name}"
+                        # Location / Venue
+                        venue_info = item.get('kanren_venue', {})
+                        venue_name = venue_info.get('venue_name') or "Unknown Venue"
+                        pref_name = venue_info.get('todofuken_name') or "Japan"
+                        location = f"{venue_name}, {pref_name}"
 
-                    # Image
-                    # Images are not explicitly in the record_list in high res, 
-                    # but sometimes derived from codes. For now, leave empty or use generic.
-                    img_url = None 
-                    
-                    # Artist
-                    # Try to find 'shutsuensha' (performers) in the first ticket info block
-                    artist = "Various"
-                    uketsuke_list = item.get('kanren_uketsuke_koen_list', [])
-                    if uketsuke_list:
-                        performers = uketsuke_list[0].get('shutsuensha')
-                        if performers:
-                            artist = performers
-                    
-                    # Fallback to title if artist is still generic or empty
-                    if artist == "Various" and title:
-                        artist = title
+                        # Image
+                        img_url = None 
+                        
+                        # Artist
+                        # Try to find 'shutsuensha' (performers) in the first ticket info block
+                        artist = "Various"
+                        uketsuke_list = item.get('kanren_uketsuke_koen_list', [])
+                        if uketsuke_list:
+                            performers = uketsuke_list[0].get('shutsuensha')
+                            if performers:
+                                artist = performers
+                        
+                        # Fallback to title if artist is still generic or empty
+                        if artist == "Various" and title:
+                            artist = title
 
-                    if link:
-                        events.append(Event(
-                            title=title,
-                            artist=artist,
-                            venue=venue_name,
-                            date=date_obj,
-                            location=location,
-                            url=link,
-                            image_url=img_url,
-                            source="eplus",
-                            external_id=link
-                        ))
+                        if link:
+                            all_events.append(Event(
+                                title=title,
+                                artist=artist,
+                                venue=venue_name,
+                                date=date_obj,
+                                location=location,
+                                url=link,
+                                image_url=img_url,
+                                source="eplus",
+                                external_id=link
+                            ))
 
-                except Exception as e:
-                    print(f"  [eplus] Error parsing item: {e}")
-                    continue
+                    except Exception as e:
+                        print(f"  [eplus] Error parsing item: {e}")
+                        continue
 
-        except Exception as e:
-            print(f"  [eplus] Error: {e}")
+            # End of page loop
+        
+            except Exception as e:
+                print(f"  [eplus] Error processing page {page}: {e}")
             
-        return events
+        return all_events

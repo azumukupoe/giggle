@@ -18,53 +18,72 @@ class SongkickConnector(BaseConnector):
         # Required by BaseConnector
         return []
 
-    def get_metro_events(self, metro_id: str = "30717-japan-tokyo") -> List[Event]:
+    def get_metro_events(self, metro_id: str = "30717-japan-tokyo", max_pages: int = 5) -> List[Event]:
         """
         Fetches events for a specific metro area (e.g., Tokyo).
+        Iterates through pages until max_pages or no events found.
         """
-        url = f"{self.base_url}/metro-areas/{metro_id}"
-        print(f"  [Songkick] Scraping metro area: {url}")
+        all_events = []
+        base_metro_url = f"{self.base_url}/metro-areas/{metro_id}"
+        print(f"  [Songkick] Scraping metro area: {base_metro_url}")
+
+        for page in range(1, max_pages + 1):
+            url = f"{base_metro_url}?page={page}"
+            print(f"  [Songkick] Fetching page {page}: {url}")
+            
+            try:
+                resp = requests.get(url, headers=self.headers)
+                # print(f"  [Songkick] Status: {resp.status_code}")
+                
+                if resp.status_code != 200:
+                    print(f"  [Songkick] Failed to fetch page {page}. Status: {resp.status_code}")
+                    break
+                
+                soup = BeautifulSoup(resp.content, 'html.parser')
+                
+                # JSON-LD extraction
+                scripts = soup.find_all('script', type='application/ld+json')
+                page_events = []
+                
+                found_json = False
+                for script in scripts:
+                    if 'MusicEvent' in script.text:
+                        found_json = True
+                        try:
+                            data = json.loads(script.text)
+                            items = data if isinstance(data, list) else [data]
+                            for item in items:
+                                if item.get('@type') == 'MusicEvent':
+                                    # Identify artist
+                                    performers = item.get('performer', [])
+                                    if isinstance(performers, list) and performers:
+                                        artist_name = performers[0].get('name', 'Unknown Artist')
+                                    else:
+                                        artist_name = item.get('name', 'Unknown Event')
+
+                                    evt = self._parse_json_ld(item, artist_name)
+                                    if evt: page_events.append(evt)
+                        except Exception as e:
+                            print(f"    [Songkick] JSON Load Error on page {page}: {e}")
+                
+                if not found_json and page == 1:
+                     print("  [Songkick] Warning: No JSON-LD found on page 1.")
+                
+                if not page_events:
+                    print(f"  [Songkick] No events found on page {page}. Stopping.")
+                    break
+                
+                print(f"    -> Found {len(page_events)} events on page {page}.")
+                all_events.extend(page_events)
+
+                # Optional: Check for "Next" button specifically?
+                # Usually if 0 events returned we are done.
+                
+            except Exception as e:
+                print(f"Error scraping Songkick metro page {page}: {e}")
+                break
         
-        try:
-            resp = requests.get(url, headers=self.headers)
-            print(f"  [Songkick] Status: {resp.status_code}, URL: {resp.url}")
-            
-            if resp.status_code != 200:
-                print(f"  [Songkick] Failed to fetch. Status: {resp.status_code}")
-                return []
-            
-            soup = BeautifulSoup(resp.content, 'html.parser')
-            
-            events = []
-            scripts = soup.find_all('script', type='application/ld+json')
-            print(f"  [Songkick] Found {len(scripts)} JSON-LD scripts.")
-            
-            for i, script in enumerate(scripts):
-                if 'MusicEvent' in script.text:
-                    print(f"    [Script {i}] Found MusicEvent in text (len={len(script.text)})")
-                    try:
-                        data = json.loads(script.text)
-                        items = data if isinstance(data, list) else [data]
-                        print(f"    [Script {i}] Parsed {len(items)} items.")
-                        for item in items:
-                            if item.get('@type') == 'MusicEvent':
-                                # Identify artist from performer list if possible
-                                performers = item.get('performer', [])
-                                if isinstance(performers, list) and performers:
-                                    artist_name = performers[0].get('name', 'Unknown Artist')
-                                else:
-                                    artist_name = item.get('name', 'Unknown Event')
-
-                                evt = self._parse_json_ld(item, artist_name)
-                                if evt: events.append(evt)
-                    except Exception as e:
-                        print(f"    [Script {i}] JSON Load Error: {e}")
-            
-            return events
-
-        except Exception as e:
-            print(f"Error scraping Songkick metro: {e}")
-            return []
+        return all_events
 
     def get_artist_events(self, artist_name: str) -> List[Event]:
         # Songkick scraping is 2-step: Search -> User Page -> Calendar

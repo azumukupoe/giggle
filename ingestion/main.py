@@ -48,7 +48,8 @@ def main():
         name = data.get('name', mid)
         print(f"  [Songkick] ({i+1}/{len(sk_metros_data)}) Scraping {name} ({metro_slug})...")
         try:
-             events = sk_connector.get_metro_events(metro_id=metro_slug)
+             # Limit to 20 pages to get deep coverage without infinite loops
+             events = sk_connector.get_metro_events(metro_id=metro_slug, max_pages=20)
              print(f"    -> Found {len(events)} events.")
              all_events.extend(events)
         except Exception as e:
@@ -64,7 +65,7 @@ def main():
     print("\n--- Scraping Eplus (Japan) ---")
     try:
         eplus = EplusConnector()
-        events = eplus.get_events()
+        events = eplus.get_events(max_pages=20)
         print(f"Found {len(events)} events from Eplus.")
         all_events.extend(events)
     except Exception as e:
@@ -74,7 +75,7 @@ def main():
     print("\n--- Scraping Ticket Pia (Japan) ---")
     try:
         pia = PiaConnector()
-        pia_events = pia.get_events()
+        pia_events = pia.get_events(max_pages=20)
         print(f"Found {len(pia_events)} events from Ticket Pia.")
         all_events.extend(pia_events)
     except Exception as e:
