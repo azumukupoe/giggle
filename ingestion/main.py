@@ -81,6 +81,14 @@ def main():
         print(f"Ticket Pia scraping failed: {e}")
 
     # 4. Tokyo Cheapo (Disabled)
+    # tc_connector = TokyoCheapoConnector()
+    # print("  [Cheapo] Scraping Top Events...")
+    # try:
+    #     tc_events = tc_connector.get_events()
+    #     print(f"  [Cheapo] Found {len(tc_events)} events.")
+    #     all_events.extend(tc_events)
+    # except Exception as e:
+    #     print(f"  [Cheapo] Error: {e}")
 
 
     # Save to Supabase
