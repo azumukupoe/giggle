@@ -97,10 +97,15 @@ class EplusConnector(BaseConnector):
                         # Try to find 'shutsuensha' (performers) in the first ticket info block
                         artist = "Various"
                         uketsuke_list = item.get('kanren_uketsuke_koen_list', [])
+                        if uketsuke_list:
                             performers = uketsuke_list[0].get('shutsuensha')
                             if performers:
-                                # Filter out system messages (Streaming+ stamp/gift info)
-                                if "スタンプ&ギフト" in performers or "streamingplus" in performers:
+                                # Clean system messages
+                                performers = performers.replace("本公演はスタンプ&ギフト対象公演です。", "")
+                                performers = performers.replace("詳細はこちら /sf/streamingplus/stampgift", "")
+                                performers = performers.strip()
+                                
+                                if not performers:
                                     artist = "Various"
                                 else:
                                     artist = performers
