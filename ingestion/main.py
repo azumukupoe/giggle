@@ -52,29 +52,22 @@ def main():
         except Exception as e:
              print(f"    -> Failed: {e}")
 
-    # 2. Resident Advisor (Major Cities)
-    # RA is blocking GH Actions (403). Disabled.
+    # 2. Resident Advisor (Disabled due to 403 blocks)
     # ra_connector = ResidentAdvisorConnector()
-    # ra_locations = ['jp/tokyo', 'jp/osaka']
-    
-    # for loc in ra_locations:
-    #    print(f"  [RA] Scraping {loc}...")
-    #    events = ra_connector.get_location_events(location_slug=loc)
-    #    print(f"  [RA] Found {len(events)} events in {loc}.")
-    #    all_events.extend(events)
+    # ...
 
-    # 3. Kaala (Japanese Underground/Metal/Noise)
-    from connectors.kaala import KaalaConnector
-    kaala = KaalaConnector()
-    print("  [Kaala] Scraping Underground Events...")
+    # 3. eplus (Japan Major Ticket Vendor)
+    from connectors.eplus import EplusConnector
+    eplus = EplusConnector()
+    print("  [eplus] Scraping Major Events...")
     try:
-        k_events = kaala.get_events()
-        print(f"  [Kaala] Found {len(k_events)} events.")
-        all_events.extend(k_events)
+        e_events = eplus.get_events()
+        print(f"  [eplus] Found {len(e_events)} events.")
+        all_events.extend(e_events)
     except Exception as e:
-        print(f"  [Kaala] Error: {e}")
+        print(f"  [eplus] Error: {e}")
 
-    # 4. Tokyo Cheapo (Disabled: User requested music-focus only)
+    # 4. Tokyo Cheapo (Disabled)
     # tc_connector = TokyoCheapoConnector()
     # print("  [Cheapo] Scraping Top Events...")
     # try:
