@@ -25,9 +25,9 @@ class EplusConnector(BaseConnector):
         
         all_events = []
         
-        # Calculate date range (Today to +3 months)
+        # Calculate date range (Today to +1 year)
         dt_now = datetime.now()
-        dt_end = dt_now + timedelta(days=90)
+        dt_end = dt_now + timedelta(days=365)
         
         # Format: YYYYMMDD
         koenbi_from = dt_now.strftime("%Y%m%d")
@@ -96,38 +96,6 @@ class EplusConnector(BaseConnector):
                         venue_info = item.get('kanren_venue', {})
                         venue_name = venue_info.get('venue_name') or "Unknown Venue"
                         
-                        # --- CLIENT SIDE FILTERING ---
-                        # Filter out non-music events based on keywords
-                        # Exclusion list
-                        exclude_keywords = [
-                            "美術館", "MUSEUM", # Museum
-                            "博物館",            # Museum
-                            "展", "EXHIBITION", "PHOTO EXHIBITION", # Exhibition
-                            "動物園", "ZOO",     # Zoo
-                            "水族館", "AQUARIUM", # Aquarium
-                            "温泉", "SPA",       # Spa
-                            "テーマパーク", "THEME PARK", # Theme Park
-                            "入館券", "ADMISSION", # Admission Ticket
-                            "パスポート", "PASSPORT", # Passport
-                            "講演会", "TALK SHOW", # Talk Show
-                            "お笑い", "COMEDY",    # Comedy
-                        ]
-
-                        
-                        should_skip = False
-                        full_text_check = (title + venue_name).lower()
-                        
-                        for kw in exclude_keywords:
-                            if kw.lower() in full_text_check:
-                                should_skip = True
-                                break
-
-                        
-                        if should_skip:
-                            continue
-
-                        # --- End Filtering ---
-
                         # Detail URL
                         detail_path = item.get('koen_detail_url_pc')
                         link = detail_path if detail_path else None
@@ -154,7 +122,7 @@ class EplusConnector(BaseConnector):
                                     genres = [b.get_text(strip=True) for b in breadcrumbs]
                                     
                                     # Exclusion list based on GENRE (Breadcrumbs), NOT Title keywords
-                                    exclude_genres = ["イベント", "映画", "展示会", "博覧会", "エキスポ"]
+                                    exclude_genres = ["イベント", "映画"]
                                     
                                     is_excluded = False
                                     for g in genres:
