@@ -151,18 +151,15 @@ class SongkickConnector(BaseConnector):
                 tour_name = tour_info.get('name')
             
             # 2. If not in JSON, scrape the detail page (Slow but accurate)
-            # Only do this if we have a URL and not too many requests (maybe limit concurrency or just accept it's slower)
             url = item.get('url')
             if not tour_name and url:
-                 # Check if we should fetch detailed info (maybe logic to skip if title is already long?)
-                 # For now, fetch to ensure correctness as per user request
                  tour_name = self._get_tour_name_from_page(url)
 
-            if tour_name and tour_name not in title:
-                title = f"{tour_name} - {title}"
+            # Prioritize Tour Name as the main title if found
+            if tour_name:
+                title = tour_name
             
             return Event(
-                # Use 'name' for title (usually contains Tour Name or Event Title)
                 title=title, 
                 artist=artist_name,
                 venue=venue_name,
@@ -182,25 +179,22 @@ class SongkickConnector(BaseConnector):
         Returns the tour name string or None.
         """
         try:
-            # print(f"    [Songkick] Checking detail page for tour info: {url}")
             resp = requests.get(url, headers=self.headers, timeout=10)
             if resp.status_code != 200: return None
             
             soup = BeautifulSoup(resp.content, 'html.parser')
             
-            # Look for "Additional details" header
-            # Structure: <h2>Additional details</h2> <p>Tour name: XXX</p> or <div>Tour name:XXX</div>
-            # We can search for the text "Tour name:" directly
+            # 1. Direct CSS Selector (Robust)
+            tour_name_tag = soup.select_one('.tour_name')
+            if tour_name_tag:
+                return tour_name_tag.get_text(strip=True)
+
+            # 2. Text-based Fallback
             target = soup.find(string=lambda t: t and "Tour name:" in t)
             if target:
-                # Cleanup: "Tour name: CROSSFADES" -> "CROSSFADES"
-                text = target.strip()
-                if text.startswith("Tour name:"):
-                    return text.replace("Tour name:", "").strip()
-                # If it's in a parent element
                 parent_text = target.parent.get_text(strip=True)
-                if parent_text.startswith("Tour name:"):
-                     return parent_text.replace("Tour name:", "").strip()
+                if "Tour name:" in parent_text:
+                     return parent_text.split("Tour name:")[-1].strip()
 
             return None
         except Exception as e:
