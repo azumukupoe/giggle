@@ -111,6 +111,10 @@ class EplusConnector(BaseConnector):
                             "パスポート", "PASSPORT", # Passport
                             "講演会", "TALK SHOW", # Talk Show
                             "お笑い", "COMEDY",    # Comedy
+                            "映画", "MOVIE",       # Movie
+                            "上映", "SCREENING",   # Screening
+                            "舞台挨拶", "GREETING",# Stage Greeting
+                            "イベント", "EVENT",   # Generic Event (User Request)
                         ]
 
                         
