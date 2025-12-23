@@ -59,7 +59,7 @@ export const Feed = () => {
                 .from('events')
                 .select('*')
                 .order('date', { ascending: true })
-                .limit(500); // Fetch more for effective client-side filtering
+                .limit(10000); // Fetch all (effectively) for client-side filtering
 
             if (artistFilter.length > 0) {
                 query = query.in('artist', artistFilter);
