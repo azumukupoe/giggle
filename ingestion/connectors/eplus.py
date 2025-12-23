@@ -111,10 +111,6 @@ class EplusConnector(BaseConnector):
                             "パスポート", "PASSPORT", # Passport
                             "講演会", "TALK SHOW", # Talk Show
                             "お笑い", "COMEDY",    # Comedy
-                            "映画", "MOVIE",       # Movie
-                            "上映", "SCREENING",   # Screening
-                            "舞台挨拶", "GREETING",# Stage Greeting
-                            "イベント", "EVENT",   # Generic Event (User Request)
                         ]
 
                         
@@ -134,17 +130,47 @@ class EplusConnector(BaseConnector):
 
                         # Detail URL
                         detail_path = item.get('koen_detail_url_pc')
-                        # Note: details often come as full URL or relative? Verify script showed full URL.
                         link = detail_path if detail_path else None
                         if link and not link.startswith("http"):
                              link = f"https://eplus.jp{detail_path}"
 
-                        # Date Parsing
-                        # koenbi_term: "20250315～20260222" or exact date?
-                        # Often koenbi_term is a range.
-                        # We also have "uketsuke_start_datetime" but that's for tickets.
-                        # There isn't a single clear "event date" in the list object sometimes if it's a period.
-                        # But wait, sort_key includes "koenbi".
+                        # --- DETAIL PAGE GENRE CHECK (User Requirement: No Keyword filtering on Title) ---
+                        # We must check the "Genre" breadcrumbs on the detail page to be accurate.
+                        # This adds latency (N+1 requests) but is required to avoid false positives.
+                        
+                        if link:
+                            try:
+                                # Be polite - add small delay if we are doing this in a loop
+                                # However, in a real async scraper we might want to be faster. 
+                                # For GitHub Actions, we have time.
+                                import time
+                                time.sleep(0.5) 
+                                
+                                detail_res = requests.get(link, headers=self.headers, timeout=10)
+                                if detail_res.status_code == 200:
+                                    from bs4 import BeautifulSoup
+                                    soup = BeautifulSoup(detail_res.text, 'html.parser')
+                                    breadcrumbs = soup.find_all(class_="breadcrumb-list__name")
+                                    genres = [b.get_text(strip=True) for b in breadcrumbs]
+                                    
+                                    # Exclusion list based on GENRE (Breadcrumbs), NOT Title keywords
+                                    exclude_genres = ["イベント", "映画", "展示会", "博覧会", "エキスポ"]
+                                    
+                                    is_excluded = False
+                                    for g in genres:
+                                        if any(ex in g for ex in exclude_genres):
+                                            # print(f"  [eplus] Skipping '{title}' due to genre validation: {g}")
+                                            is_excluded = True
+                                            break
+                                    
+                                    if is_excluded:
+                                        continue
+                            except Exception as e:
+                                # If detail scrape fails, decide whether to keep or skip. 
+                                # Let's keep it to be safe, but log error?
+                                # print(f"  [eplus] Genre check failed for {link}: {e}")
+                                pass
+                        # --- End Genre Check ---
                         # Let's check verify output... 
                         # "koenbi_term": "20250315～20260222"
                         # "kaien_time": "1000"
