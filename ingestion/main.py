@@ -3,15 +3,11 @@ import argparse
 import json
 from typing import List
 from connectors.base import Event
-from connectors.ticketmaster import TicketmasterConnector
-from connectors.bandsintown import BandsInTownConnector
 from connectors.songkick import SongkickConnector
-from connectors.seatgeek import SeatGeekConnector
-from connectors.resident_advisor import ResidentAdvisorConnector
-from connectors.tokyo_cheapo import TokyoCheapoConnector
 from connectors.eplus import EplusConnector
 from connectors.pia import PiaConnector
-from db import get_supabase_client, get_all_artists
+from db import get_supabase_client
+from dotenv import load_dotenv
 from dotenv import load_dotenv
 
 # Load env vars
@@ -27,9 +23,7 @@ def main():
     print("--- Phase 1: Japan Discovery ---")
     
     # 1. Songkick (Metro Areas)
-    # We loop through known Metro IDs. 
-    # TODO: Add Osaka/Nagoya/Kyoto once IDs are confirmed.
-    # 1. Songkick (Metro Areas)
+    # We loop through known Metro IDs loaded from file.
     sk_connector = SongkickConnector()
     
     # Load Metro IDs from JSON
@@ -55,13 +49,7 @@ def main():
         except Exception as e:
              print(f"    -> Failed: {e}")
 
-    # 2. Resident Advisor (Disabled due to 403 blocks)
-    # ra_connector = ResidentAdvisorConnector()
-    # ...
-
-    # 3. eplus (Japan Major Ticket Vendor)
-    from connectors.eplus import EplusConnector
-    # --- Eplus (Japan) ---
+    # 2. eplus (Japan Major Ticket Vendor)
     print("\n--- Scraping Eplus (Japan) ---")
     try:
         eplus = EplusConnector()
@@ -71,7 +59,7 @@ def main():
     except Exception as e:
         print(f"Eplus scraping failed: {e}")
 
-    # --- Ticket Pia (Japan) ---
+    # 3. Ticket Pia (Japan)
     print("\n--- Scraping Ticket Pia (Japan) ---")
     try:
         pia = PiaConnector()
@@ -80,17 +68,6 @@ def main():
         all_events.extend(pia_events)
     except Exception as e:
         print(f"Ticket Pia scraping failed: {e}")
-
-    # 4. Tokyo Cheapo (Disabled)
-    # tc_connector = TokyoCheapoConnector()
-    # print("  [Cheapo] Scraping Top Events...")
-    # try:
-    #     tc_events = tc_connector.get_events()
-    #     print(f"  [Cheapo] Found {len(tc_events)} events.")
-    #     all_events.extend(tc_events)
-    # except Exception as e:
-    #     print(f"  [Cheapo] Error: {e}")
-
 
     # Save to Supabase
     if all_events:

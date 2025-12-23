@@ -91,7 +91,7 @@ class EplusConnector(BaseConnector):
                         # User Request: Don't include venue in location, just prefecture/city
                         # Leave blank if no data
                         pref_name = venue_info.get('todofuken_name')
-                        location = pref_name if pref_name else None
+                        location = pref_name if pref_name else ""
 
                         # Image
                         img_url = None 
@@ -115,7 +115,6 @@ class EplusConnector(BaseConnector):
                         
                         # Strict filtering: Skip if artist is generic
                         if artist == "Various":
-                             # print(f"  [eplus] Skipping {title} (No artist info)")
                              continue
 
                         if link:

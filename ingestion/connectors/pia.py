@@ -28,7 +28,6 @@ class PiaConnector(BaseConnector):
             "Referer": "https://t.pia.jp/pia/search_all.do"
         }
 
-        print(f"  [Pia] Scraping base params: {params}")
 
         for page in range(1, max_pages + 1):
             params["page"] = str(page)
@@ -36,14 +35,15 @@ class PiaConnector(BaseConnector):
 
             try:
                 resp = requests.get(url, params=params, headers=headers)
-                # resp.encoding = 'utf-8' # Reverted to let requests handle it
+                # FORCE UTF-8: TicketPia returns UTF-8 but sometimes headers are missing/wrong
+                resp.encoding = 'UTF-8'
                 
                 if resp.status_code != 200:
                     print(f"  [Pia] Error: Status {resp.status_code} on page {page}")
                     break
 
-                # Use resp.content so BS4 can detect encoding from bytes/meta
-                soup = BeautifulSoup(resp.content, 'html.parser')
+                # Use resp.text now that encoding is forced
+                soup = BeautifulSoup(resp.text, 'html.parser')
 
                 # Check for maintenance
                 if "ただいまシステムメンテナンス中です" in soup.get_text() or "system maintenance" in soup.get_text().lower():
