@@ -4,17 +4,20 @@ import { Event } from "@/types/event";
 import { parseISO, format } from "date-fns";
 import { ExternalLink, MapPin, Calendar } from "lucide-react";
 import { motion } from "framer-motion";
+import { useLanguage } from "./LanguageContext";
 
 export const EventCard = ({ event }: { event: Event }) => {
+    const { t } = useLanguage();
+
     return (
         <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             whileHover={{ scale: 1.02 }}
-            className="relative group overflow-hidden rounded-2xl border border-white/10 bg-white/5 backdrop-blur-md shadow-xl transition-all hover:bg-white/10"
+            className="relative group overflow-hidden rounded-2xl border border-white/10 bg-white/5 backdrop-blur-md shadow-xl transition-all hover:bg-white/10 dark:bg-gray-800/50 dark:border-gray-700"
         >
             {/* Image Background / Fallback */}
-            <div className="absolute inset-0 -z-10 bg-gradient-to-br from-purple-900/50 to-blue-900/50" />
+            <div className="absolute inset-0 -z-10 bg-gradient-to-br from-purple-900/50 to-blue-900/50 opacity-50 dark:opacity-30" />
 
             <div className="p-6 relative z-10 flex flex-col gap-3">
                 {/* Source Badge */}
@@ -47,7 +50,7 @@ export const EventCard = ({ event }: { event: Event }) => {
                     rel="noopener noreferrer"
                     className="mt-4 flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold hover:from-purple-500 hover:to-blue-500 transition-colors shadow-lg"
                 >
-                    View details <ExternalLink className="w-4 h-4" />
+                    {t('card.tickets')} <ExternalLink className="w-4 h-4" />
                 </a>
             </div>
         </motion.div>

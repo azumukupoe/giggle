@@ -1,0 +1,30 @@
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+.env
+
+# Logs
+*.log
+run_logs*.txt
+
+# Debug Artifacts
+*_dump.html
+*_debug.html
+*_verify_output.json
+debug_*.py
+test_*.py
+verify_*.py
+fetch_*.py
+
+# Research Artifacts (Downloaded JS/HTML)
+*.js
+!frontend/**
+!ingestion/**
+*.html
+
+# OS
+.DS_Store
+Thumbs.db
