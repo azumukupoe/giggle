@@ -19,11 +19,14 @@ test_*.py
 verify_*.py
 fetch_*.py
 
+
 # Research Artifacts (Downloaded JS/HTML)
-*.js
+# (Keeping s2.js etc accessible)
+# *.js
 !frontend/**
 !ingestion/**
 *.html
+
 
 # OS
 .DS_Store

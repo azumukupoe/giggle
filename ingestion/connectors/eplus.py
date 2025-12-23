@@ -34,7 +34,7 @@ class EplusConnector(BaseConnector):
         koenbi_to = dt_end.strftime("%Y%m%d")
         
         # Pagination
-        items_per_page = 50 # Default max items per request (API limits unknown, safe bet)
+        items_per_page = 100 
         current_start_index = 1
         
         for page in range(1, max_pages + 1):
@@ -43,9 +43,12 @@ class EplusConnector(BaseConnector):
                 "koenbi_to": koenbi_to,
                 "shutoku_kensu": items_per_page,
                 "shutoku_start_ichi": current_start_index,
-                "sort_key": "koenbi,kaien_time,kogyo_code,kogyo_sub_code",
-                "genre_ids[]": "1" # Music/Live (Hopefully)
+                "sort_key": "koenbi,kaien_time,parent_koen_taisho_flag,kogyo_code,kogyo_sub_code",
+                "parent_genre_code_list": "100",  # Music/Concerts (Stricter than genre_ids[]=1)
+                "uketsuke_status_list": [0, 1, 2, 3, 4, 5],
+                "streaming_haishin_kubun_list": "0"
             }
+
             
             # Construct URL manually for array parameters if needed, but requests handles lists usually?
             # Eplus seems to want "genre_ids[]=1". Requests 'params' with list does "genre_ids=1&genre_ids=2".
@@ -97,24 +100,28 @@ class EplusConnector(BaseConnector):
                         # Filter out non-music events based on keywords
                         # Exclusion list
                         exclude_keywords = [
-                            "美術館", # Museum
-                            "博物館", # Museum
-                            "展",     # Exhibition
-                            "動物園", # Zoo
-                            "水族館", # Aquarium
-                            "温泉",   # Spa
-                            "テーマパーク", # Theme Park
-                            "入館券", # Admission Ticket (usually for museums)
-                            "パスポート", # Passport (often theme parks)
+                            "美術館", "MUSEUM", # Museum
+                            "博物館",            # Museum
+                            "展", "EXHIBITION", "PHOTO EXHIBITION", # Exhibition
+                            "動物園", "ZOO",     # Zoo
+                            "水族館", "AQUARIUM", # Aquarium
+                            "温泉", "SPA",       # Spa
+                            "テーマパーク", "THEME PARK", # Theme Park
+                            "入館券", "ADMISSION", # Admission Ticket
+                            "パスポート", "PASSPORT", # Passport
+                            "講演会", "TALK SHOW", # Talk Show
+                            "お笑い", "COMEDY",    # Comedy
                         ]
+
                         
                         should_skip = False
                         full_text_check = (title + venue_name).lower()
                         
                         for kw in exclude_keywords:
-                            if kw in full_text_check:
+                            if kw.lower() in full_text_check:
                                 should_skip = True
                                 break
+
                         
                         if should_skip:
                             continue
