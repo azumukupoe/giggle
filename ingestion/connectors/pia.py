@@ -1,10 +1,10 @@
-
 import requests
 from bs4 import BeautifulSoup
 from datetime import datetime
 from typing import List
 from .base import BaseConnector, Event
 import re
+import time
 
 class PiaConnector(BaseConnector):
     def get_events(self, max_pages: int = 5) -> List[Event]:
@@ -27,7 +27,6 @@ class PiaConnector(BaseConnector):
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
             "Referer": "https://t.pia.jp/pia/search_all.do"
         }
-
 
         for page in range(1, max_pages + 1):
             params["page"] = str(page)
@@ -108,6 +107,17 @@ class PiaConnector(BaseConnector):
                         if region_tag:
                             location = f"{region_tag.get_text(strip=True)}, Japan"
 
+                        # Artist - Scrape Detail Page
+                        artist = ""
+                        if link:
+                            # Sleep to be polite
+                            time.sleep(1.0) 
+                            artist = self._scrape_artist_from_detail(link)
+                        
+                        # Formatting checks
+                        if not artist:
+                            artist = "" # Default to empty as requested if not found
+
                         if title and link:
                             events.append(Event(
                                 title=title,
@@ -117,7 +127,7 @@ class PiaConnector(BaseConnector):
                                 url=link,
                                 image_url=None,
                                 source="ticketpia",
-                                artist=title,
+                                artist=artist,
                                 external_id=external_id
                             ))
 
@@ -130,6 +140,36 @@ class PiaConnector(BaseConnector):
                 break
         
         return events
+
+    def _scrape_artist_from_detail(self, url: str) -> str:
+        """
+        Fetches the event detail page and extracts artist info from div.Y15-event-description.
+        Format: ［出演］Artist A / Artist B ...
+        """
+        try:
+             headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+             }
+             resp = requests.get(url, headers=headers, timeout=10)
+             resp.encoding = 'UTF-8'
+             if resp.status_code != 200:
+                 return ""
+
+             soup = BeautifulSoup(resp.text, 'html.parser')
+             desc_div = soup.select_one('div.Y15-event-description')
+             if desc_div:
+                 # Separator \n is safer than strip=True merged
+                 full_text = desc_div.get_text(separator="\n", strip=True) 
+                 # Regex for ［出演］(capture) until newline or end
+                 match = re.search(r'［出演］(.*?)(?:\n|$)', full_text)
+                 if match:
+                     return match.group(1).strip()
+             
+             return ""
+
+        except Exception as e:
+             # print(f"  [Pia] Detail scrape failed for {url}: {e}")
+             return ""
 
     def get_artist_events(self, artist_name: str) -> List[Event]:
         # Placeholder
