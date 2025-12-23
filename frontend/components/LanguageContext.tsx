@@ -8,6 +8,7 @@ interface LanguageContextType {
     language: Language;
     setLanguage: (lang: Language) => void;
     t: (key: string) => string;
+    translateLocation: (loc: string) => string;
 }
 
 const translations = {
@@ -57,8 +58,36 @@ export const LanguageProvider = ({ children }: { children: React.ReactNode }) =>
         return translations[language][key] || key;
     };
 
+    const cityTranslations: Record<string, string> = {
+        "Tokyo": "東京",
+        "Osaka": "大阪",
+        "Kyoto": "京都",
+        "Nagoya": "名古屋",
+        "Fukuoka": "福岡",
+        "Sapporo": "札幌",
+        "Yokohama": "横浜",
+        "Kobe": "神戸",
+        "Saitama": "埼玉",
+        "Chiba": "千葉",
+        "Hiroshima": "広島",
+        "Sendai": "仙台",
+        "Okinawa": "沖縄",
+    };
+
+    const translateLocation = (loc: string): string => {
+        if (language !== 'ja') return loc;
+        // Simple exact match or contains check could be used. 
+        // For now, let's try to find a match in the dictionary.
+        for (const [en, ja] of Object.entries(cityTranslations)) {
+            if (loc.includes(en)) {
+                return loc.replace(en, ja);
+            }
+        }
+        return loc;
+    };
+
     return (
-        <LanguageContext.Provider value={{ language, setLanguage, t }}>
+        <LanguageContext.Provider value={{ language, setLanguage, t, translateLocation }}>
             {children}
         </LanguageContext.Provider>
     );

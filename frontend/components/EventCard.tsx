@@ -7,7 +7,7 @@ import { motion } from "framer-motion";
 import { useLanguage } from "./LanguageContext";
 
 export const EventCard = ({ event }: { event: Event }) => {
-    const { t } = useLanguage();
+    const { t, translateLocation } = useLanguage();
 
     const decodeHtml = (str: string) => {
         if (!str) return "";
@@ -21,7 +21,8 @@ export const EventCard = ({ event }: { event: Event }) => {
 
     const formatLocation = (loc: string) => {
         const decoded = decodeHtml(loc);
-        return decoded.replace(/, Japan$/, "").replace(/Japan$/, "").trim();
+        const cleaned = decoded.replace(/, Japan$/, "").replace(/Japan$/, "").trim();
+        return translateLocation(cleaned);
     };
 
     return (
