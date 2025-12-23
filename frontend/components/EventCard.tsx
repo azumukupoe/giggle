@@ -3,7 +3,6 @@
 import { Event } from "@/types/event";
 import { parseISO, format } from "date-fns";
 import { ExternalLink, MapPin, Calendar } from "lucide-react";
-import Image from "next/image";
 import { motion } from "framer-motion";
 
 export const EventCard = ({ event }: { event: Event }) => {
@@ -16,18 +15,6 @@ export const EventCard = ({ event }: { event: Event }) => {
         >
             {/* Image Background / Fallback */}
             <div className="absolute inset-0 -z-10 bg-gradient-to-br from-purple-900/50 to-blue-900/50" />
-
-            {event.image_url && (
-                <div className="h-48 w-full relative overflow-hidden">
-                    <Image
-                        src={event.image_url}
-                        alt={event.artist}
-                        fill
-                        className="object-cover transition-transform group-hover:scale-110"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
-                </div>
-            )}
 
             <div className="p-6 relative z-10 flex flex-col gap-3">
                 {/* Source Badge */}

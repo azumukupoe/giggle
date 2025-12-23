@@ -125,7 +125,6 @@ class PiaConnector(BaseConnector):
                                 location=location,
                                 date=date_obj or datetime.now(),
                                 url=link,
-                                image_url=None,
                                 source="ticketpia",
                                 artist=artist,
                                 external_id=external_id

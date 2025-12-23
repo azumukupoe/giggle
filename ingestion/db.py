@@ -38,7 +38,6 @@ def upsert_events(supabase: Client, events: list):
                 "location": e.location,
                 "date": e.date.isoformat(),
                 "url": e.url,
-                "image_url": e.image_url,
                 "source": e.source,
                 "external_id": str(e.external_id)
             }

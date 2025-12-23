@@ -125,7 +125,6 @@ class EplusConnector(BaseConnector):
                                 date=date_obj,
                                 location=location,
                                 url=link,
-                                image_url=img_url,
                                 source="eplus",
                                 external_id=link
                             ))

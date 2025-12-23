@@ -10,7 +10,6 @@ class Event(BaseModel):
     location: str
     date: datetime
     url: str
-    image_url: Optional[str] = None
     source: str
     external_id: str
 

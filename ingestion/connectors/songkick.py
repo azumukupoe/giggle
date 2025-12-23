@@ -169,7 +169,6 @@ class SongkickConnector(BaseConnector):
                 location=loc,
                 date=event_date,
                 url=item.get('url'),
-                image_url=None, # User requested to remove Songkick images
                 source='songkick',
                 external_id=item.get('url')
             )
