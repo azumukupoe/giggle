@@ -74,8 +74,10 @@ def main():
     # Save to Supabase
     if all_events:
         # Filter Past Events
+        # dt_today is naive
         dt_today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-        future_events = [e for e in all_events if e.date >= dt_today]
+        # Convert e.date to naive for safe comparison if it has tzinfo
+        future_events = [e for e in all_events if (e.date.replace(tzinfo=None) if e.date.tzinfo else e.date) >= dt_today]
         print(f"  [Filter] Removed {len(all_events) - len(future_events)} past events. {len(future_events)} remaining.")
         all_events = future_events
 
