@@ -1,7 +1,9 @@
 import os
 import argparse
 import json
+from datetime import datetime
 from typing import List
+
 from connectors.base import Event
 from connectors.songkick import SongkickConnector
 from connectors.eplus import EplusConnector
@@ -71,9 +73,13 @@ def main():
 
     # Save to Supabase
     if all_events:
-        print(f"Total raw events found: {len(all_events)}")
+        # Filter Past Events
+        dt_today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        future_events = [e for e in all_events if e.date >= dt_today]
+        print(f"  [Filter] Removed {len(all_events) - len(future_events)} past events. {len(future_events)} remaining.")
+        all_events = future_events
 
-        # Deduplicate to prevent Postgres 21000 error (ON CONFLICT DO UPDATE command cannot affect row a second time)
+        # Deduplicate to prevent Postgres 21000 error
         # This occurs if the input batch contains multiple rows with the same (source, external_id)
         unique_events_map = {}
         for event in all_events:
