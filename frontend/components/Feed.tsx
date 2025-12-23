@@ -121,7 +121,7 @@ export const Feed = () => {
             {totalPages > 1 && (
                 <div className="flex justify-between items-center mt-12">
                     <button
-                        onClick={prevPage}
+                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                         disabled={currentPage === 1}
                         className="px-4 py-2 rounded-lg bg-secondary text-secondary-foreground disabled:opacity-50 disabled:cursor-not-allowed hover:bg-secondary/80 transition-colors font-medium text-sm"
                     >
@@ -131,7 +131,7 @@ export const Feed = () => {
                         Page {currentPage} of {totalPages}
                     </span>
                     <button
-                        onClick={nextPage}
+                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                         disabled={currentPage === totalPages}
                         className="px-4 py-2 rounded-lg bg-secondary text-secondary-foreground disabled:opacity-50 disabled:cursor-not-allowed hover:bg-secondary/80 transition-colors font-medium text-sm"
                     >
@@ -142,4 +142,3 @@ export const Feed = () => {
         </div>
     );
 };
-```
