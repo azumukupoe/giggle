@@ -87,20 +87,21 @@ export const Feed = () => {
                 <div className="text-gray-500 dark:text-gray-400 text-sm">
                     {/* Removed auth message, just search bar is focus now */}
                 </div>
+            </div>
 
-                <div className="relative w-full md:w-96">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-gray-500" />
-                    <input
-                        type="text"
-                        placeholder={t('feed.searchPlaceholder')}
-                        value={searchQuery}
-                        onChange={(e) => {
-                            setSearchQuery(e.target.value);
-                            setCurrentPage(1); // Reset page on search
-                        }}
-                        className="w-full pl-10 pr-4 py-2 rounded-full bg-gray-100 dark:bg-white/10 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:bg-white dark:focus:bg-white/20 transition-all"
-                    />
-                </div>
+            {/* Search Bar */}
+            <div className="max-w-xl mx-auto mb-8 relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => {
+                        setSearchQuery(e.target.value);
+                        setCurrentPage(1); // Reset page on search
+                    }}
+                    placeholder={t('feed.searchPlaceholder')}
+                    className="w-full pl-10 pr-4 py-3 rounded-xl bg-background border border-input text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring transition-all"
+                />
             </div>
 
             {/* Grid */}
@@ -118,28 +119,27 @@ export const Feed = () => {
 
             {/* Pagination Controls */}
             {totalPages > 1 && (
-                <div className="flex items-center justify-center gap-4 mt-12">
+                <div className="flex justify-between items-center mt-12">
                     <button
-                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                        onClick={prevPage}
                         disabled={currentPage === 1}
-                        className="p-2 rounded-full bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        className="px-4 py-2 rounded-lg bg-secondary text-secondary-foreground disabled:opacity-50 disabled:cursor-not-allowed hover:bg-secondary/80 transition-colors font-medium text-sm"
                     >
-                        <ChevronLeft className="w-6 h-6 text-gray-900 dark:text-white" />
+                        Previous
                     </button>
-
-                    <span className="text-gray-600 dark:text-gray-400 font-medium">
+                    <span className="text-muted-foreground font-medium text-sm">
                         Page {currentPage} of {totalPages}
                     </span>
-
                     <button
-                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                        onClick={nextPage}
                         disabled={currentPage === totalPages}
-                        className="p-2 rounded-full bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        className="px-4 py-2 rounded-lg bg-secondary text-secondary-foreground disabled:opacity-50 disabled:cursor-not-allowed hover:bg-secondary/80 transition-colors font-medium text-sm"
                     >
-                        <ChevronRight className="w-6 h-6 text-gray-900 dark:text-white" />
+                        Next
                     </button>
                 </div>
             )}
         </div>
     );
 };
+```
