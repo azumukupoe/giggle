@@ -1,6 +1,6 @@
 # Giggle 🎸
 
-Spotifyでフォローしているアーティストの来日公演やライブ情報を一括で検索できるアグリゲーターサービス（Bandsintown, Songkick, ぴあ, イープラス等に対応）。
+Spotifyでフォローしているアーティストの来日公演やライブ情報を一括で検索できるアグリゲーターサービス（Songkick, ぴあ, イープラスに対応）。
 
 [English README (README.md)](README.md)
 

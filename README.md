@@ -1,6 +1,6 @@
 # Giggle 🎸
 
-A free, hybrid-architecture web application (Google for Gigs) that aggregates concert dates for your favorite Spotify artists from Bandsintown, Songkick, Ticket Pia, and Eplus.
+A free, hybrid-architecture web application (Google for Gigs) that aggregates concert dates for your favorite Spotify artists from Songkick, Ticket Pia, and Eplus.
 
 [Japanese README (README_JA.md)](README_JA.md)
 
