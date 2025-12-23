@@ -1,33 +1,37 @@
 # Giggle 🎸
 
-A free, hybrid-architecture web application (Google for Gigs) that aggregates concert dates for your favorite Spotify artists from Bandsintown, Songkick, SeatGeek, and Ticketmaster.
+A free, hybrid-architecture web application (Google for Gigs) that aggregates concert dates for your favorite Spotify artists from Bandsintown, Songkick, Ticket Pia (ぴあ), and Eplus (イープラス).
 
-## 🌟 Features
+[日本語のREADMEは下にあります]
 
-*   **Smart Sync**: Log in with Spotify to automatically track your followed artists.
-*   **Unified Feed**: See events from multiple sources in one clean interface.
-*   **0% Cost**: Designed to run entirely on free tiers (Vercel, GitHub Actions, Supabase).
-*   **Robust Scraping**: Uses SEO-friendly JSON-LD extraction for reliable data access without API keys.
+---
 
-## 🏗 Architecture
+## 🌟 Features / 主な機能
 
-*   **Frontend**: Next.js 14, Tailwind CSS, Framer Motion (Hosted on Vercel).
+*   **Smart Sync / Spotify同期**: Log in with Spotify to automatically track your followed artists. / Spotifyでログインし、フォローしているアーティストを自動追跡。
+*   **Unified Feed / 統合フィード**: See events from multiple sources (Songkick, Pia, Eplus) in one clean interface with search and pagination. / 検索・ページネーション可能な一つのクリーンな画面で、複数のソース（Songkick, ぴあ, イープラス）のイベントを確認。
+*   **Bilingual Support / 多言語対応**: Seamlessly switch between English and Japanese. / 英語と日本語をシームレスに切り替え可能。
+*   **Dark Mode / ダークモード**: Beautiful dark and light theme support. / 洗練されたダーク/ライトテーマに対応。
+*   **Advanced Filtering / 高度なフィルタリング**: Uses Eplus API V3 and strict keyword exclusion to ensure only music concerts (no museum/zoo tickets) are ingested. / Eplus API V3やキーワード除外ロジックを活用し、音楽コンサートのみを正確に抽出。
+*   **0% Cost / コスト0円**: Designed to run entirely on free tiers (Vercel, GitHub Actions, Supabase). / 全て無料枠（Vercel, GitHub Actions, Supabase）で動作。
+
+## 🏗 Architecture / アーキテクチャ
+
+*   **Frontend**: Next.js 14, Tailwind CSS, Framer Motion, `next-themes`, `i18next`-style context (Hosted on Vercel).
 *   **Database**: Supabase (PostgreSQL).
-*   **Ingestion**: Python scripts scheduled via GitHub Actions (Runs daily).
+*   **Ingestion**: Python scripts using `uv` scheduled via GitHub Actions (Runs daily).
 
-## 🚀 Setup Instructions
+## 🚀 Setup Instructions / セットアップ
 
-### 1. Database (Supabase)
+### 1. Database (Supabase) / データベース
 1.  Create a free project on [Supabase](https://supabase.com/).
-2.  Go to the **SQL Editor** in your Supabase dashboard.
-3.  Copy and paste the contents of `supabase_schema.sql` (in this repo) and run it.
-4.  Note your `SUPABASE_URL` and `SUPABASE_KEY` (anon public key) from Project Settings > API.
-5.  Get your **Database Connection String** (for Python) from Project Settings > Database.
+2.  Use the **SQL Editor** to run the contents of `supabase_schema.sql`.
+3.  Note your `SUPABASE_URL` and `SUPABASE_KEY` (anon public key).
+4.  Get your **Database Connection String** for the Python ingestion scripts.
 
-### 2. Environment Variables
-You need to set up variables for both the Frontend (Vercel) and Backend (GitHub Actions).
+### 2. Environment Variables / 環境変数
 
-#### Frontend (.env.local)
+#### Frontend / フロントエンド (.env.local)
 See `frontend/.env.example`.
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
@@ -35,51 +39,57 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 SPOTIFY_CLIENT_ID=your_spotify_client_id
 SPOTIFY_CLIENT_SECRET=your_spotify_client_secret
 NEXTAUTH_SECRET=generate_a_random_string
-NEXTAUTH_URL=http://localhost:3000 (or your vercel domain)
+NEXTAUTH_URL=http://localhost:3000
 ```
 
-#### Backend (GitHub Secrets)
-See `ingestion/.env.example`.
+#### Backend / バックエンド (GitHub Secrets)
 ```bash
 SUPABASE_URL=your_supabase_url
-SUPABASE_KEY=your_service_role_key (SECRET! Do not use anon key here)
-TICKETMASTER_API_KEY=your_ticketmaster_key
+SUPABASE_KEY=your_service_role_key
 ```
 
-### 3. Local Development
+### 3. Local Development / ローカル開発
 
-**Frontend:**
+**Frontend / フロントエンド:**
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
 
-**Backend (Ingestion):**
+**Backend (Ingestion) / バックエンド:**
 ```bash
 cd ingestion
-# Install 'uv' if you haven't: pip install uv
+# Uses 'uv' for high-speed dependency management
 uv sync
 uv run main.py
 ```
 
-## 📦 Deployment
+## 📦 Deployment / デプロイ
 
 ### Frontend (Vercel)
-1.  Push this code to a GitHub repository.
-2.  Go to [Vercel](https://vercel.com/) and "Add New Project".
-3.  Import your repository.
-4.  In "Environment Variables", add all variables from the **Frontend** section above.
-5.  Deploy!
+Connect your repo to Vercel and add the environment variables listed above.
 
 ### Backend (GitHub Actions)
-1.  In your GitHub Repository, go to **Settings > Secrets and variables > Actions**.
-2.  Add the following **Repository Secrets**:
-    *   `SUPABASE_URL`
-    *   `SUPABASE_KEY`
-    *   `TICKETMASTER_API_KEY`
-3.  The workflow is already configured in `.github/workflows/ingest.yml`. It will run automatically every day at 8:00 AM UTC.
-4.  You can also go to the "Actions" tab and manually trigger the "Daily Concert Ingestion" workflow to test it.
+Add `SUPABASE_URL` and `SUPABASE_KEY` to **Settings > Secrets and variables > Actions**. The workflow (`.github/workflows/ingest.yml`) is scheduled to run daily at 8:00 AM UTC.
 
-## 🛡️ scraping Note
-This project uses lightweight scraping techniques targeting `JSON-LD` data. This is more robust than traditional scraping but can still be subject to website changes. Usage is intended for personal/developer educational purposes.
+## 🛡️ Note / 注意点
+This project uses lightweight scraping and API integrations for educational purposes. / このプロジェクトは学習目的で軽量なウェブスクレイピングとAPI連携を使用しています。
+
+---
+
+# Giggle (日本語)
+
+## 概要
+Spotifyでフォローしているアーティストの来日公演やライブ情報を一括で検索できるアグリゲーターサービスです。
+
+## 🛠 技術スタック
+- **Frontend**: Next.js (TypeScript), Tailwind CSS
+- **Backend**: Python (Ingestion logic)
+- **Database**: Supabase
+- **CI/CD**: GitHub Actions (Daily ingestion)
+
+## 🌈 特徴
+- **正確なデータ**: イープラスのAPI V3などを活用し、単なる「イベント」ではなく「音楽ライブ」に絞った高精度なデータ取得。
+- **使いやすさ**: 英語と日本語のバイリンガル対応、検索・フィルタリング機能。
+- **メンテナンスフリー**: 自動バッチ処理により、常に最新の公演情報が反映されます。
