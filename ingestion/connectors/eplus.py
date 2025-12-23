@@ -171,7 +171,7 @@ class EplusConnector(BaseConnector):
 
                         # Artist
                         # Try to find 'shutsuensha'
-                        artist = "Various"
+                        artist = title # Default to title instead of "Various"
                         uketsuke_list = item.get('kanren_uketsuke_koen_list', [])
                         if uketsuke_list:
                              first_uketsuke = uketsuke_list[0]

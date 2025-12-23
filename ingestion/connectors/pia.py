@@ -116,7 +116,8 @@ class PiaConnector(BaseConnector):
                         
                         # Formatting checks
                         if not artist:
-                            artist = "" # Default to empty as requested if not found
+                            artist = title # Fallback to title instead of empty
+
 
                         if title and link:
                             events.append(Event(

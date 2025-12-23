@@ -53,13 +53,15 @@ class SongkickConnector(BaseConnector):
                             data = json.loads(script.text)
                             items = data if isinstance(data, list) else [data]
                             for item in items:
-                                if item.get('@type') == 'MusicEvent':
                                     # Identify artist
                                     performers = item.get('performer', [])
                                     if isinstance(performers, list) and performers:
-                                        artist_name = performers[0].get('name', 'Unknown Artist')
+
+                                        # Use performer name, fallback to event name instead of "Unknown Artist"
+                                        artist_name = performers[0].get('name') or item.get('name', 'Event')
                                     else:
-                                        artist_name = item.get('name', 'Unknown Event')
+                                        artist_name = item.get('name', 'Event')
+
 
                                     evt = self._parse_json_ld(item, artist_name)
                                     if evt: page_events.append(evt)
