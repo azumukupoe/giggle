@@ -9,6 +9,16 @@ import { useLanguage } from "./LanguageContext";
 export const EventCard = ({ event }: { event: Event }) => {
     const { t } = useLanguage();
 
+    const decodeHtml = (str: string) => {
+        if (!str) return "";
+        return str.replace(/&amp;/g, "&")
+            .replace(/&lt;/g, "<")
+            .replace(/&gt;/g, ">")
+            .replace(/&quot;/g, '"')
+            .replace(/&#039;/g, "'")
+            .replace(/&#39;/g, "'");
+    };
+
     return (
         <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -27,8 +37,8 @@ export const EventCard = ({ event }: { event: Event }) => {
 
                 {/* Title & Artist */}
                 <div>
-                    <h3 className="text-xl font-bold text-white leading-tight line-clamp-2">{event.title}</h3>
-                    <p className="text-gray-300 font-medium text-lg line-clamp-1">{event.artist}</p>
+                    <h3 className="text-xl font-bold text-white leading-tight line-clamp-2">{decodeHtml(event.title)}</h3>
+                    <p className="text-gray-300 font-medium text-lg line-clamp-1">{decodeHtml(event.artist)}</p>
                 </div>
 
                 {/* Details */}
@@ -39,7 +49,7 @@ export const EventCard = ({ event }: { event: Event }) => {
                     </div>
                     <div className="flex items-center gap-2">
                         <MapPin className="w-4 h-4 text-blue-400 shrink-0" />
-                        <span className="line-clamp-1">{event.venue}, {event.location}</span>
+                        <span className="line-clamp-1">{decodeHtml(event.venue)}, {decodeHtml(event.location)}</span>
                     </div>
                 </div>
 
