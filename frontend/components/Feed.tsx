@@ -7,7 +7,8 @@ import { supabase } from "@/lib/supabase";
 import { useSession } from "next-auth/react";
 import { getFollowedArtists } from "@/lib/spotify";
 import { useLanguage } from "./LanguageContext";
-import { Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, ChevronLeft, ChevronRight, Music } from "lucide-react";
+import { signIn } from "next-auth/react";
 
 export const Feed = () => {
     const { data: session } = useSession();
@@ -120,9 +121,22 @@ export const Feed = () => {
         <div className="max-w-7xl mx-auto p-6">
             {/* Controls */}
             <div className="mb-8 flex flex-col md:flex-row gap-4 items-center justify-between">
-                <p className="text-gray-400 text-sm">
-                    {filterMessage}
-                </p>
+                <div className="text-gray-400 text-sm flex items-center gap-2">
+                    {session ? (
+                        <span>{filterMessage}</span>
+                    ) : (
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => signIn("spotify")}
+                                className="px-4 py-1.5 rounded-full bg-[#1DB954] text-black font-bold hover:bg-[#1ed760] transition-colors flex items-center gap-2 text-sm"
+                            >
+                                <Music className="w-4 h-4 fill-current" />
+                                <span>{t('nav.connect')}</span>
+                            </button>
+                            <span>{t('feed.connectPromptSuffix')}</span>
+                        </div>
+                    )}
+                </div>
 
                 <div className="relative w-full md:w-96">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
@@ -134,7 +148,7 @@ export const Feed = () => {
                             setSearchQuery(e.target.value);
                             setCurrentPage(1); // Reset page on search
                         }}
-                        className="w-full pl-10 pr-4 py-2 rounded-full bg-white/10 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:bg-white/20 transition-all"
+                        className="w-full pl-10 pr-4 py-2 rounded-full bg-white/10 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:bg-white/20 transition-all text-black dark:text-white"
                     />
                 </div>
             </div>

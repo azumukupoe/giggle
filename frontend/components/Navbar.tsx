@@ -50,7 +50,7 @@ export const Navbar = () => {
 
                     <div className="w-px h-6 bg-white/20 mx-2" />
 
-                    {session ? (
+                    {session && (
                         <div className="flex items-center gap-4">
                             {session.user?.image && (
                                 <Image
@@ -69,14 +69,6 @@ export const Navbar = () => {
                                 {t('nav.logout')}
                             </button>
                         </div>
-                    ) : (
-                        <button
-                            onClick={() => signIn("spotify")}
-                            className="px-4 py-2 rounded-full bg-[#1DB954] text-black font-bold hover:bg-[#1ed760] transition-colors flex items-center gap-2 text-sm"
-                        >
-                            <Music className="w-4 h-4 fill-current" />
-                            <span>{t('nav.connect')}</span>
-                        </button>
                     )}
                 </div>
             </div>
