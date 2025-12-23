@@ -144,7 +144,7 @@ class PiaConnector(BaseConnector):
     def _scrape_artist_from_detail(self, url: str) -> str:
         """
         Fetches the event detail page and extracts artist info from div.Y15-event-description.
-        Supports: ［出演］, ［ゲスト］, ［出演者］, ［キャスト］
+        Format: ［出演］Artist A / Artist B ...
         """
         try:
              headers = {
@@ -160,8 +160,8 @@ class PiaConnector(BaseConnector):
              if desc_div:
                  # Separator \n is safer than strip=True merged
                  full_text = desc_div.get_text(separator="\n", strip=True) 
-                 # Regex for artist tags (capture) until newline or end
-                 match = re.search(r'［(?:出演|ゲスト|出演者|キャスト)］(.*?)(?:\n|$)', full_text)
+                 # Regex for ［出演］ or ［ゲスト］ (capture) until newline or end
+                 match = re.search(r'［(?:出演|ゲスト)］(.*?)(?:\n|$)', full_text)
                  if match:
                      return match.group(1).strip()
              
@@ -170,7 +170,6 @@ class PiaConnector(BaseConnector):
         except Exception as e:
              # print(f"  [Pia] Detail scrape failed for {url}: {e}")
              return ""
-
 
     def get_artist_events(self, artist_name: str) -> List[Event]:
         # Placeholder
