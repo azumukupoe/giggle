@@ -18,6 +18,8 @@ debug_*.py
 test_*.py
 verify_*.py
 fetch_*.py
+!verify_eplus_genre_scraping.py
+!probe_eplus_genres.py
 
 
 # Research Artifacts (Downloaded JS/HTML)
@@ -31,3 +33,5 @@ fetch_*.py
 # OS
 .DS_Store
 Thumbs.db
+frontend/build_log.txt
+eplus_dump.json
