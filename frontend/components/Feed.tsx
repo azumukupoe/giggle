@@ -4,21 +4,16 @@ import { useEffect, useState } from "react";
 import { EventCard } from "./EventCard";
 import { Event } from "@/types/event";
 import { supabase } from "@/lib/supabase";
-import { useSession } from "next-auth/react";
-import { getFollowedArtists } from "@/lib/spotify";
 import { useLanguage } from "./LanguageContext";
-import { Search, ChevronLeft, ChevronRight, Music } from "lucide-react";
-import { signIn } from "next-auth/react";
+import { Search, ChevronLeft, ChevronRight } from "lucide-react";
 
 export const Feed = () => {
-    const { data: session } = useSession();
     const { t } = useLanguage();
 
     // Data State
     const [allEvents, setAllEvents] = useState<Event[]>([]);
     const [displayedEvents, setDisplayedEvents] = useState<Event[]>([]);
     const [loading, setLoading] = useState(true);
-    const [filterMessage, setFilterMessage] = useState("");
 
     // UI State
     const [searchQuery, setSearchQuery] = useState("");
@@ -28,45 +23,13 @@ export const Feed = () => {
     useEffect(() => {
         const fetchEvents = async () => {
             setLoading(true);
-            let artistFilter: string[] = [];
 
-            if (session?.accessToken) {
-                // 1. Get Followed Artists
-                const followed = await getFollowedArtists(session.accessToken as string);
-                if (followed.length > 0) {
-                    artistFilter = followed;
-                    setFilterMessage(t('feed.following').replace('{count}', followed.length.toString()));
-
-                    // Sync logic (background)
-                    try {
-                        const artistsToInsert = followed.map((name: string) => ({ name }));
-                        supabase.from('artists').upsert(artistsToInsert, { onConflict: 'name', ignoreDuplicates: true }).then(({ error }) => {
-                            if (error) console.error("Error syncing artists to backend:", error);
-                        });
-                    } catch (err) {
-                        console.error("Sync error:", err)
-                    }
-
-                } else {
-                    setFilterMessage(t('feed.allEvents'));
-                }
-            } else {
-                setFilterMessage(t('feed.connectPrompt'));
-            }
-
-            // 2. Query Supabase (Fetch more items to allow client-side search)
-            // Ideally backend search is better, but for MVP client-side is faster to implement
-            let query = supabase
+            // Query Supabase (Fetch all items for client-side search)
+            const { data, error } = await supabase
                 .from('events')
                 .select('*')
                 .order('date', { ascending: true })
-                .limit(10000); // Fetch all (effectively) for client-side filtering
-
-            if (artistFilter.length > 0) {
-                query = query.in('artist', artistFilter);
-            }
-
-            const { data, error } = await query;
+                .limit(10000);
 
             if (error) {
                 console.error("Error fetching events:", error);
@@ -78,7 +41,7 @@ export const Feed = () => {
         };
 
         fetchEvents();
-    }, [session, t]); // Add 't' dependency so message updates on language change
+    }, []);
 
     // Filter & Paginate
     useEffect(() => {
@@ -111,7 +74,7 @@ export const Feed = () => {
         return (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-6">
                 {[...Array(6)].map((_, i) => (
-                    <div key={i} className="h-96 rounded-2xl bg-white/5 animate-pulse" />
+                    <div key={i} className="h-96 rounded-2xl bg-gray-100 dark:bg-white/5 animate-pulse" />
                 ))}
             </div>
         );
@@ -121,25 +84,12 @@ export const Feed = () => {
         <div className="max-w-7xl mx-auto p-6">
             {/* Controls */}
             <div className="mb-8 flex flex-col md:flex-row gap-4 items-center justify-between">
-                <div className="text-gray-400 text-sm flex items-center gap-2">
-                    {session ? (
-                        <span>{filterMessage}</span>
-                    ) : (
-                        <div className="flex items-center gap-2">
-                            <button
-                                onClick={() => signIn("spotify")}
-                                className="px-4 py-1.5 rounded-full bg-[#1DB954] text-black font-bold hover:bg-[#1ed760] transition-colors flex items-center gap-2 text-sm"
-                            >
-                                <Music className="w-4 h-4 fill-current" />
-                                <span>{t('nav.connect')}</span>
-                            </button>
-                            <span>{t('feed.connectPromptSuffix')}</span>
-                        </div>
-                    )}
+                <div className="text-gray-500 dark:text-gray-400 text-sm">
+                    {/* Removed auth message, just search bar is focus now */}
                 </div>
 
                 <div className="relative w-full md:w-96">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-gray-500" />
                     <input
                         type="text"
                         placeholder={t('feed.searchPlaceholder')}
@@ -148,7 +98,7 @@ export const Feed = () => {
                             setSearchQuery(e.target.value);
                             setCurrentPage(1); // Reset page on search
                         }}
-                        className="w-full pl-10 pr-4 py-2 rounded-full bg-white/10 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:bg-white/20 transition-all text-black dark:text-white"
+                        className="w-full pl-10 pr-4 py-2 rounded-full bg-gray-100 dark:bg-white/10 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:bg-white dark:focus:bg-white/20 transition-all"
                     />
                 </div>
             </div>
@@ -160,9 +110,8 @@ export const Feed = () => {
                         <EventCard key={event.id || event.external_id} event={event} />
                     ))
                 ) : (
-                    <div className="col-span-full text-center text-gray-500 py-20 bg-white/5 rounded-3xl backdrop-blur-sm border border-white/10">
+                    <div className="col-span-full text-center text-gray-500 py-20 bg-gray-50 dark:bg-white/5 rounded-3xl border border-gray-200 dark:border-white/10">
                         <p className="text-xl">{t('feed.noEvents')}</p>
-                        <p className="text-sm mt-2">{t('feed.syncMore')}</p>
                     </div>
                 )}
             </div>
@@ -173,21 +122,21 @@ export const Feed = () => {
                     <button
                         onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                         disabled={currentPage === 1}
-                        className="p-2 rounded-full bg-white/10 hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        className="p-2 rounded-full bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
-                        <ChevronLeft className="w-6 h-6 text-white" />
+                        <ChevronLeft className="w-6 h-6 text-gray-900 dark:text-white" />
                     </button>
 
-                    <span className="text-gray-400 font-medium">
+                    <span className="text-gray-600 dark:text-gray-400 font-medium">
                         Page {currentPage} of {totalPages}
                     </span>
 
                     <button
                         onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                         disabled={currentPage === totalPages}
-                        className="p-2 rounded-full bg-white/10 hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        className="p-2 rounded-full bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
-                        <ChevronRight className="w-6 h-6 text-white" />
+                        <ChevronRight className="w-6 h-6 text-gray-900 dark:text-white" />
                     </button>
                 </div>
             )}
