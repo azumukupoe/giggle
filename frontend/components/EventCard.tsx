@@ -76,12 +76,13 @@ export const EventCard = ({ event }: { event: Event }) => {
                 {/* Footer: Details & CTA */}
                 <div className="mt-4 flex flex-col gap-3">
                     <div className="flex flex-col gap-1.5 text-xs text-muted-foreground">
-                        <div className="flex items-center gap-2" title={format(parseISO(event.date), "PPP p")}>
+                        <div className="flex items-center gap-2" title={format(parseISO(event.date), "PPP p", { locale: language === 'ja' ? ja : enUS })}>
                             <Calendar className="w-3.5 h-3.5 shrink-0" />
                             <span>
-                                {format(parseISO(event.date), "EEE, MMM d @ h:mm a", {
-                                    locale: language === 'ja' ? ja : enUS
-                                })}
+                                {format(parseISO(event.date),
+                                    language === 'ja' ? "M月d日(EEE) HH:mm" : "EEE, MMM d @ h:mm a",
+                                    { locale: language === 'ja' ? ja : enUS }
+                                )}
                             </span>
                         </div>
                         <div className="flex items-center gap-2">
