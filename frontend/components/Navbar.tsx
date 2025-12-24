@@ -1,20 +1,14 @@
 "use client";
 
-import { Music, Sun, Moon, Languages } from "lucide-react";
-import { useTheme } from "next-themes";
+import { ThemeToggle } from "./ThemeToggle";
 import { useLanguage } from "./LanguageContext";
 import { useEffect, useState } from "react";
 
 export const Navbar = () => {
-    const { theme, setTheme } = useTheme();
     const { language, setLanguage } = useLanguage();
     const [mounted, setMounted] = useState(false);
 
     useEffect(() => setMounted(true), []);
-
-    const toggleTheme = () => {
-        setTheme(theme === "dark" ? "light" : "dark");
-    };
 
     const toggleLanguage = () => {
         setLanguage(language === "en" ? "ja" : "en");
@@ -38,12 +32,7 @@ export const Navbar = () => {
                         >
                             {language === 'en' ? 'JA' : 'EN'}
                         </button>
-                        <button
-                            onClick={toggleTheme}
-                            className="p-2 rounded-md hover:bg-accent hover:text-accent-foreground text-muted-foreground transition-colors"
-                        >
-                            {theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-                        </button>
+                        <ThemeToggle />
                     </div>
                 </div>
             </div>
