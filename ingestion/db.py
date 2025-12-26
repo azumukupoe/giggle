@@ -9,8 +9,7 @@ key: str = os.environ.get("SUPABASE_KEY", "")
 
 def get_supabase_client() -> Client:
     if not url or not key:
-        print("Warning: SUPABASE_URL or SUPABASE_KEY not found in environment.")
-        # In production, we might want to raise an error
+        raise ValueError("SUPABASE_URL or SUPABASE_KEY not found in environment variables.")
     return create_client(url, key)
 
 def upsert_events(supabase: Client, events: list):
@@ -63,3 +62,23 @@ def get_all_artists(supabase: Client) -> list[str]:
     except Exception as e:
         print(f"Error fetching artists from DB: {e}")
         return []
+
+def delete_old_events(supabase: Client):
+    """
+    Deletes events from the 'events' table that are in the past.
+    """
+    from datetime import datetime
+    
+    # Use current time for comparison
+    now_iso = datetime.now().isoformat()
+    
+    print("Deleting old events...")
+    try:
+        # lt = less than
+        response = supabase.table("events").delete().lt("date", now_iso).execute()
+        if response.data:
+            print(f"  -> Deleted {len(response.data)} old events.")
+        else:
+            print("  -> No old events found to delete.")
+    except Exception as e:
+        print(f"Error deleting old events: {e}")

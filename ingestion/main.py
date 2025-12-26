@@ -10,7 +10,6 @@ from connectors.eplus import EplusConnector
 from connectors.pia import PiaConnector
 from db import get_supabase_client
 from dotenv import load_dotenv
-from dotenv import load_dotenv
 
 # Load env vars
 load_dotenv()
@@ -44,12 +43,12 @@ def main():
         name = data.get('name', mid)
         print(f"  [Songkick] ({i+1}/{len(sk_metros_data)}) Scraping {name} ({metro_slug})...")
         try:
-             # Limit to 20 pages to get deep coverage without infinite loops
-             events = sk_connector.get_metro_events(metro_id=metro_slug, max_pages=20)
-             print(f"    -> Found {len(events)} events.")
-             all_events.extend(events)
+            # Limit to 20 pages to get deep coverage without infinite loops
+            events = sk_connector.get_metro_events(metro_id=metro_slug, max_pages=20)
+            print(f"    -> Found {len(events)} events.")
+            all_events.extend(events)
         except Exception as e:
-             print(f"    -> Failed: {e}")
+            print(f"    -> Failed: {e}")
 
     # 2. eplus (Japan Major Ticket Vendor)
     print("\n--- Scraping Eplus (Japan) ---")
@@ -106,6 +105,15 @@ def main():
         print("No events found to save.")
 
     print(f"Total events found: {len(all_events)}")
+
+    # Cleanup Old Events
+    print("\n--- Cleaning up old events ---")
+    try:
+        supabase = get_supabase_client()
+        from db import delete_old_events
+        delete_old_events(supabase)
+    except Exception as e:
+         print(f"Skipping cleanup due to error connecting to DB: {e}")
 
 if __name__ == "__main__":
     main()
