@@ -8,7 +8,7 @@ import { motion } from "framer-motion";
 import { useLanguage } from "./LanguageContext";
 
 export const EventCard = ({ event }: { event: Event }) => {
-    const { t, translateLocation, translateVenue, language } = useLanguage();
+    const { t, language } = useLanguage();
 
     const decodeHtml = (str: string) => {
         if (!str) return "";
@@ -22,27 +22,18 @@ export const EventCard = ({ event }: { event: Event }) => {
 
     const formatLocation = (loc: string) => {
         const decoded = decodeHtml(loc);
-        const cleaned = decoded.replace(/, Japan$/, "").replace(/Japan$/, "").trim();
-        return translateLocation(cleaned);
+        return decoded.replace(/, Japan$/, "").replace(/Japan$/, "").trim();
     };
 
     const formatVenue = (ven: string) => {
-        return translateVenue(decodeHtml(ven));
+        return decodeHtml(ven);
     };
 
     const getSourceLabel = (source: string) => {
-        if (language === 'ja') {
-            const jaMap: Record<string, string> = {
-                'eplus': 'イープラス',
-                'pia': 'チケットぴあ',
-            };
-            if (jaMap[source]) return jaMap[source];
-        }
-
         const map: Record<string, string> = {
-            'songkick': 'Songkick',
-            'eplus': 'eplus',
-            'pia': 'Ticket PIA',
+            'songkick': 'songkick.com',
+            'eplus': 'eplus.jp',
+            'pia': 't.pia.jp',
         };
         return map[source] || source;
     };
@@ -60,13 +51,13 @@ export const EventCard = ({ event }: { event: Event }) => {
                 {/* Removed upper source badge */}
                 <div className="flex-grow space-y-1 pt-1">
                     <h3
-                        className="text-lg font-bold leading-tight line-clamp-2"
+                        className="text-lg font-bold leading-tight"
                         title={decodeHtml(event.title)}
                     >
                         {decodeHtml(event.title)}
                     </h3>
                     <p
-                        className="text-muted-foreground font-medium text-sm line-clamp-1"
+                        className="text-muted-foreground font-medium text-sm"
                         title={decodeHtml(event.artist)}
                     >
                         {decodeHtml(event.artist)}
@@ -87,7 +78,7 @@ export const EventCard = ({ event }: { event: Event }) => {
                         </div>
                         <div className="flex items-center gap-2">
                             <MapPin className="w-3.5 h-3.5 shrink-0" />
-                            <span className="line-clamp-1" title={`${formatVenue(event.venue)}, ${formatLocation(event.location)}`}>
+                            <span title={`${formatVenue(event.venue)}, ${formatLocation(event.location)}`}>
                                 {formatVenue(event.venue)}, {formatLocation(event.location)}
                             </span>
                         </div>

@@ -21,7 +21,7 @@ export const Navbar = () => {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex h-16 items-center justify-between">
                     <div className="flex-shrink-0">
-                        <h1 className="text-xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                        <h1 className="text-2xl font-extrabold text-foreground tracking-tight">
                             Giggle
                         </h1>
                     </div>
