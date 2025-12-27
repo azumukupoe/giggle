@@ -20,6 +20,13 @@ class EplusConnector(BaseConnector):
             'X-APIToken': 'FGXySj3mTd' # Static token
         }
         
+        # Setup session with retry
+        self.session = requests.Session()
+        retries = requests.adapters.Retry(total=3, backoff_factor=1, status_forcelist=[500, 502, 503, 504])
+        adapter = requests.adapters.HTTPAdapter(max_retries=retries)
+        self.session.mount('http://', adapter)
+        self.session.mount('https://', adapter)
+        
     def get_artist_events(self, artist_name: str):
         # NOT IMPLEMENTED FOR NOW: Only general discovery via get_events
         return []
@@ -124,36 +131,10 @@ class EplusConnector(BaseConnector):
                     link = f"https://eplus.jp{detail_path}"
 
             # --- DETAIL PAGE GENRE CHECK (User Requirement: No Keyword filtering on Title) ---
-            # We must check the "Genre" breadcrumbs on the detail page to be accurate.
-            # This adds latency (N+1 requests) but is required to avoid false positives.
-            
             if link:
-                try:
-                    # Parallel execution handles concurrency, removing sleep or keeping it small if rate limit is a concern.
-                    # eplus is generally robust, but let's be nice.
-                    # time.sleep(0.1) 
-                    
-                    detail_res = requests.get(link, headers=self.headers, timeout=10)
-                    if detail_res.status_code == 200:
-                        soup = BeautifulSoup(detail_res.text, 'html.parser')
-                        breadcrumbs = soup.find_all(class_="breadcrumb-list__name")
-                        genres = [b.get_text(strip=True) for b in breadcrumbs]
-                        
-                        
-                        # Exclusion list based on GENRE (Breadcrumbs), NOT Title keywords
-                        exclude_genres = ["イベント", "映画"]
-                        is_excluded = False
-                        for g in genres:
-                            if any(ex in g for ex in exclude_genres):
-                                is_excluded = True
-                                break
-                        
-                        if is_excluded:
-                            return None
-                except Exception as e:
-                    # If detail scrape fails, decide whether to keep or skip. 
-                    # Let's keep it to be safe.
-                    pass
+                is_excluded = self._check_exclusion(link)
+                if is_excluded:
+                    return None
             # --- End Genre Check ---
 
             # "koenbi_term": "20250315～20260222"
@@ -210,5 +191,57 @@ class EplusConnector(BaseConnector):
             return None
 
         except Exception as e:
+            # print(f"Error processing item: {e}")
             return None
+
+    def _check_exclusion(self, link):
+        """
+        Scrapes the detail page to check for excluded genres.
+        Returns True if the event should be excluded (or if check fails).
+        Retries up to a limit, then skips the item.
+        """
+        backoff = 1
+        max_backoff = 5
+        max_retries = 10
+        attempt = 0
+        
+        while attempt < max_retries:
+            attempt += 1
+            try:
+                # Use standard request here within our own loop, 
+                # or rely on session. But since we want "infinite" retry for this specific check, 
+                # a manual loop is safer than configuring the adapter for MaxInt retries.
+                # We can still use self.session for connection pooling.
+                
+                detail_res = self.session.get(link, headers=self.headers, timeout=10)
+                
+                if detail_res.status_code == 200:
+                    soup = BeautifulSoup(detail_res.text, 'html.parser')
+                    breadcrumbs = soup.find_all(class_="breadcrumb-list__name")
+                    genres = [b.get_text(strip=True) for b in breadcrumbs]
+                    
+                    exclude_genres = ["イベント", "映画"]
+                    for g in genres:
+                        if any(ex in g for ex in exclude_genres):
+                             return True # Excluded
+                    return False
+                
+                elif detail_res.status_code == 404:
+                    print(f"  [eplus] Page not found (404): {link}. Keeping event.")
+                    return False # Can't check, assume safe to keep or maybe event is gone.
+                    
+                else:
+                    print(f"  [eplus] Failed to fetch detail page {link}: {detail_res.status_code}. Retrying ({attempt}/{max_retries}) in {backoff}s...")
+                    time.sleep(backoff)
+                    backoff = min(backoff * 2, max_backoff)
+                    
+            except Exception as e:
+                print(f"  [eplus] Error checking exclusion for {link}: {e}. Retrying ({attempt}/{max_retries}) in {backoff}s...")
+                time.sleep(backoff)
+                backoff = min(backoff * 2, max_backoff)
+        
+        print(f"  [eplus] Gave up checking exclusion for {link} after {max_retries} attempts. SKIPPING item.")
+        return True # Excluded (Skipped) because we couldn't verify it
+
+
 
