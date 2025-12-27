@@ -21,7 +21,7 @@ def main():
     all_events: List[Event] = []
 
     # --- PHASE 1: Japan Discovery (Broad Search) ---
-    print("--- Phase 1: Japan Discovery ---")
+    # --- PHASE 1: Japan Discovery (Broad Search) ---
     
     # 1. Songkick (Metro Areas)
     # We loop through known Metro IDs loaded from file.
@@ -32,7 +32,7 @@ def main():
     if os.path.exists(metros_file):
         with open(metros_file, 'r', encoding='utf-8') as f:
             sk_metros_data = json.load(f)
-        print(f"  [Songkick] Loaded {len(sk_metros_data)} metro areas from file.")
+            sk_metros_data = json.load(f)
     else:
         print("  [Songkick] Warning: japan_metro_ids.json not found. using fallback.")
         sk_metros_data = {'30717': {'full_slug': '30717-japan-tokyo', 'name': 'Tokyo'}} # Fallback
@@ -41,31 +41,29 @@ def main():
     for i, (mid, data) in enumerate(sk_metros_data.items()):
         metro_slug = data.get('full_slug')
         name = data.get('name', mid)
-        print(f"  [Songkick] ({i+1}/{len(sk_metros_data)}) Scraping {name} ({metro_slug})...")
         try:
             # Limit to 20 pages to get deep coverage without infinite loops
             events = sk_connector.get_metro_events(metro_id=metro_slug, max_pages=20)
-            print(f"    -> Found {len(events)} events.")
             all_events.extend(events)
         except Exception as e:
             print(f"    -> Failed: {e}")
 
     # 2. eplus (Japan Major Ticket Vendor)
-    print("\n--- Scraping Eplus (Japan) ---")
+    # 2. eplus (Japan Major Ticket Vendor)
     try:
         eplus = EplusConnector()
+        eplus = EplusConnector()
         events = eplus.get_events(max_pages=20)
-        print(f"Found {len(events)} events from Eplus.")
         all_events.extend(events)
     except Exception as e:
         print(f"Eplus scraping failed: {e}")
 
     # 3. Ticket Pia (Japan)
-    print("\n--- Scraping Ticket Pia (Japan) ---")
+    # 3. Ticket Pia (Japan)
     try:
         pia = PiaConnector()
+        pia = PiaConnector()
         pia_events = pia.get_events(max_pages=20)
-        print(f"Found {len(pia_events)} events from Ticket Pia.")
         all_events.extend(pia_events)
     except Exception as e:
         print(f"Ticket Pia scraping failed: {e}")
@@ -77,7 +75,8 @@ def main():
         dt_today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
         # Convert e.date to naive for safe comparison if it has tzinfo
         future_events = [e for e in all_events if (e.date.replace(tzinfo=None) if e.date.tzinfo else e.date) >= dt_today]
-        print(f"  [Filter] Removed {len(all_events) - len(future_events)} past events. {len(future_events)} remaining.")
+        # Convert e.date to naive for safe comparison if it has tzinfo
+        future_events = [e for e in all_events if (e.date.replace(tzinfo=None) if e.date.tzinfo else e.date) >= dt_today]
         all_events = future_events
 
         # Deduplicate to prevent Postgres 21000 error
@@ -92,7 +91,8 @@ def main():
                 pass # Already have this event, skip duplicate
         
         unique_events = list(unique_events_map.values())
-        print(f"Saving {len(unique_events)} distinct events to Supabase (removed {len(all_events) - len(unique_events)} duplicates)...")
+        unique_events = list(unique_events_map.values())
+        print(f"Saving {len(unique_events)} distinct events to Supabase...")
 
         try:
              supabase = get_supabase_client()
@@ -106,8 +106,9 @@ def main():
 
     print(f"Total events found: {len(all_events)}")
 
+
     # Cleanup Old Events
-    print("\n--- Cleaning up old events ---")
+    print("--- Cleaning up old events ---")
     try:
         supabase = get_supabase_client()
         from db import delete_old_events

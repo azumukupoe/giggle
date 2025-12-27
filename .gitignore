@@ -1,37 +1,16 @@
-
 # Python
 __pycache__/
 *.py[cod]
 *$py.class
 .venv/
 .env
-
-# Logs
+uv.lock
 *.log
-run_logs*.txt
 
-# Debug Artifacts
-*_dump.html
-*_debug.html
-*_verify_output.json
-debug_*.py
-test_*.py
-verify_*.py
-fetch_*.py
-!verify_eplus_genre_scraping.py
-!probe_eplus_genres.py
-
-
-# Research Artifacts (Downloaded JS/HTML)
-# (Keeping s2.js etc accessible)
-# *.js
-!frontend/**
-!ingestion/**
-*.html
-
-
-# OS
+# Node
+node_modules/
+.next/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 .DS_Store
-Thumbs.db
-frontend/build_log.txt
-eplus_dump.json

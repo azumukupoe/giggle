@@ -21,7 +21,6 @@ class EplusConnector(BaseConnector):
         return []
 
     def get_events(self, query: str = None, max_pages: int = 5):
-        print(f"  [eplus] Fetching events from Eplus API V3...")
         
         all_events = []
         
@@ -49,14 +48,8 @@ class EplusConnector(BaseConnector):
                 "streaming_haishin_kubun_list": "0"
             }
 
-            
             # Construct URL manually for array parameters if needed, but requests handles lists usually?
             # Eplus seems to want "genre_ids[]=1". Requests 'params' with list does "genre_ids=1&genre_ids=2".
-            # So we might need to handle it carefully. 
-            # Actually, verifies script used dictionary key "genre_ids[]" : "1", which results in "&genre_ids%5B%5D=1".
-            # This worked in validation.
-            
-            print(f"  [eplus] Fetching page {page} (Start Index: {current_start_index})...")
 
             try:
                 response = requests.get(self.api_url, headers=self.headers, params=params, timeout=15)
@@ -80,10 +73,7 @@ class EplusConnector(BaseConnector):
                 total_count = data['data'].get('so_kensu', 0)
                 
                 if not record_list:
-                    print(f"  [eplus] No items found on page {page}. Stopping.")
                     break
-                
-                print(f"  [eplus] Found {len(record_list)} items on page {page}. Total available: {total_count}")
 
                 for item in record_list:
                     try:
@@ -121,13 +111,12 @@ class EplusConnector(BaseConnector):
                                     breadcrumbs = soup.find_all(class_="breadcrumb-list__name")
                                     genres = [b.get_text(strip=True) for b in breadcrumbs]
                                     
+                                    
                                     # Exclusion list based on GENRE (Breadcrumbs), NOT Title keywords
                                     exclude_genres = ["イベント", "映画"]
-                                    
                                     is_excluded = False
                                     for g in genres:
                                         if any(ex in g for ex in exclude_genres):
-                                            # print(f"  [eplus] Skipping '{title}' due to genre validation: {g}")
                                             is_excluded = True
                                             break
                                     
@@ -136,7 +125,6 @@ class EplusConnector(BaseConnector):
                             except Exception as e:
                                 # If detail scrape fails, decide whether to keep or skip. 
                                 # Let's keep it to be safe, but log error?
-                                # print(f"  [eplus] Genre check failed for {link}: {e}")
                                 pass
                         # --- End Genre Check ---
                         # Let's check verify output... 
@@ -195,13 +183,11 @@ class EplusConnector(BaseConnector):
                             ))
 
                     except Exception as e:
-                        # print(f"  [eplus] Error parsing item: {e}")
                         continue
                 
                 # Update pagination for next loop
                 current_start_index += items_per_page
                 if current_start_index > total_count:
-                    print(f"  [eplus] Reached end of results ({total_count}).")
                     break
                     
             except Exception as e:
