@@ -20,7 +20,7 @@ class SongkickConnector(BaseConnector):
         # Required by BaseConnector
         return []
 
-    def get_metro_events(self, metro_id: str = "30717-japan-tokyo", max_pages: int = 5) -> List[Event]:
+    def get_metro_events(self, metro_id: str = "30717-japan-tokyo", max_pages: int = None) -> List[Event]:
         """
         Fetches events for a specific metro area (e.g., Tokyo).
         Iterates through pages until max_pages or no events found.
@@ -29,7 +29,11 @@ class SongkickConnector(BaseConnector):
         base_metro_url = f"{self.base_url}/metro-areas/{metro_id}"
         print(f"  [Songkick] Scraping metro area: {base_metro_url}")
 
-        for page in range(1, max_pages + 1):
+        page = 0
+        while True:
+            page += 1
+            if max_pages and page > max_pages:
+                break
             url = f"{base_metro_url}?page={page}"
             print(f"  [Songkick] Fetching page {page}: {url}")
             

@@ -10,7 +10,7 @@ import concurrent.futures
 
 
 class PiaConnector(BaseConnector):
-    def get_events(self, max_pages: int = 5) -> List[Event]:
+    def get_events(self, max_pages: int = None) -> List[Event]:
         events = []
         url = "https://t.pia.jp/pia/rlsInfo.do"
         # Params for "Music" (lg=01)
@@ -31,7 +31,11 @@ class PiaConnector(BaseConnector):
             "Referer": "https://t.pia.jp/pia/search_all.do"
         }
 
-        for page in range(1, max_pages + 1):
+        page = 0
+        while True:
+            page += 1
+            if max_pages and page > max_pages:
+                break
             params["page"] = str(page)
             print(f"  [Pia] Fetching page {page}...")
 

@@ -24,7 +24,7 @@ class EplusConnector(BaseConnector):
         # NOT IMPLEMENTED FOR NOW: Only general discovery via get_events
         return []
 
-    def get_events(self, query: str = None, max_pages: int = 5):
+    def get_events(self, query: str = None, max_pages: int = None):
         
         all_events = []
         
@@ -40,7 +40,11 @@ class EplusConnector(BaseConnector):
         items_per_page = 100 
         current_start_index = 1
         
-        for page in range(1, max_pages + 1):
+        page = 0
+        while True:
+            page += 1
+            if max_pages and page > max_pages:
+                break
             params = {
                 "koenbi_from": koenbi_from,
                 "koenbi_to": koenbi_to,
