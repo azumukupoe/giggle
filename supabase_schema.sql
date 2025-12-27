@@ -2,16 +2,13 @@
 create table public.events (
   id uuid default gen_random_uuid() primary key,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
-  external_id text not null,
   title text not null,
   artist text not null,
   venue text not null,
   location text,
   date timestamp with time zone not null,
   url text not null,
-  image_url text,
-  source text not null,
-  unique(external_id, source)
+  unique(url)
 );
 
 -- Enable RLS (Row Level Security)

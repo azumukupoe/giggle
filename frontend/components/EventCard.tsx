@@ -29,13 +29,18 @@ export const EventCard = ({ event }: { event: Event }) => {
         return decodeHtml(ven);
     };
 
-    const getSourceLabel = (source: string) => {
-        const map: Record<string, string> = {
-            'songkick': 'songkick.com',
-            'eplus': 'eplus.jp',
-            'pia': 't.pia.jp',
-        };
-        return map[source] || source;
+    const getSourceLabel = () => {
+        try {
+            if (!event.url) return "Event Link";
+            const url = new URL(event.url);
+            let hostname = url.hostname;
+            if (hostname.startsWith('www.')) {
+                hostname = hostname.substring(4);
+            }
+            return hostname;
+        } catch (e) {
+            return "Event Link";
+        }
     };
 
     return (
@@ -90,7 +95,7 @@ export const EventCard = ({ event }: { event: Event }) => {
                         rel="noopener noreferrer"
                         className="flex items-center justify-center gap-2 w-full py-2 rounded-md bg-secondary text-secondary-foreground font-medium text-sm hover:bg-secondary/80 transition-colors"
                     >
-                        {getSourceLabel(event.source)} <ExternalLink className="w-3.5 h-3.5" />
+                        {getSourceLabel()} <ExternalLink className="w-3.5 h-3.5" />
                     </a>
                 </div>
             </div>

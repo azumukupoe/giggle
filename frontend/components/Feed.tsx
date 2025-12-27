@@ -24,20 +24,42 @@ export const Feed = () => {
         const fetchEvents = async () => {
             setLoading(true);
 
-            // Query Supabase (Fetch all items for client-side search)
-            const { data, error } = await supabase
-                .from('events')
-                .select('*')
-                .gte('date', new Date().toISOString())
-                .order('date', { ascending: true })
-                .limit(10000);
+            try {
+                let allData: Event[] = [];
+                let hasMore = true;
+                let page = 0;
+                const pageSize = 1000;
 
-            if (error) {
-                console.error("Error fetching events:", error);
+                while (hasMore) {
+                    const { data, error } = await supabase
+                        .from('events')
+                        .select('*')
+                        .gte('date', new Date().toISOString())
+                        .order('date', { ascending: true })
+                        .range(page * pageSize, (page + 1) * pageSize - 1);
+
+                    if (error) {
+                        console.error("Error fetching events:", error);
+                        break;
+                    }
+
+                    if (data) {
+                        allData = [...allData, ...(data as any as Event[])];
+                        if (data.length < pageSize) {
+                            hasMore = false;
+                        } else {
+                            page++;
+                        }
+                    } else {
+                        hasMore = false;
+                    }
+                }
+                setAllEvents(allData);
+            } catch (error) {
+                console.error("Unexpected error fetching events:", error);
                 setAllEvents([]);
-            } else {
-                setAllEvents(data as any as Event[]);
             }
+
             setLoading(false);
         };
 
@@ -109,7 +131,7 @@ export const Feed = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {displayedEvents.length > 0 ? (
                     displayedEvents.map((event) => (
-                        <EventCard key={event.id || event.external_id} event={event} />
+                        <EventCard key={event.id} event={event} />
                     ))
                 ) : (
                     <div className="col-span-full text-center text-gray-500 py-20 bg-gray-50 dark:bg-white/5 rounded-3xl border border-gray-200 dark:border-white/10">

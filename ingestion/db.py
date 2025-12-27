@@ -15,7 +15,7 @@ def get_supabase_client() -> Client:
 def upsert_events(supabase: Client, events: list):
     """
     Upserts a list of Event objects into the 'events' table.
-    Relies on the unique constraint (external_id, source).
+    Relies on the unique constraint (url).
     """
     if not events:
         return
