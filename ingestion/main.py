@@ -32,7 +32,7 @@ def main():
     if os.path.exists(metros_file):
         with open(metros_file, 'r', encoding='utf-8') as f:
             sk_metros_data = json.load(f)
-            sk_metros_data = json.load(f)
+
     else:
         print("  [Songkick] Warning: japan_metro_ids.json not found. using fallback.")
         sk_metros_data = {'30717': {'full_slug': '30717-japan-tokyo', 'name': 'Tokyo'}} # Fallback
