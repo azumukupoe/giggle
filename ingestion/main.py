@@ -79,14 +79,12 @@ def main():
         future_events = [e for e in all_events if (e.date.replace(tzinfo=None) if e.date.tzinfo else e.date) >= dt_today]
         all_events = future_events
 
-        # Deduplicate to prevent Postgres 21000 error
-        # This occurs if the input batch contains multiple rows with the same (source, external_id)
+        # Deduplicate to prevent Postgres 21000 error (now on URL)
         unique_events_map = {}
         for event in all_events:
-            # unique constraint is (source, external_id)
-            key = (event.source, str(event.external_id)) 
-            if key not in unique_events_map:
-                unique_events_map[key] = event
+            # unique constraint is now (url)
+            if event.url not in unique_events_map:
+                unique_events_map[event.url] = event
             else:
                 pass # Already have this event, skip duplicate
         

@@ -36,9 +36,7 @@ def upsert_events(supabase: Client, events: list):
                 "venue": e.venue,
                 "location": e.location,
                 "date": e.date.isoformat(),
-                "url": e.url,
-                "source": e.source,
-                "external_id": str(e.external_id)
+                "url": e.url
             }
         
         # Remove None values if necessary, or let DB handle defaults
@@ -47,7 +45,7 @@ def upsert_events(supabase: Client, events: list):
     # Perform upsert
     try:
         # 'on_conflict' needs columns that form the unique constraint
-        response = supabase.table("events").upsert(data, on_conflict="external_id, source").execute()
+        response = supabase.table("events").upsert(data, on_conflict="url").execute()
         # print(f"Upsert Response: {response}") 
     except Exception as e:
         print(f"Supabase upsert error: {e}")
