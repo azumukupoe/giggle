@@ -4,6 +4,10 @@ from .base import BaseConnector, Event
 import json
 import urllib.parse
 import sys
+import concurrent.futures
+from bs4 import BeautifulSoup
+import time
+
 
 class EplusConnector(BaseConnector):
     def __init__(self):
@@ -75,113 +79,17 @@ class EplusConnector(BaseConnector):
                 if not record_list:
                     break
 
-                for item in record_list:
-                    try:
-                        # Extract basic info
-                        kogyo = item.get('kanren_kogyo_sub', {})
-                        title_1 = kogyo.get('kogyo_name_1')
-                        title_2 = kogyo.get('kogyo_name_2')
-                        title = f"{title_1} {title_2}" if title_2 else (title_1 or "Unknown Event")
-                        
-                        venue_info = item.get('kanren_venue', {})
-                        venue_name = venue_info.get('venue_name') or "Unknown Venue"
-                        
-                        # Detail URL
-                        detail_path = item.get('koen_detail_url_pc')
-                        link = detail_path if detail_path else None
-                        if link and not link.startswith("http"):
-                             link = f"https://eplus.jp{detail_path}"
-
-                        # --- DETAIL PAGE GENRE CHECK (User Requirement: No Keyword filtering on Title) ---
-                        # We must check the "Genre" breadcrumbs on the detail page to be accurate.
-                        # This adds latency (N+1 requests) but is required to avoid false positives.
-                        
-                        if link:
-                            try:
-                                # Be polite - add small delay if we are doing this in a loop
-                                # However, in a real async scraper we might want to be faster. 
-                                # For GitHub Actions, we have time.
-                                import time
-                                time.sleep(0.5) 
-                                
-                                detail_res = requests.get(link, headers=self.headers, timeout=10)
-                                if detail_res.status_code == 200:
-                                    from bs4 import BeautifulSoup
-                                    soup = BeautifulSoup(detail_res.text, 'html.parser')
-                                    breadcrumbs = soup.find_all(class_="breadcrumb-list__name")
-                                    genres = [b.get_text(strip=True) for b in breadcrumbs]
-                                    
-                                    
-                                    # Exclusion list based on GENRE (Breadcrumbs), NOT Title keywords
-                                    exclude_genres = ["イベント", "映画"]
-                                    is_excluded = False
-                                    for g in genres:
-                                        if any(ex in g for ex in exclude_genres):
-                                            is_excluded = True
-                                            break
-                                    
-                                    if is_excluded:
-                                        continue
-                            except Exception as e:
-                                # If detail scrape fails, decide whether to keep or skip. 
-                                # Let's keep it to be safe, but log error?
-                                pass
-                        # --- End Genre Check ---
-                        # Let's check verify output... 
-                        # "koenbi_term": "20250315～20260222"
-                        # "kaien_time": "1000"
-                        
-                        # Use the start of the term as the event date for now.
-                        koenbi_term = item.get('koenbi_term', '')
-                        date_obj = dt_now # Fallback
-                        
-                        if koenbi_term:
-                            # Take first 8 chars
-                            date_str = koenbi_term[:8]
-                            try:
-                                date_obj = datetime.strptime(date_str, "%Y%m%d")
-                                
-                                # Add time if available
-                                kaien_time = item.get('kaien_time') # "1000"
-                                if kaien_time and len(kaien_time) == 4:
-                                    date_obj = date_obj.replace(
-                                        hour=int(kaien_time[:2]),
-                                        minute=int(kaien_time[2:])
-                                    )
-                            except ValueError:
-                                pass
-                        
-                        # Location
-                        pref_name = venue_info.get('todofuken_name')
-                        location = pref_name if pref_name else ""
-
-                        # Artist
-                        # Try to find 'shutsuensha'
-                        artist = title # Default to title instead of "Various"
-                        uketsuke_list = item.get('kanren_uketsuke_koen_list', [])
-                        if uketsuke_list:
-                             first_uketsuke = uketsuke_list[0]
-                             performers = first_uketsuke.get('shutsuensha') # e.g. "Name / Name"
-                             if performers:
-                                 # Clean up known system text
-                                 performers = performers.replace("本公演はスタンプ&ギフト対象公演です。", "")
-                                 performers = performers.replace("詳細はこちら /sf/streamingplus/stampgift", "")
-                                 performers = performers.strip()
-                                 if performers:
-                                     artist = performers
-
-                        if link:
-                            all_events.append(Event(
-                                title=title,
-                                artist=artist,
-                                venue=venue_name,
-                                date=date_obj,
-                                location=location,
-                                url=link
-                            ))
-
-                    except Exception as e:
-                        continue
+                # Parallel processing
+                with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+                    futures = [executor.submit(self._process_item, item, dt_now) for item in record_list]
+                    for future in concurrent.futures.as_completed(futures):
+                        try:
+                            result = future.result()
+                            if result:
+                                all_events.append(result)
+                        except Exception as e:
+                            # Log individual item failure if needed, but keeping silent as per original try/catch block
+                            pass
                 
                 # Update pagination for next loop
                 current_start_index += items_per_page
@@ -193,3 +101,110 @@ class EplusConnector(BaseConnector):
                 break
                 
         return all_events
+
+    def _process_item(self, item, dt_now):
+        try:
+            # Extract basic info
+            kogyo = item.get('kanren_kogyo_sub', {})
+            title_1 = kogyo.get('kogyo_name_1')
+            title_2 = kogyo.get('kogyo_name_2')
+            title = f"{title_1} {title_2}" if title_2 else (title_1 or "Unknown Event")
+            
+            venue_info = item.get('kanren_venue', {})
+            venue_name = venue_info.get('venue_name') or "Unknown Venue"
+            
+            # Detail URL
+            detail_path = item.get('koen_detail_url_pc')
+            link = detail_path if detail_path else None
+            if link and not link.startswith("http"):
+                    link = f"https://eplus.jp{detail_path}"
+
+            # --- DETAIL PAGE GENRE CHECK (User Requirement: No Keyword filtering on Title) ---
+            # We must check the "Genre" breadcrumbs on the detail page to be accurate.
+            # This adds latency (N+1 requests) but is required to avoid false positives.
+            
+            if link:
+                try:
+                    # Parallel execution handles concurrency, removing sleep or keeping it small if rate limit is a concern.
+                    # eplus is generally robust, but let's be nice.
+                    # time.sleep(0.1) 
+                    
+                    detail_res = requests.get(link, headers=self.headers, timeout=10)
+                    if detail_res.status_code == 200:
+                        soup = BeautifulSoup(detail_res.text, 'html.parser')
+                        breadcrumbs = soup.find_all(class_="breadcrumb-list__name")
+                        genres = [b.get_text(strip=True) for b in breadcrumbs]
+                        
+                        
+                        # Exclusion list based on GENRE (Breadcrumbs), NOT Title keywords
+                        exclude_genres = ["イベント", "映画"]
+                        is_excluded = False
+                        for g in genres:
+                            if any(ex in g for ex in exclude_genres):
+                                is_excluded = True
+                                break
+                        
+                        if is_excluded:
+                            return None
+                except Exception as e:
+                    # If detail scrape fails, decide whether to keep or skip. 
+                    # Let's keep it to be safe.
+                    pass
+            # --- End Genre Check ---
+
+            # "koenbi_term": "20250315～20260222"
+            # "kaien_time": "1000"
+            
+            # Use the start of the term as the event date for now.
+            koenbi_term = item.get('koenbi_term', '')
+            date_obj = dt_now # Fallback
+            
+            if koenbi_term:
+                # Take first 8 chars
+                date_str = koenbi_term[:8]
+                try:
+                    date_obj = datetime.strptime(date_str, "%Y%m%d")
+                    
+                    # Add time if available
+                    kaien_time = item.get('kaien_time') # "1000"
+                    if kaien_time and len(kaien_time) == 4:
+                        date_obj = date_obj.replace(
+                            hour=int(kaien_time[:2]),
+                            minute=int(kaien_time[2:])
+                        )
+                except ValueError:
+                    pass
+            
+            # Location
+            pref_name = venue_info.get('todofuken_name')
+            location = pref_name if pref_name else ""
+
+            # Artist
+            # Try to find 'shutsuensha'
+            artist = title # Default to title instead of "Various"
+            uketsuke_list = item.get('kanren_uketsuke_koen_list', [])
+            if uketsuke_list:
+                    first_uketsuke = uketsuke_list[0]
+                    performers = first_uketsuke.get('shutsuensha') # e.g. "Name / Name"
+                    if performers:
+                        # Clean up known system text
+                        performers = performers.replace("本公演はスタンプ&ギフト対象公演です。", "")
+                        performers = performers.replace("詳細はこちら /sf/streamingplus/stampgift", "")
+                        performers = performers.strip()
+                        if performers:
+                            artist = performers
+
+            if link:
+                return Event(
+                    title=title,
+                    artist=artist,
+                    venue=venue_name,
+                    date=date_obj,
+                    location=location,
+                    url=link
+                )
+            return None
+
+        except Exception as e:
+            return None
+

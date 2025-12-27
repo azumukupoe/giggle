@@ -5,6 +5,8 @@ from .base import BaseConnector, Event
 from bs4 import BeautifulSoup
 import urllib.parse
 import json
+import concurrent.futures
+
 
 class SongkickConnector(BaseConnector):
     def __init__(self):
@@ -46,6 +48,8 @@ class SongkickConnector(BaseConnector):
                 page_events = []
                 
                 found_json = False
+                # Prepare list of items to process concurrently
+                items_to_process = []
                 for script in scripts:
                     if 'MusicEvent' in script.text:
                         found_json = True
@@ -53,21 +57,30 @@ class SongkickConnector(BaseConnector):
                             data = json.loads(script.text)
                             items = data if isinstance(data, list) else [data]
                             for item in items:
-                                    # Identify artist
-                                    performers = item.get('performer', [])
-                                    if isinstance(performers, list) and performers:
-
-                                        # Use performer name, fallback to event name instead of "Unknown Artist"
-                                        artist_name = performers[0].get('name') or item.get('name', 'Event')
-                                    else:
-                                        artist_name = item.get('name', 'Event')
-
-
-                                    evt = self._parse_json_ld(item, artist_name)
-                                    if evt: page_events.append(evt)
+                                # Identify artist
+                                performers = item.get('performer', [])
+                                if isinstance(performers, list) and performers:
+                                    # Use performer name, fallback to event name
+                                    artist_name = performers[0].get('name') or item.get('name', 'Event')
+                                else:
+                                    artist_name = item.get('name', 'Event')
+                                
+                                items_to_process.append((item, artist_name))
+                                
                         except Exception as e:
                             print(f"    [Songkick] JSON Load Error on page {page}: {e}")
                 
+                # Execute in parallel
+                with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+                    futures = [executor.submit(self._process_single_item, item, artist_name) for item, artist_name in items_to_process]
+                    for future in concurrent.futures.as_completed(futures):
+                        try:
+                            result = future.result()
+                            if result:
+                                page_events.append(result)
+                        except Exception:
+                            pass
+
                 if not found_json and page == 1:
                      print("  [Songkick] Warning: No JSON-LD found on page 1.")
                 
@@ -77,6 +90,7 @@ class SongkickConnector(BaseConnector):
                 
                 print(f"    -> Found {len(page_events)} events on page {page}.")
                 all_events.extend(page_events)
+
 
                 # Optional: Check for "Next" button specifically?
                 # Usually if 0 events returned we are done.
@@ -200,3 +214,7 @@ class SongkickConnector(BaseConnector):
         except Exception as e:
             # print(f"    [Songkick] Detail scrape failed: {e}")
             return None
+
+    def _process_single_item(self, item, artist_name):
+        return self._parse_json_ld(item, artist_name)
+

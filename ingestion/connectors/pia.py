@@ -4,7 +4,10 @@ from datetime import datetime
 from typing import List
 from .base import BaseConnector, Event
 import re
+import re
 import time
+import concurrent.futures
+
 
 class PiaConnector(BaseConnector):
     def get_events(self, max_pages: int = 5) -> List[Event]:
@@ -57,76 +60,106 @@ class PiaConnector(BaseConnector):
 
                 print(f"  [Pia] Found {len(event_links)} event items on page {page}.")
 
-                for div in event_links:
-                    try:
-                        # Title
-                        title_tag = div.select_one('li.is_title')
-                        title = title_tag.get_text(strip=True) if title_tag else "Unknown Title"
-                        
-                        # URL
-                        a_tag = div.find('a', href=True)
-                        link = a_tag['href'] if a_tag else ""
-                        if link.startswith('/'):
-                            link = f"https://t.pia.jp{link}"
-                        elif not link.startswith('http'):
-                            link = f"https://t.pia.jp/{link}"
-                        
-                        # Date
-                        date_obj = None
-                        time_tag = div.select_one('time[itemprop="startDate"]')
-                        if time_tag and time_tag.has_attr('datetime'):
-                            dt_str = time_tag['datetime']
-                            try:
-                                date_obj = datetime.fromisoformat(dt_str)
-                            except ValueError:
-                                pass
-                        
-                        if not date_obj:
-                            date_text_container = div.select_one('li.is_date')
-                            if date_text_container:
-                                date_text = date_text_container.get_text(strip=True)
-                                match = re.search(r'(\d{4}/\d{1,2}/\d{1,2})', date_text)
-                                if match:
-                                   date_obj = datetime.strptime(match.group(1), "%Y/%m/%d")
+                print(f"  [Pia] Found {len(event_links)} event items on page {page}.")
 
-                        # Venue & Location
-                        place_tag = div.select_one('li.is_place span[itemprop="name"]')
-                        if place_tag:
-                             venue = place_tag.get_text(strip=True)
-                        
-                        region_tag = div.select_one('li.is_place span[itemprop="addressRegion"]')
-                        if region_tag:
-                            location = f"{region_tag.get_text(strip=True)}"
+                with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+                    # Pass str(div) to ensure thread-safety for BeautifulSoup
+                    futures = [executor.submit(self._process_event_div, str(div)) for div in event_links]
+                    
+                    for future in concurrent.futures.as_completed(futures):
+                        try:
+                            result = future.result()
+                            if result:
+                                events.append(result)
+                        except Exception as e:
+                            pass
 
-                        # Artist - Scrape Detail Page
-                        artist = ""
-                        if link:
-                            # Sleep to be polite
-                            time.sleep(1.0) 
-                            artist = self._scrape_artist_from_detail(link)
-                        
-                        # Formatting checks
-                        if not artist:
-                            artist = title # Fallback to title instead of empty
-
-
-                        if title and link:
-                            events.append(Event(
-                                title=title,
-                                venue=venue,
-                                location=location,
-                                date=date_obj or datetime.now(),
-                                url=link,
-                                artist=artist
-                            ))
-
-                    except Exception as e:
-                        print(f"  [Pia] Failed to parse item on page {page}: {e}")
-                        continue
-            
             except Exception as e:
                 print(f"  [Pia] Request failed on page {page}: {e}")
                 break
+        
+        return events
+
+    def _process_event_div(self, div_html: str) -> Event:
+        try:
+            # Re-parse the fragment
+            soup = BeautifulSoup(div_html, 'html.parser')
+            # The fragment is <div class="event_link">...</div>
+            # BeautifulSoup adds <html><body> wrapper usually, so we find the div again
+            div = soup.find('div', class_='event_link')
+            if not div:
+                # Fallback if the parsing behaves differently
+                div = soup
+
+            # Title
+            title_tag = div.select_one('li.is_title')
+            title = title_tag.get_text(strip=True) if title_tag else "Unknown Title"
+            
+            # URL
+            a_tag = div.find('a', href=True)
+            link = a_tag['href'] if a_tag else ""
+            if link.startswith('/'):
+                link = f"https://t.pia.jp{link}"
+            elif not link.startswith('http'):
+                link = f"https://t.pia.jp/{link}"
+            
+            # Date
+            date_obj = None
+            time_tag = div.select_one('time[itemprop="startDate"]')
+            if time_tag and time_tag.has_attr('datetime'):
+                dt_str = time_tag['datetime']
+                try:
+                    date_obj = datetime.fromisoformat(dt_str)
+                except ValueError:
+                    pass
+            
+            if not date_obj:
+                date_text_container = div.select_one('li.is_date')
+                if date_text_container:
+                    date_text = date_text_container.get_text(strip=True)
+                    match = re.search(r'(\d{4}/\d{1,2}/\d{1,2})', date_text)
+                    if match:
+                        date_obj = datetime.strptime(match.group(1), "%Y/%m/%d")
+
+            # Venue & Location
+            place_tag = div.select_one('li.is_place span[itemprop="name"]')
+            venue = "Unknown Venue"
+            if place_tag:
+                    venue = place_tag.get_text(strip=True)
+            
+            region_tag = div.select_one('li.is_place span[itemprop="addressRegion"]')
+            location = ""
+            if region_tag:
+                location = f"{region_tag.get_text(strip=True)}"
+
+            # Artist - Scrape Detail Page
+            artist = ""
+            if link:
+                # Sleep removed or reduced because we are in threads, but let's keep it minimal if needed.
+                # Since we have max_workers=10, we are already putting load on them.
+                # time.sleep(0.1) 
+                artist = self._scrape_artist_from_detail(link)
+            
+            # Formatting checks
+            if not artist:
+                artist = title # Fallback to title instead of empty
+
+
+            if title and link:
+                return Event(
+                    title=title,
+                    venue=venue,
+                    location=location,
+                    date=date_obj or datetime.now(),
+                    url=link,
+                    artist=artist
+                )
+            return None
+
+        except Exception as e:
+            # print(f"  [Pia] Failed to parse item: {e}")
+            return None
+
         
         return events
 
