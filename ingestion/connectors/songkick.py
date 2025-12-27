@@ -167,9 +167,7 @@ class SongkickConnector(BaseConnector):
                 venue=venue_name,
                 location=loc,
                 date=event_date,
-                url=item.get('url'),
-                source='songkick',
-                external_id=item.get('url')
+                url=item.get('url')
             )
         except Exception as e:
             print(f"Error parsing JSON-LD item: {e}")

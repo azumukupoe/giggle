@@ -10,8 +10,6 @@ class Event(BaseModel):
     location: str
     date: datetime
     url: str
-    source: str
-    external_id: str
 
 class BaseConnector(ABC):
     def __init__(self):

@@ -70,13 +70,6 @@ class PiaConnector(BaseConnector):
                             link = f"https://t.pia.jp{link}"
                         elif not link.startswith('http'):
                             link = f"https://t.pia.jp/{link}"
-
-                        # External ID
-                        external_id = "unknown"
-                        if "eventCd=" in link:
-                            match = re.search(r'eventCd=(\d+)', link)
-                            if match:
-                                external_id = match.group(1)
                         
                         # Date
                         date_obj = None
@@ -97,15 +90,13 @@ class PiaConnector(BaseConnector):
                                    date_obj = datetime.strptime(match.group(1), "%Y/%m/%d")
 
                         # Venue & Location
-                        venue = "Unknown Venue"
                         place_tag = div.select_one('li.is_place span[itemprop="name"]')
                         if place_tag:
                              venue = place_tag.get_text(strip=True)
                         
-                        location = "Japan"
                         region_tag = div.select_one('li.is_place span[itemprop="addressRegion"]')
                         if region_tag:
-                            location = f"{region_tag.get_text(strip=True)}, Japan"
+                            location = f"{region_tag.get_text(strip=True)}"
 
                         # Artist - Scrape Detail Page
                         artist = ""
@@ -126,9 +117,7 @@ class PiaConnector(BaseConnector):
                                 location=location,
                                 date=date_obj or datetime.now(),
                                 url=link,
-                                source="ticketpia",
-                                artist=artist,
-                                external_id=external_id
+                                artist=artist
                             ))
 
                     except Exception as e:

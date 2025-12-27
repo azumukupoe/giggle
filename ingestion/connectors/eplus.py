@@ -177,9 +177,7 @@ class EplusConnector(BaseConnector):
                                 venue=venue_name,
                                 date=date_obj,
                                 location=location,
-                                url=link,
-                                source="eplus",
-                                external_id=link
+                                url=link
                             ))
 
                     except Exception as e:
