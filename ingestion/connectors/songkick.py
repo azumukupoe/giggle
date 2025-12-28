@@ -15,6 +15,13 @@ class SongkickConnector(BaseConnector):
         self.headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
         }
+        
+        # Setup session with retry
+        self.session = requests.Session()
+        retries = requests.adapters.Retry(total=3, backoff_factor=1, status_forcelist=[500, 502, 503, 504])
+        adapter = requests.adapters.HTTPAdapter(max_retries=retries)
+        self.session.mount('http://', adapter)
+        self.session.mount('https://', adapter)
 
     def get_events(self, query: str = None) -> List[Event]:
         # Required by BaseConnector
@@ -38,7 +45,7 @@ class SongkickConnector(BaseConnector):
             print(f"  [Songkick] Fetching page {page}: {url}")
             
             try:
-                resp = requests.get(url, headers=self.headers)
+                resp = self.session.get(url, headers=self.headers)
                 # print(f"  [Songkick] Status: {resp.status_code}")
                 
                 if resp.status_code != 200:
@@ -110,7 +117,7 @@ class SongkickConnector(BaseConnector):
         # Step 1: Search
         search_url = f"{self.base_url}/search?query={urllib.parse.quote(artist_name)}&type=artists"
         try:
-            s_resp = requests.get(search_url, headers=self.headers)
+            s_resp = self.session.get(search_url, headers=self.headers)
             s_soup = BeautifulSoup(s_resp.content, 'html.parser')
             
             # Find first result
@@ -123,7 +130,7 @@ class SongkickConnector(BaseConnector):
             artist_url = f"{self.base_url}{result_link['href']}/calendar"
             
             # Step 2: Get Calendar
-            c_resp = requests.get(artist_url, headers=self.headers)
+            c_resp = self.session.get(artist_url, headers=self.headers)
             c_soup = BeautifulSoup(c_resp.content, 'html.parser')
             
             events = []
@@ -197,7 +204,7 @@ class SongkickConnector(BaseConnector):
         Returns the tour name string or None.
         """
         try:
-            resp = requests.get(url, headers=self.headers, timeout=10)
+            resp = self.session.get(url, headers=self.headers, timeout=10)
             if resp.status_code != 200: return None
             
             soup = BeautifulSoup(resp.content, 'html.parser')

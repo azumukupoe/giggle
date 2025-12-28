@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { EventCard } from "./EventCard";
 import { Event } from "@/types/event";
 import { supabase } from "@/lib/supabase";
 import { useLanguage } from "./LanguageContext";
-import { Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search } from "lucide-react";
 
 export const Feed = () => {
     const { t } = useLanguage();
@@ -66,32 +66,28 @@ export const Feed = () => {
         fetchEvents();
     }, []);
 
-    // Filter & Paginate
+    // Memoized filtered events
+    const filteredEvents = useMemo(() => {
+        if (!searchQuery) return allEvents;
+        const lowerQ = searchQuery.toLowerCase();
+        return allEvents.filter(e =>
+            e.title.toLowerCase().includes(lowerQ) ||
+            e.artist.toLowerCase().includes(lowerQ) ||
+            e.venue.toLowerCase().includes(lowerQ) ||
+            e.location.toLowerCase().includes(lowerQ)
+        );
+    }, [allEvents, searchQuery]);
+
+    // Paginate filtered events
     useEffect(() => {
-        let filtered = allEvents;
-
-        if (searchQuery) {
-            const lowerQ = searchQuery.toLowerCase();
-            filtered = allEvents.filter(e =>
-                e.title.toLowerCase().includes(lowerQ) ||
-                e.artist.toLowerCase().includes(lowerQ) ||
-                e.venue.toLowerCase().includes(lowerQ) ||
-                e.location.toLowerCase().includes(lowerQ)
-            );
-        }
-
         const startIndex = (currentPage - 1) * itemsPerPage;
-        const paged = filtered.slice(startIndex, startIndex + itemsPerPage);
-
+        const paged = filteredEvents.slice(startIndex, startIndex + itemsPerPage);
         setDisplayedEvents(paged);
-    }, [allEvents, searchQuery, currentPage]);
+    }, [filteredEvents, currentPage, itemsPerPage]);
 
-    const totalPages = Math.ceil(
-        (searchQuery
-            ? allEvents.filter(e => e.title.toLowerCase().includes(searchQuery.toLowerCase())).length
-            : allEvents.length
-        ) / itemsPerPage
-    );
+    const totalPages = useMemo(() =>
+        Math.ceil(filteredEvents.length / itemsPerPage)
+        , [filteredEvents.length, itemsPerPage]);
 
     if (loading) {
         return (

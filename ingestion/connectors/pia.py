@@ -4,12 +4,20 @@ from datetime import datetime
 from typing import List
 from .base import BaseConnector, Event
 import re
-import re
 import time
 import concurrent.futures
 
 
 class PiaConnector(BaseConnector):
+    def __init__(self):
+        super().__init__()
+        # Setup session with retry
+        self.session = requests.Session()
+        retries = requests.adapters.Retry(total=3, backoff_factor=1, status_forcelist=[500, 502, 503, 504])
+        adapter = requests.adapters.HTTPAdapter(max_retries=retries)
+        self.session.mount('http://', adapter)
+        self.session.mount('https://', adapter)
+
     def get_events(self, max_pages: int = None) -> List[Event]:
         events = []
         url = "https://t.pia.jp/pia/rlsInfo.do"
@@ -40,7 +48,7 @@ class PiaConnector(BaseConnector):
             print(f"  [Pia] Fetching page {page}...")
 
             try:
-                resp = requests.get(url, params=params, headers=headers)
+                resp = self.session.get(url, params=params, headers=headers)
                 # FORCE UTF-8: TicketPia returns UTF-8 but sometimes headers are missing/wrong
                 resp.encoding = 'UTF-8'
                 
@@ -61,8 +69,6 @@ class PiaConnector(BaseConnector):
                 if not event_links:
                     print(f"  [Pia] No events found on page {page}. Stopping.")
                     break
-
-                print(f"  [Pia] Found {len(event_links)} event items on page {page}.")
 
                 print(f"  [Pia] Found {len(event_links)} event items on page {page}.")
 
@@ -164,9 +170,6 @@ class PiaConnector(BaseConnector):
             # print(f"  [Pia] Failed to parse item: {e}")
             return None
 
-        
-        return events
-
     def _scrape_artist_from_detail(self, url: str) -> str:
         """
         Fetches the event detail page and extracts artist info from div.Y15-event-description.
@@ -176,7 +179,7 @@ class PiaConnector(BaseConnector):
              headers = {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
              }
-             resp = requests.get(url, headers=headers, timeout=10)
+             resp = self.session.get(url, headers=headers, timeout=10)
              resp.encoding = 'UTF-8'
              if resp.status_code != 200:
                  return ""

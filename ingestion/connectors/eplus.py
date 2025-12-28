@@ -79,7 +79,7 @@ class EplusConnector(BaseConnector):
             # Eplus seems to want "genre_ids[]=1". Requests 'params' with list does "genre_ids=1&genre_ids=2".
 
             try:
-                response = requests.get(self.api_url, headers=self.headers, params=params, timeout=15)
+                response = self.session.get(self.api_url, headers=self.headers, params=params, timeout=15)
                 
                 if response.status_code != 200:
                     print(f"  [eplus] Failed to fetch page {page}: {response.status_code}")
