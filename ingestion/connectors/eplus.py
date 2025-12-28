@@ -39,20 +39,89 @@ class EplusConnector(BaseConnector):
         # NOT IMPLEMENTED FOR NOW: Only general discovery via get_events
         return []
 
+    def _get_all_ids(self, genre_code: str):
+        """
+        Fetches all (kogyo_code, kogyo_sub_code) tuples for a given parent_genre_code.
+        Uses high concurrency as API handling allows it.
+        """
+        print(f"  [eplus] Fetching exclusion list for genre {genre_code}...")
+        
+        items_per_page = 200
+        
+        params = {
+            "shutoku_kensu": 1, # Just to get count
+            "shutoku_start_ichi": 1,
+            "parent_genre_code_list": genre_code,
+            "streaming_haishin_kubun_list": "0"
+        }
+        
+        try:
+            res = self.session.get(self.api_url, headers=self.headers, params=params, timeout=15)
+            if res.status_code != 200:
+                print(f"  [eplus] Failed to check count for genre {genre_code}")
+                return set()
+            
+            data = res.json()
+            total_count = data['data'].get('so_kensu', 0)
+        except Exception as e:
+            print(f"  [eplus] Error checking genre {genre_code}: {e}")
+            return set()
+            
+        print(f"  [eplus] Genre {genre_code} has {total_count} items. Fetching all...")
+        
+        ids = set()
+        
+        # Function to fetch a page
+        def fetch_page(start_index):
+            p = params.copy()
+            p['shutoku_kensu'] = items_per_page
+            p['shutoku_start_ichi'] = start_index
+            # We don't need sorting for IDs, but keeping consistent might help caching?
+            
+            try:
+                r = self.session.get(self.api_url, headers=self.headers, params=p, timeout=20)
+                if r.status_code == 200:
+                    d = r.json()
+                    page_ids = set()
+                    if d.get('data') and d['data'].get('record_list'):
+                        for item in d['data']['record_list']:
+                            k_code = item.get('kogyo_code')
+                            k_sub = item.get('kogyo_sub_code')
+                            if k_code and k_sub:
+                                page_ids.add((k_code, k_sub))
+                    return page_ids
+            except Exception:
+                pass
+            return set()
+
+        # Generate start indices
+        start_indices = range(1, total_count + 1, items_per_page)
+        
+        with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
+            futures = [executor.submit(fetch_page, i) for i in start_indices]
+            for future in concurrent.futures.as_completed(futures):
+                ids.update(future.result())
+                
+        print(f"  [eplus] Fetched {len(ids)} exclusion IDs for genre {genre_code}.")
+        return ids
+
     def get_events(self, query: str = None, max_pages: int = None):
         
         all_events = []
         
-        # Calculate date range (Today to +1 year)
+        # --- PRE-FETCH EXCLUSIONS ---
+        # Fetch IDs for Events (200) and Movies (700) to exclude them
+        excluded_ids = set()
+        excluded_ids.update(self._get_all_ids("200"))
+        excluded_ids.update(self._get_all_ids("700"))
+        print(f"  [eplus] Total excluded IDs: {len(excluded_ids)}")
+        # ----------------------------
+
+        # Need dt_now for processing
         dt_now = datetime.now()
-        dt_end = dt_now + timedelta(days=365)
-        
-        # Format: YYYYMMDD
-        koenbi_from = dt_now.strftime("%Y%m%d")
-        koenbi_to = dt_end.strftime("%Y%m%d")
-        
+
         # Pagination
-        items_per_page = 100 
+        items_per_page = 200 
         current_start_index = 1
         
         page = 0
@@ -65,18 +134,12 @@ class EplusConnector(BaseConnector):
             if max_pages and page > max_pages:
                 break
             params = {
-                "koenbi_from": koenbi_from,
-                "koenbi_to": koenbi_to,
                 "shutoku_kensu": items_per_page,
                 "shutoku_start_ichi": current_start_index,
                 "sort_key": "koenbi,kaien_time,parent_koen_taisho_flag,kogyo_code,kogyo_sub_code",
-                "parent_genre_code_list": "100",  # Music/Concerts (Stricter than genre_ids[]=1)
-                "uketsuke_status_list": [0, 1, 2, 3, 4, 5],
+                "parent_genre_code_list": "100",  # Music/Concerts
                 "streaming_haishin_kubun_list": "0"
             }
-
-            # Construct URL manually for array parameters if needed, but requests handles lists usually?
-            # Eplus seems to want "genre_ids[]=1". Requests 'params' with list does "genre_ids=1&genre_ids=2".
 
             try:
                 response = self.session.get(self.api_url, headers=self.headers, params=params, timeout=15)
@@ -102,25 +165,16 @@ class EplusConnector(BaseConnector):
                 if not record_list:
                     break
 
-                # Parallel processing
-                # We need to be careful with concurrency and the circuit breaker counter.
-                # However, since we are just incrementing/resetting an integer, the GIL might protect us enough for this simple logic,
-                # or we accept slight race conditions as it's just a heuristic.
+                # Restore high concurrency for processing (since no scraping)
                 with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
-                    futures = [executor.submit(self._process_item, item, dt_now) for item in record_list]
+                    # Pass excluded_ids to process_item
+                    futures = [executor.submit(self._process_item, item, dt_now, excluded_ids) for item in record_list]
                     for future in concurrent.futures.as_completed(futures):
                         try:
                             result = future.result()
                             if result:
                                 all_events.append(result)
-                        except CircuitBreakerError:
-                            self.circuit_open = True
-                            print("  [eplus] Circuit breaker triggered! stopping batch.")
-                            # Cancel remaining futures? Not easy with ThreadPoolExecutor without shutting down.
-                            # We'll just break the loop and the `get_events` loop.
-                            break
                         except Exception as e:
-                            # Log individual item failure if needed, but keeping silent as per original try/catch block
                             pass
                 
                 if self.circuit_open:
@@ -157,14 +211,6 @@ class EplusConnector(BaseConnector):
             # Pick the first one as base
             base_ev = group[0]
             
-            # If there's a need to pick a better title, do it here.
-            # Eplus title is constructed as "Title1 Title2".
-            # If duplicates have different titles, we might want to prioritize?
-            # For now, just taking the first one is consistent with "merging".
-            
-            # If multiple artists, maybe join them if they differ?
-            # Assuming duplicates are mostly same event different tickets.
-            
             # Deduplicate artists if they differ?
             artists = set()
             for e in group:
@@ -172,9 +218,6 @@ class EplusConnector(BaseConnector):
                     artists.add(e.artist)
             
             artist = base_ev.artist
-            # If we have multiple distinct artists, join them?
-            # Eplus artist extraction is "kanren_uketsuke_koen_list[0].shutsuensha"
-            # If merged items have different artists, we probably want to keep them.
             if len(artists) > 1:
                 artist = " / ".join(sorted(list(artists)))
 
@@ -189,11 +232,18 @@ class EplusConnector(BaseConnector):
             
         return final_events
 
-    def _process_item(self, item, dt_now):
+    def _process_item(self, item, dt_now, excluded_ids):
         if self.circuit_open:
             return None
 
         try:
+            # Check Exclusion ID first
+            k_code = item.get('kogyo_code')
+            k_sub = item.get('kogyo_sub_code')
+            if k_code and k_sub:
+                if (k_code, k_sub) in excluded_ids:
+                    return None
+
             # Extract basic info
             kogyo = item.get('kanren_kogyo_sub', {})
             title_1 = kogyo.get('kogyo_name_1')
@@ -208,13 +258,6 @@ class EplusConnector(BaseConnector):
             link = detail_path if detail_path else None
             if link and not link.startswith("http"):
                     link = f"https://eplus.jp{detail_path}"
-
-            # --- DETAIL PAGE GENRE CHECK (User Requirement: No Keyword filtering on Title) ---
-            if link:
-                is_excluded = self._check_exclusion(link)
-                if is_excluded:
-                    return None
-            # --- End Genre Check ---
 
             # "koenbi_term": "20250315～20260222"
             # "kaien_time": "1000"
@@ -271,78 +314,9 @@ class EplusConnector(BaseConnector):
                 )
             return None
 
-        except CircuitBreakerError:
-            raise
         except Exception as e:
             # print(f"Error processing item: {e}")
             return None
-
-    def _check_exclusion(self, link):
-        """
-        Scrapes the detail page to check for excluded genres.
-        Returns True if the event should be excluded (or if check fails).
-        Retries up to a limit, then skips the item.
-        """
-        if self.circuit_open:
-             raise CircuitBreakerError("Circuit breaker is open")
-
-        backoff = 1
-        max_backoff = 5
-        max_retries = 3 # Reduced from 10
-        attempt = 0
-        
-        while attempt < max_retries:
-            attempt += 1
-            try:
-                # Use standard request here within our own loop, 
-                # or rely on session. But since we want "infinite" retry for this specific check, 
-                # a manual loop is safer than configuring the adapter for MaxInt retries.
-                # We can still use self.session for connection pooling.
-                
-                detail_res = self.session.get(link, headers=self.headers, timeout=10)
-                
-                if detail_res.status_code == 200:
-                    soup = BeautifulSoup(detail_res.text, 'html.parser')
-                    breadcrumbs = soup.find_all(class_="breadcrumb-list__name")
-                    genres = [b.get_text(strip=True) for b in breadcrumbs]
-                    
-                    # Reset failures on success
-                    self.consecutive_failures = 0
-
-                    exclude_genres = ["イベント", "映画"]
-                    for g in genres:
-                        if any(ex in g for ex in exclude_genres):
-                             return True # Excluded
-                    return False
-                
-                elif detail_res.status_code == 404:
-                    print(f"  [eplus] Page not found (404): {link}. Keeping event.")
-                    self.consecutive_failures = 0 # 404 is a valid response, not an outage
-                    return False # Can't check, assume safe to keep or maybe event is gone.
-                    
-                else:
-                    print(f"  [eplus] Failed to fetch detail page {link}: {detail_res.status_code}. Retrying ({attempt}/{max_retries}) in {backoff}s...")
-                    time.sleep(backoff)
-                    backoff = min(backoff * 2, max_backoff)
-                    
-            except Exception as e:
-                print(f"  [eplus] Error checking exclusion for {link}: {e}. Retrying ({attempt}/{max_retries}) in {backoff}s...")
-                time.sleep(backoff)
-                backoff = min(backoff * 2, max_backoff)
-        
-        # If we get here, we failed max_retries times
-        print(f"  [eplus] Gave up checking exclusion for {link} after {max_retries} attempts. SKIPPING item.")
-        
-        # Increment global failure counter
-        self.consecutive_failures += 1
-        print(f"  [eplus] Consecutive failure count: {self.consecutive_failures}/{self.max_consecutive_failures}")
-        
-        if self.consecutive_failures >= self.max_consecutive_failures:
-            print("  [eplus] TOO MANY CONSECUTIVE FAILURES. Opening Circuit Breaker.")
-            self.circuit_open = True
-            raise CircuitBreakerError("Too many consecutive failures")
-
-        return True # Excluded (Skipped) because we couldn't verify it
 
 
 
