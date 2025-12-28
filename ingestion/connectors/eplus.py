@@ -135,7 +135,59 @@ class EplusConnector(BaseConnector):
                 print(f"  [eplus] Error processing page {page}: {e}")
                 break
                 
-        return all_events
+        # Merging Logic (Post-Processing)
+        # Group by (date, venue)
+        grouped_events = {}
+        for ev in all_events:
+            if not ev.date or not ev.venue:
+                continue
+            
+            # Use isoformat or tuple for key
+            # ev.date is datetime
+            key = (ev.date, ev.venue)
+            if key not in grouped_events:
+                grouped_events[key] = []
+            grouped_events[key].append(ev)
+            
+        final_events = []
+        for key, group in grouped_events.items():
+            if not group:
+                continue
+            
+            # Pick the first one as base
+            base_ev = group[0]
+            
+            # If there's a need to pick a better title, do it here.
+            # Eplus title is constructed as "Title1 Title2".
+            # If duplicates have different titles, we might want to prioritize?
+            # For now, just taking the first one is consistent with "merging".
+            
+            # If multiple artists, maybe join them if they differ?
+            # Assuming duplicates are mostly same event different tickets.
+            
+            # Deduplicate artists if they differ?
+            artists = set()
+            for e in group:
+                if e.artist:
+                    artists.add(e.artist)
+            
+            artist = base_ev.artist
+            # If we have multiple distinct artists, join them?
+            # Eplus artist extraction is "kanren_uketsuke_koen_list[0].shutsuensha"
+            # If merged items have different artists, we probably want to keep them.
+            if len(artists) > 1:
+                artist = " / ".join(sorted(list(artists)))
+
+            final_events.append(Event(
+                title=base_ev.title,
+                artist=artist,
+                venue=base_ev.venue,
+                date=base_ev.date,
+                location=base_ev.location,
+                url=base_ev.url
+            ))
+            
+        return final_events
 
     def _process_item(self, item, dt_now):
         if self.circuit_open:
