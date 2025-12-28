@@ -163,6 +163,7 @@ class SongkickConnector(BaseConnector):
             
             venue = item.get('location', {})
             venue_name = venue.get('name', 'Unknown')
+            
             address = venue.get('address', {})
             if isinstance(address, dict):
                  loc = f"{address.get('addressLocality')}, {address.get('addressCountry')}"
@@ -186,10 +187,19 @@ class SongkickConnector(BaseConnector):
             if tour_name:
                 title = tour_name
             
+            # DATE HANDLING: Force JST if naive
+            if event_date.tzinfo is None:
+                # Assuming all Songkick Japan events are JST (+09:00)
+                # datetime.timezone(datetime.timedelta(hours=9))
+                # simpler to just replace:
+                from datetime import timezone, timedelta
+                jst = timezone(timedelta(hours=9))
+                event_date = event_date.replace(tzinfo=jst)
+            
             return Event(
                 title=title, 
                 artist=artist_name,
-                venue=venue_name,
+                venue=venue_name if venue_name != 'Unknown' else 'Unknown venue',
                 location=loc,
                 date=event_date,
                 url=item.get('url')

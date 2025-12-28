@@ -62,7 +62,7 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
                         {decodeHtml(event.title)}
                     </h3>
                     <p
-                        className="text-muted-foreground font-medium text-sm"
+                        className="text-muted-foreground font-medium text-sm truncate"
                         title={decodeHtml(event.artist)}
                     >
                         {decodeHtml(event.artist)}
