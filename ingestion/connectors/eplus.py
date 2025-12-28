@@ -1,5 +1,5 @@
 import requests
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from .base import BaseConnector, Event
 import json
 import urllib.parse
@@ -227,7 +227,9 @@ class EplusConnector(BaseConnector):
                 # Take first 8 chars
                 date_str = koenbi_term[:8]
                 try:
-                    date_obj = datetime.strptime(date_str, "%Y%m%d")
+                    # JST timezone
+                    JST = timezone(timedelta(hours=9))
+                    date_obj = datetime.strptime(date_str, "%Y%m%d").replace(tzinfo=JST)
                     
                     # Add time if available
                     kaien_time = item.get('kaien_time') # "1000"

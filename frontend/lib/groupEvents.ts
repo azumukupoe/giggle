@@ -50,7 +50,9 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
     const grouped = new Map<string, { event: Event; urls: string[] }>();
 
     for (const event of events) {
-        const key = getEventGroupKey(event.url);
+        // Create a composite key that includes the date to distinguish differnt start times
+        const baseKey = getEventGroupKey(event.url);
+        const key = `${baseKey}_${event.date}`;
 
         if (grouped.has(key)) {
             // Add URL to existing group

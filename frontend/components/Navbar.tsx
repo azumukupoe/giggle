@@ -30,7 +30,7 @@ export const Navbar = () => {
                             onClick={toggleLanguage}
                             className="p-2 rounded-md hover:bg-accent hover:text-accent-foreground text-muted-foreground transition-colors font-medium text-sm"
                         >
-                            {language === 'en' ? 'JA' : 'EN'}
+                            {language === 'en' ? 'EN' : 'JA'}
                         </button>
                         <ThemeToggle />
                     </div>
