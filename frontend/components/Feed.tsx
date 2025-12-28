@@ -2,17 +2,18 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { EventCard } from "./EventCard";
-import { Event } from "@/types/event";
+import { Event, GroupedEvent } from "@/types/event";
 import { supabase } from "@/lib/supabase";
 import { useLanguage } from "./LanguageContext";
 import { Search } from "lucide-react";
+import { groupEvents } from "@/lib/groupEvents";
 
 export const Feed = () => {
     const { t } = useLanguage();
 
     // Data State
     const [allEvents, setAllEvents] = useState<Event[]>([]);
-    const [displayedEvents, setDisplayedEvents] = useState<Event[]>([]);
+    const [displayedEvents, setDisplayedEvents] = useState<GroupedEvent[]>([]);
     const [loading, setLoading] = useState(true);
 
     // UI State
@@ -44,7 +45,7 @@ export const Feed = () => {
                     }
 
                     if (data) {
-                        allData = [...allData, ...(data as any as Event[])];
+                        allData = [...allData, ...(data as Event[])];
                         if (data.length < pageSize) {
                             hasMore = false;
                         } else {
@@ -66,11 +67,15 @@ export const Feed = () => {
         fetchEvents();
     }, []);
 
-    // Memoized filtered events
-    const filteredEvents = useMemo(() => {
-        if (!searchQuery) return allEvents;
+    // Memoized grouped and filtered events
+    const filteredGroupedEvents = useMemo(() => {
+        // First group events
+        const grouped = groupEvents(allEvents);
+
+        // Then filter
+        if (!searchQuery) return grouped;
         const lowerQ = searchQuery.toLowerCase();
-        return allEvents.filter(e =>
+        return grouped.filter(e =>
             e.title.toLowerCase().includes(lowerQ) ||
             e.artist.toLowerCase().includes(lowerQ) ||
             e.venue.toLowerCase().includes(lowerQ) ||
@@ -81,13 +86,13 @@ export const Feed = () => {
     // Paginate filtered events
     useEffect(() => {
         const startIndex = (currentPage - 1) * itemsPerPage;
-        const paged = filteredEvents.slice(startIndex, startIndex + itemsPerPage);
+        const paged = filteredGroupedEvents.slice(startIndex, startIndex + itemsPerPage);
         setDisplayedEvents(paged);
-    }, [filteredEvents, currentPage, itemsPerPage]);
+    }, [filteredGroupedEvents, currentPage, itemsPerPage]);
 
     const totalPages = useMemo(() =>
-        Math.ceil(filteredEvents.length / itemsPerPage)
-        , [filteredEvents.length, itemsPerPage]);
+        Math.ceil(filteredGroupedEvents.length / itemsPerPage)
+        , [filteredGroupedEvents.length, itemsPerPage]);
 
     if (loading) {
         return (

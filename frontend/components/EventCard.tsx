@@ -1,6 +1,6 @@
 "use client";
 
-import { Event } from "@/types/event";
+import { GroupedEvent } from "@/types/event";
 import { parseISO, format } from "date-fns";
 import { enUS, ja } from "date-fns/locale";
 import { ExternalLink, MapPin, Calendar } from "lucide-react";
@@ -36,13 +36,13 @@ const getSourceLabel = (url: string | undefined) => {
             hostname = hostname.substring(4);
         }
         return hostname;
-    } catch (e) {
+    } catch {
         return "Event Link";
     }
 };
 
-export const EventCard = ({ event }: { event: Event }) => {
-    const { t, language } = useLanguage();
+export const EventCard = ({ event }: { event: GroupedEvent }) => {
+    const { language } = useLanguage();
 
     return (
         <motion.div
@@ -54,7 +54,6 @@ export const EventCard = ({ event }: { event: Event }) => {
             <div className="p-5 flex flex-col h-full">
 
                 {/* Content: Title & Artist */}
-                {/* Removed upper source badge */}
                 <div className="flex-grow space-y-1 pt-1">
                     <h3
                         className="text-lg font-bold leading-tight"
@@ -90,14 +89,20 @@ export const EventCard = ({ event }: { event: Event }) => {
                         </div>
                     </div>
 
-                    <a
-                        href={event.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center justify-center gap-2 w-full py-2 rounded-md bg-secondary text-secondary-foreground font-medium text-sm hover:bg-secondary/80 transition-colors"
-                    >
-                        {getSourceLabel(event.url)} <ExternalLink className="w-3.5 h-3.5" />
-                    </a>
+                    {/* Ticket Links - show multiple if grouped */}
+                    <div className="flex flex-wrap gap-2">
+                        {event.urls.map((url, index) => (
+                            <a
+                                key={index}
+                                href={url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex-1 min-w-[120px] flex items-center justify-center gap-2 py-2 rounded-md bg-secondary text-secondary-foreground font-medium text-sm hover:bg-secondary/80 transition-colors"
+                            >
+                                {getSourceLabel(url)} <ExternalLink className="w-3.5 h-3.5" />
+                            </a>
+                        ))}
+                    </div>
                 </div>
             </div>
         </motion.div>
