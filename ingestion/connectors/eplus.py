@@ -9,6 +9,9 @@ from bs4 import BeautifulSoup
 import time
 
 
+class CircuitBreakerError(Exception):
+    pass
+
 class EplusConnector(BaseConnector):
     def __init__(self):
         super().__init__()
@@ -26,6 +29,11 @@ class EplusConnector(BaseConnector):
         adapter = requests.adapters.HTTPAdapter(max_retries=retries)
         self.session.mount('http://', adapter)
         self.session.mount('https://', adapter)
+
+        # Circuit Breaker state
+        self.consecutive_failures = 0
+        self.max_consecutive_failures = 20
+        self.circuit_open = False
         
     def get_artist_events(self, artist_name: str):
         # NOT IMPLEMENTED FOR NOW: Only general discovery via get_events
@@ -49,6 +57,10 @@ class EplusConnector(BaseConnector):
         
         page = 0
         while True:
+            if self.circuit_open:
+                print("  [eplus] Circuit breaker is OPEN. Stopping ingestion.")
+                break
+
             page += 1
             if max_pages and page > max_pages:
                 break
@@ -91,6 +103,9 @@ class EplusConnector(BaseConnector):
                     break
 
                 # Parallel processing
+                # We need to be careful with concurrency and the circuit breaker counter.
+                # However, since we are just incrementing/resetting an integer, the GIL might protect us enough for this simple logic,
+                # or we accept slight race conditions as it's just a heuristic.
                 with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
                     futures = [executor.submit(self._process_item, item, dt_now) for item in record_list]
                     for future in concurrent.futures.as_completed(futures):
@@ -98,10 +113,19 @@ class EplusConnector(BaseConnector):
                             result = future.result()
                             if result:
                                 all_events.append(result)
+                        except CircuitBreakerError:
+                            self.circuit_open = True
+                            print("  [eplus] Circuit breaker triggered! stopping batch.")
+                            # Cancel remaining futures? Not easy with ThreadPoolExecutor without shutting down.
+                            # We'll just break the loop and the `get_events` loop.
+                            break
                         except Exception as e:
                             # Log individual item failure if needed, but keeping silent as per original try/catch block
                             pass
                 
+                if self.circuit_open:
+                    break
+
                 # Update pagination for next loop
                 current_start_index += items_per_page
                 if current_start_index > total_count:
@@ -114,6 +138,9 @@ class EplusConnector(BaseConnector):
         return all_events
 
     def _process_item(self, item, dt_now):
+        if self.circuit_open:
+            return None
+
         try:
             # Extract basic info
             kogyo = item.get('kanren_kogyo_sub', {})
@@ -190,6 +217,8 @@ class EplusConnector(BaseConnector):
                 )
             return None
 
+        except CircuitBreakerError:
+            raise
         except Exception as e:
             # print(f"Error processing item: {e}")
             return None
@@ -200,9 +229,12 @@ class EplusConnector(BaseConnector):
         Returns True if the event should be excluded (or if check fails).
         Retries up to a limit, then skips the item.
         """
+        if self.circuit_open:
+             raise CircuitBreakerError("Circuit breaker is open")
+
         backoff = 1
         max_backoff = 5
-        max_retries = 10
+        max_retries = 3 # Reduced from 10
         attempt = 0
         
         while attempt < max_retries:
@@ -220,6 +252,9 @@ class EplusConnector(BaseConnector):
                     breadcrumbs = soup.find_all(class_="breadcrumb-list__name")
                     genres = [b.get_text(strip=True) for b in breadcrumbs]
                     
+                    # Reset failures on success
+                    self.consecutive_failures = 0
+
                     exclude_genres = ["イベント", "映画"]
                     for g in genres:
                         if any(ex in g for ex in exclude_genres):
@@ -228,6 +263,7 @@ class EplusConnector(BaseConnector):
                 
                 elif detail_res.status_code == 404:
                     print(f"  [eplus] Page not found (404): {link}. Keeping event.")
+                    self.consecutive_failures = 0 # 404 is a valid response, not an outage
                     return False # Can't check, assume safe to keep or maybe event is gone.
                     
                 else:
@@ -240,7 +276,18 @@ class EplusConnector(BaseConnector):
                 time.sleep(backoff)
                 backoff = min(backoff * 2, max_backoff)
         
+        # If we get here, we failed max_retries times
         print(f"  [eplus] Gave up checking exclusion for {link} after {max_retries} attempts. SKIPPING item.")
+        
+        # Increment global failure counter
+        self.consecutive_failures += 1
+        print(f"  [eplus] Consecutive failure count: {self.consecutive_failures}/{self.max_consecutive_failures}")
+        
+        if self.consecutive_failures >= self.max_consecutive_failures:
+            print("  [eplus] TOO MANY CONSECUTIVE FAILURES. Opening Circuit Breaker.")
+            self.circuit_open = True
+            raise CircuitBreakerError("Too many consecutive failures")
+
         return True # Excluded (Skipped) because we couldn't verify it
 
 
