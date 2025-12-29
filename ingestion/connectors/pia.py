@@ -5,16 +5,27 @@ from typing import List
 from .base import BaseConnector, Event
 import re
 import time
+import random
 import concurrent.futures
 
 
 class PiaConnector(BaseConnector):
-    def __init__(self):
+    def __init__(self, max_workers_pf: int = 3, max_workers_item: int = 6, 
+                 min_delay_pf: float = 0.5, max_delay_pf: float = 1.5,
+                 min_delay_item: float = 0.2, max_delay_item: float = 0.8):
         super().__init__()
+        self.max_workers_pf = max_workers_pf
+        self.max_workers_item = max_workers_item
+        self.min_delay_pf = min_delay_pf
+        self.max_delay_pf = max_delay_pf
+        self.min_delay_item = min_delay_item
+        self.max_delay_item = max_delay_item
+        
         # Setup session with retry
         self.session = requests.Session()
         retries = requests.adapters.Retry(total=3, backoff_factor=1, status_forcelist=[500, 502, 503, 504])
         # Increase pool size for concurrency (5 prefectures * 10 threads each = ~50 connections)
+        # We'll set it high enough to cover max likely usage
         adapter = requests.adapters.HTTPAdapter(max_retries=retries, pool_connections=60, pool_maxsize=60)
         self.session.mount('http://', adapter)
         self.session.mount('https://', adapter)
@@ -29,7 +40,7 @@ class PiaConnector(BaseConnector):
         # Total potential threads = 50.
         print("[Pia] Starting parallel fetch for 47 prefectures...")
         
-        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=self.max_workers_pf) as executor:
             # map prefecture codes 1..47
             future_to_pf = {
                 executor.submit(self._process_prefecture, pf, max_pages_per_pf): pf 
@@ -46,7 +57,7 @@ class PiaConnector(BaseConnector):
                 except Exception as e:
                     print(f"[Pia] Exception processing prefecture {pf}: {e}")
 
-        return self._merge_events(raw_events)
+        return [Event(**ev) for ev in raw_events]
 
     def _process_prefecture(self, pf_code: int, max_pages_per_pf: int) -> List[dict]:
         pf_str = f"{pf_code:02d}"
@@ -61,23 +72,17 @@ class PiaConnector(BaseConnector):
         
         page = 0
         while True:
+            time.sleep(random.uniform(self.min_delay_pf, self.max_delay_pf))
             page += 1
             if page > max_pages_per_pf:
                 print(f"  [Pia] Reached max page {max_pages_per_pf} for pf={pf_str}. Moving to next.")
                 break
 
             params = {
-                "rlsIn": "0",
-                "perfIn": "0",
-                "includeSaleEnd": "true",
-                "lg": "01", # Music
                 "pf": pf_str,
-                "page": str(page),
-                "responsive": "true",
-                "noConvert": "true",
-                "searchMode": "1",
-                "mode": "2",
-                "dispMode": "1"
+                "perfIn": "0",
+                "lg": "01", # Music
+                "page": str(page)
             }
 
             try:
@@ -95,7 +100,7 @@ class PiaConnector(BaseConnector):
                     print(f"  [Pia] WARNING: System Maintenance. Stopping.")
                     return local_events
 
-                event_links = soup.select('div.event_link, ul.common_list_item')
+                event_links = soup.select('div.event_link, ul.common_list_item, li.listWrp_title_list')
                 
                 if not event_links:
                     # No events on this page means we are done with this prefecture
@@ -107,7 +112,7 @@ class PiaConnector(BaseConnector):
                 # Note: this creates nested threads. 
                 # Since we are inside a thread already, we are sharing the CPU/Network.
                 # 'self.session' is thread-safe.
-                with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+                with concurrent.futures.ThreadPoolExecutor(max_workers=self.max_workers_item) as executor:
                     futures = [executor.submit(self._process_event_div, str(div)) for div in event_links]
                     
                     for future in concurrent.futures.as_completed(futures):
@@ -124,66 +129,7 @@ class PiaConnector(BaseConnector):
         
         return local_events
 
-    def _merge_events(self, raw_events: List[dict]) -> List[Event]:
-        # Merging logic
-        # Group by (date, venue)
-        grouped_events = {}
-        for ev in raw_events:
-            # Ensure valid date and venue
-            if not ev.get('date') or not ev.get('venue'):
-                continue
-                
-            # Use isoformat date string for key consistency if date is datetime
-            key = (ev['date'], ev['venue'])
-            if key not in grouped_events:
-                grouped_events[key] = []
-            grouped_events[key].append(ev)
-            
-        final_events = []
-        for key, group in grouped_events.items():
-            if not group:
-                continue
-                
-            # Base event is the first one
-            base_ev = group[0]
-            
-            # Use bundle info if available from ANY in group
-            bundle_title = None
-            bundle_url = None
-            
-            for ev in group:
-                if ev.get('bundle_title'):
-                    bundle_title = ev['bundle_title']
-                if ev.get('bundle_url'):
-                    bundle_url = ev['bundle_url']
-                if bundle_title and bundle_url:
-                    break
-            
-            title = base_ev['title']
-            url = base_ev['url']
-            artist = base_ev['artist']
-            
-            if bundle_title:
-                title = bundle_title
-            
-            if bundle_url:
-                if bundle_url.startswith('/'):
-                    url = f"https://t.pia.jp{bundle_url}"
-                elif not bundle_url.startswith('http'):
-                    url = f"https://t.pia.jp/{bundle_url}"
-                else:
-                    url = bundle_url
-            
-            final_events.append(Event(
-                title=title,
-                venue=base_ev['venue'],
-                location=base_ev['location'],
-                date=base_ev['date'],
-                url=url,
-                artist=artist
-            ))
-            
-        return final_events
+
 
     def _process_event_div(self, div_html: str) -> List[dict]:
         """
@@ -221,7 +167,12 @@ class PiaConnector(BaseConnector):
             
             if is_desktop:
                 # Desktop: <li class="listWrp_title_list"><a ...>Title</a></li>
+                # Prioritize listWrp_title_list as requested
                 title_tag = root.select_one('.listWrp_title_list a')
+                if not title_tag and root.name == 'li' and 'listWrp_title_list' in root.get('class', []):
+                     # If root IS the li
+                     title_tag = root.find('a')
+                
                 if title_tag:
                     title = title_tag.get_text(strip=True)
                     link = title_tag['href']
@@ -312,9 +263,7 @@ class PiaConnector(BaseConnector):
                 "location": location,
                 "date": date_obj,
                 "url": link,
-                "artist": title, 
-                "bundle_title": None,
-                "bundle_url": None
+                "artist": title
             }
             
             return self._deep_fetch_and_expand(link, base_info)
@@ -324,6 +273,7 @@ class PiaConnector(BaseConnector):
 
     def _deep_fetch_and_expand(self, url: str, base_info: dict) -> List[dict]:
         """Deep fetch logical component."""
+        time.sleep(random.uniform(self.min_delay_item, self.max_delay_item))
         results = []
         try:
              headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
@@ -334,10 +284,8 @@ class PiaConnector(BaseConnector):
 
              soup = BeautifulSoup(resp.text, 'html.parser')
 
-            # 1. Common Metadata (Artist, Bundle)
+             # 1. Common Metadata
              page_artist = ""
-             bundle_title = None
-             bundle_url = None
              
              # Artist
              desc_div = soup.select_one('div.Y15-event-description')
@@ -346,17 +294,6 @@ class PiaConnector(BaseConnector):
                  match = re.search(r'［(?:出演|ゲスト)］(.*?)(?:\n|$)', full_text)
                  if match:
                      page_artist = match.group(1).strip()
-            
-             # Bundle
-             event_link_section = soup.select_one('#eventLink')
-             if event_link_section:
-                 title_div = event_link_section.select_one('.eventLinkBoxMttl')
-                 if title_div:
-                     p_tag = title_div.find('p')
-                     bundle_title = p_tag.get_text(strip=True) if p_tag else title_div.get_text(strip=True)
-                 a_tag_b = event_link_section.find('a', href=True)
-                 if a_tag_b:
-                     bundle_url = a_tag_b['href']
 
              child_links = []
              for a in soup.find_all('a', href=True):
@@ -397,7 +334,7 @@ class PiaConnector(BaseConnector):
              
              else:
                  # Parsing Logic for Dates on Detail Page
-                 date_containers = soup.select('.item_list .item, .common_list_item, .ticket_list .item') 
+                date_containers = soup.select('.item_list .item, .common_list_item, .ticket_list .item, .Y15-regular-section') 
                  
                  found_in_containers = False
                  

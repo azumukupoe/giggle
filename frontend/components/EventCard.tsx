@@ -88,7 +88,7 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
             <div className="p-5 flex flex-col h-full">
 
                 {/* Content: Title & Artist */}
-                <div className="flex-grow space-y-1 pt-1 pl-1 overflow-hidden">
+                <div className="flex-grow space-y-1 pt-1 pl-2 overflow-hidden">
                     <TruncatedText
                         as="h3"
                         text={decodeHtml(event.title)}

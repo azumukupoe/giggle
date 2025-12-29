@@ -103,16 +103,16 @@ export const Feed = () => {
     }
 
     return (
-        <div className="max-w-7xl mx-auto p-6">
+        <div className="max-w-7xl mx-auto p-6 h-full flex flex-col">
             {/* Controls */}
-            <div className="mb-8 flex flex-col md:flex-row gap-4 items-center justify-between">
+            <div className="mb-8 flex flex-col md:flex-row gap-4 items-center justify-between shrink-0">
                 <div className="text-gray-500 dark:text-gray-400 text-sm">
                     {/* Removed auth message, just search bar is focus now */}
                 </div>
             </div>
 
             {/* Search Bar */}
-            <div className="max-w-xl mx-auto mb-8 relative">
+            <div className="max-w-xl mx-auto mb-8 relative w-full shrink-0">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                 <input
                     type="text"
@@ -127,21 +127,23 @@ export const Feed = () => {
             </div>
 
             {/* Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {displayedEvents.length > 0 ? (
-                    displayedEvents.map((event) => (
-                        <EventCard key={event.id} event={event} />
-                    ))
-                ) : (
-                    <div className="col-span-full text-center text-gray-500 py-20 bg-gray-50 dark:bg-white/5 rounded-3xl border border-gray-200 dark:border-white/10">
-                        <p className="text-xl">{t('feed.noEvents')}</p>
-                    </div>
-                )}
+            <div className="flex-1 overflow-y-auto min-h-0">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-4">
+                    {displayedEvents.length > 0 ? (
+                        displayedEvents.map((event) => (
+                            <EventCard key={event.id} event={event} />
+                        ))
+                    ) : (
+                        <div className="col-span-full text-center text-gray-500 py-20 bg-gray-50 dark:bg-white/5 rounded-3xl border border-gray-200 dark:border-white/10">
+                            <p className="text-xl">{t('feed.noEvents')}</p>
+                        </div>
+                    )}
+                </div>
             </div>
 
             {/* Pagination Controls */}
             {totalPages > 1 && (
-                <div className="flex justify-between items-center mt-12">
+                <div className="flex justify-between items-center mt-4 pt-4 border-t border-border shrink-0 bg-background/50 backdrop-blur-sm">
                     <button
                         onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                         disabled={currentPage === 1}
