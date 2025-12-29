@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef, useState, useEffect } from "react";
 import { GroupedEvent } from "@/types/event";
 import { parseISO, format } from "date-fns";
 import { enUS, ja } from "date-fns/locale";
@@ -18,13 +19,13 @@ const decodeHtml = (str: string) => {
         .replace(/&#39;/g, "'");
 };
 
+const formatVenue = (ven: string) => {
+    return decodeHtml(ven);
+};
+
 const formatLocation = (loc: string) => {
     const decoded = decodeHtml(loc);
     return decoded.replace(/, Japan$/, "").replace(/Japan$/, "").trim();
-};
-
-const formatVenue = (ven: string) => {
-    return decodeHtml(ven);
 };
 
 const getSourceLabel = (url: string | undefined) => {
@@ -41,8 +42,41 @@ const getSourceLabel = (url: string | undefined) => {
     }
 };
 
+const TruncatedText = ({
+    text,
+    className,
+    as: Component = 'p'
+}: {
+    text: string,
+    className?: string,
+    as?: any
+}) => {
+    const ref = useRef<HTMLElement>(null);
+    const [isTruncated, setIsTruncated] = useState(false);
+
+    useEffect(() => {
+        if (ref.current) {
+            setIsTruncated(ref.current.scrollHeight > ref.current.clientHeight);
+        }
+    }, [text]);
+
+    return (
+        <Component
+            ref={ref}
+            className={className}
+            title={isTruncated ? text : undefined}
+        >
+            {text}
+        </Component>
+    );
+};
+
 export const EventCard = ({ event }: { event: GroupedEvent }) => {
     const { language } = useLanguage();
+
+    const formattedLocation = [formatVenue(event.venue), formatLocation(event.location)]
+        .filter(Boolean)
+        .join(", ");
 
     return (
         <motion.div
@@ -54,23 +88,20 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
             <div className="p-5 flex flex-col h-full">
 
                 {/* Content: Title & Artist */}
-                <div className="flex-grow space-y-1 pt-1">
-                    <h3
-                        className="text-lg font-bold leading-tight"
-                        title={decodeHtml(event.title)}
-                    >
-                        {decodeHtml(event.title)}
-                    </h3>
-                    <p
-                        className="text-muted-foreground font-medium text-sm truncate"
-                        title={decodeHtml(event.artist)}
-                    >
-                        {decodeHtml(event.artist)}
-                    </p>
+                <div className="flex-grow space-y-1 pt-1 overflow-hidden">
+                    <TruncatedText
+                        as="h3"
+                        text={decodeHtml(event.title)}
+                        className="text-lg font-bold leading-tight line-clamp-3"
+                    />
+                    <TruncatedText
+                        text={decodeHtml(event.artist)}
+                        className="text-muted-foreground font-medium text-sm line-clamp-5"
+                    />
                 </div>
 
                 {/* Footer: Details & CTA */}
-                <div className="mt-4 flex flex-col gap-3">
+                <div className="mt-4 flex flex-col gap-3 shrink-0">
                     <div className="flex flex-col gap-1.5 text-xs text-muted-foreground">
                         <div className="flex items-center gap-2" title={format(parseISO(event.date), "PPP p", { locale: language === 'ja' ? ja : enUS })}>
                             <Calendar className="w-3.5 h-3.5 shrink-0" />
@@ -83,9 +114,11 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
                         </div>
                         <div className="flex items-center gap-2">
                             <MapPin className="w-3.5 h-3.5 shrink-0" />
-                            <span title={`${formatVenue(event.venue)}, ${formatLocation(event.location)}`}>
-                                {formatVenue(event.venue)}, {formatLocation(event.location)}
-                            </span>
+                            <TruncatedText
+                                as="span"
+                                text={formattedLocation}
+                                className="line-clamp-1"
+                            />
                         </div>
                     </div>
 
