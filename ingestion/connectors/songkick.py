@@ -30,7 +30,6 @@ class SongkickConnector(BaseConnector):
     def get_metro_events(self, metro_id: str = "30717-japan-tokyo", max_pages: int = None) -> List[Event]:
         """
         Fetches events for a specific metro area (e.g., Tokyo).
-        Iterates through pages until max_pages or no events found.
         """
         all_events = []
         base_metro_url = f"{self.base_url}/metro-areas/{metro_id}"
@@ -46,8 +45,7 @@ class SongkickConnector(BaseConnector):
             
             try:
                 resp = self.session.get(url, headers=self.headers)
-                # print(f"  [Songkick] Status: {resp.status_code}")
-                
+
                 if resp.status_code != 200:
                     print(f"  [Songkick] Failed to fetch page {page}. Status: {resp.status_code}")
                     break
@@ -59,7 +57,6 @@ class SongkickConnector(BaseConnector):
                 page_events = []
                 
                 found_json = False
-                # Prepare list of items to process concurrently
                 items_to_process = []
                 for script in scripts:
                     if 'MusicEvent' in script.text:
@@ -103,9 +100,7 @@ class SongkickConnector(BaseConnector):
                 all_events.extend(page_events)
 
 
-                # Optional: Check for "Next" button specifically?
-                # Usually if 0 events returned we are done.
-                
+
             except Exception as e:
                 print(f"Error scraping Songkick metro page {page}: {e}")
                 break
@@ -113,7 +108,6 @@ class SongkickConnector(BaseConnector):
         return all_events
 
     def get_artist_events(self, artist_name: str) -> List[Event]:
-        # Songkick scraping is 2-step: Search -> User Page -> Calendar
         # Step 1: Search
         search_url = f"{self.base_url}/search?query={urllib.parse.quote(artist_name)}&type=artists"
         try:
@@ -121,7 +115,6 @@ class SongkickConnector(BaseConnector):
             s_soup = BeautifulSoup(s_resp.content, 'html.parser')
             
             # Find first result
-            # Selectors need to be robust. Usually <li class="artist"> <a href="...">
             result_link = s_soup.select_one('.artist-results .artist h4 a')
             if not result_link:
                 print(f"Artist not found on Songkick: {artist_name}")
@@ -134,7 +127,7 @@ class SongkickConnector(BaseConnector):
             c_soup = BeautifulSoup(c_resp.content, 'html.parser')
             
             events = []
-            # Songkick also uses JSON-LD often!
+
             scripts = c_soup.find_all('script', type='application/ld+json')
             for script in scripts:
                 if 'MusicEvent' in script.text:
@@ -155,7 +148,7 @@ class SongkickConnector(BaseConnector):
             return []
 
     def _parse_json_ld(self, item, artist_name):
-        # Same logic as BIT essentially, standard Schema.org
+
         try:
             date_str = item.get('startDate')
             if not date_str: return None
@@ -189,9 +182,7 @@ class SongkickConnector(BaseConnector):
             
             # DATE HANDLING: Force JST if naive
             if event_date.tzinfo is None:
-                # Assuming all Songkick Japan events are JST (+09:00)
-                # datetime.timezone(datetime.timedelta(hours=9))
-                # simpler to just replace:
+                # DATE HANDLING: Force JST if naive
                 from datetime import timezone, timedelta
                 jst = timezone(timedelta(hours=9))
                 event_date = event_date.replace(tzinfo=jst)

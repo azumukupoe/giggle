@@ -21,13 +21,10 @@ def main():
 
     all_events: List[Event] = []
 
-    # --- PHASE 1: Japan Discovery (Broad Search) ---
-    
     # 1. Songkick (Metro Areas)
-    # We loop through known Metro IDs loaded from file.
     sk_connector = SongkickConnector()
     
-    # Load Metro IDs from JSON
+
     metros_file = os.path.join(os.path.dirname(__file__), 'japan_metro_ids.json')
     if os.path.exists(metros_file):
         with open(metros_file, 'r', encoding='utf-8') as f:
@@ -37,7 +34,6 @@ def main():
         print("  [Songkick] Warning: japan_metro_ids.json not found. using fallback.")
         sk_metros_data = {'30717': {'full_slug': '30717-japan-tokyo', 'name': 'Tokyo'}} # Fallback
 
-    # Parallelize Metro Fetching
     print(f"  [Songkick] Fetching {len(sk_metros_data)} metros in parallel...")
     with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
         future_to_metro = {}
@@ -73,20 +69,15 @@ def main():
     # Save to Supabase
     if all_events:
         # Filter Past Events
-        # dt_today is naive
+        # Filter Past Events
         dt_today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-        # Convert e.date to naive for safe comparison if it has tzinfo
         future_events = [e for e in all_events if (e.date.replace(tzinfo=None) if e.date.tzinfo else e.date) >= dt_today]
         all_events = future_events
 
-        # Deduplicate to prevent Postgres 21000 error (now on URL)
         unique_events_map = {}
         for event in all_events:
-            # unique constraint is now (url)
             if event.url not in unique_events_map:
                 unique_events_map[event.url] = event
-            else:
-                pass # Already have this event, skip duplicate
         
         unique_events = list(unique_events_map.values())
         print(f"Saving {len(unique_events)} distinct events to Supabase...")

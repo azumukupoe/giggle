@@ -19,7 +19,6 @@ class PiaConnector(BaseConnector):
         self.session.mount('https://', adapter)
 
     def get_events(self, max_pages: int = None) -> List[Event]:
-        # max_pages is now treated as max pages PER PREFECTURE, default 100
         max_pages_per_pf = max_pages if max_pages else 100
         
         raw_events = []
@@ -41,7 +40,7 @@ class PiaConnector(BaseConnector):
                     print(f"  [Pia] Reached max page {max_pages_per_pf} for pf={pf_str}. Moving to next.")
                     break
                 
-                # Parameters based on user's successful pattern
+
                 params = {
                     "rlsIn": "0",
                     "perfIn": "0",
@@ -57,9 +56,7 @@ class PiaConnector(BaseConnector):
                 }
 
                 try:
-                    # random sleep to be polite?
-                    # time.sleep(0.5) 
-                    
+
                     resp = self.session.get(url, params=params, headers=headers)
                     resp.encoding = 'UTF-8'
                     
@@ -78,7 +75,6 @@ class PiaConnector(BaseConnector):
                     
                     if not event_links:
                         # No events on this page means we are done with this prefecture
-                        # print(f"  [Pia] No events found on pf={pf_str} page={page}. Next prefecture.")
                         break
 
                     print(f"  [Pia] Found {len(event_links)} event items on pf={pf_str} page={page}.")
@@ -215,7 +211,6 @@ class PiaConnector(BaseConnector):
                      if t_h3:
                          title = t_h3.get_text(strip=True)
                      else:
-                         # 3. Old fallback
                          t_li = root.select_one('li.is_title')
                          if t_li:
                              title = t_li.get_text(strip=True)
@@ -232,9 +227,7 @@ class PiaConnector(BaseConnector):
                     link = f"https://t.pia.jp/{link}"
 
             # --- METADATA (Date/Venue) ---
-            # Used only as fallback if deep fetch fails, OR for initial filtering?
-            # Actually we rely on deep fetch. But extracting venue here is good for "base_info".
-            
+
             venue = "Unknown Venue"
             location = ""
             date_obj = None
@@ -297,22 +290,13 @@ class PiaConnector(BaseConnector):
                 "bundle_url": None
             }
             
-            # Deep fetch
-            extracted_events = self._deep_fetch_and_expand(link, base_info)
-            return extracted_events
+            return self._deep_fetch_and_expand(link, base_info)
 
         except Exception as e:
             return []
 
     def _deep_fetch_and_expand(self, url: str, base_info: dict) -> List[dict]:
-        """
-         visits the URL (event.do or ticketInformation.do).
-         - Extracts Artist / Bundle Info
-         - Finds ALL dates/times.
-         - If simple ticket page with one date -> 1 event.
-         - If ticket page with multiple dates -> N events.
-         - If event.do page -> finds child ticket links -> visits them -> N events.
-        """
+        """Deep fetch logical component."""
         results = []
         try:
              headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
@@ -323,8 +307,7 @@ class PiaConnector(BaseConnector):
 
              soup = BeautifulSoup(resp.text, 'html.parser')
 
-             # 1. Common Metadata (Artist, Bundle)
-             # Reuse logic from before
+            # 1. Common Metadata (Artist, Bundle)
              page_artist = ""
              bundle_title = None
              bundle_url = None
@@ -348,14 +331,7 @@ class PiaConnector(BaseConnector):
                  if a_tag_b:
                      bundle_url = a_tag_b['href']
 
-             # 2. Check if this is a "Container" page (event.do) with child links
-             # OR a leaf page (ticketInformation.do) with dates.
-             # Note: event.do might ALSO have dates directly if it's a simple event? 
-             # Usually event.do has links to ticketInformation.do.
-             
              child_links = []
-             # Heuristic: look for ticketInformation.do links inside the content area
-             # But exclude the one we are on?
              for a in soup.find_all('a', href=True):
                  href = a['href']
                  if 'ticketInformation.do' in href:
@@ -378,16 +354,7 @@ class PiaConnector(BaseConnector):
                  # This is a container page. Delegate to children.
                  # We pass artist/bundle info down.
                  
-                 # Optimization: If child links exist, we visit them.
-                 # But if there are TOO many? User said "we don't need to scrape ... event.do pages", 
-                 # but we DO need to follow links if that's where the dates are.
-                 # Actually user said "start times are only available on the ... ticketInformation.do pages".
-                 
                  for c_url in child_links:
-                     # Recursive call? Or just fetch?
-                     # Better to just call this same function, but we need to avoid infinite recursion.
-                     # Since we filtered `if full != url`, it should degrade to the leaf case.
-                     # We can merge base_info.
                      child_results = self._deep_fetch_and_expand(c_url, base_info)
                      # Update artist/bundle if missing
                      for res in child_results:
@@ -402,22 +369,8 @@ class PiaConnector(BaseConnector):
                  return results
              
              else:
-                 # This is likely a leaf page (ticketInformation.do) 
-                 # OR an event.do that has no children (maybe single event).
-                 # We extract Dates/Times here.
-                 
                  # Parsing Logic for Dates on Detail Page
-                 # There can be multiple .Y15-event-date sections or just one.
-                 # We need to find pairings of Date + Time + Venue if possible.
-                 # The structure is often:
-                 #  <div class="common_list_item"> ... <div class="Y15-event-date"> ... </div> ... </div>
-                 # So we iterate over containers.
-                 
-                 # Let's try to find common containers.
-                 # If we can't find containers, we just look for all dates.
-                 
                  date_containers = soup.select('.item_list .item, .common_list_item, .ticket_list .item') 
-                 # .item_list .item is common for multiple rows
                  
                  found_in_containers = False
                  

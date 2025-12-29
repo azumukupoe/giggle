@@ -23,10 +23,11 @@ def upsert_events(supabase: Client, events: list):
     # Convert Event objects to dictionaries
     data = []
     for e in events:
-        # Pydantic-style dict or manual
+
         if hasattr(e, "model_dump"):
             event_dict = e.model_dump()
-            # Pydantic model_dump() leaves datetime objects; Supabase needs strings for JSON
+        if hasattr(e, "model_dump"):
+            event_dict = e.model_dump()
             if "date" in event_dict and event_dict["date"]:
                 event_dict["date"] = event_dict["date"].isoformat()
         else:
@@ -39,14 +40,12 @@ def upsert_events(supabase: Client, events: list):
                 "url": e.url
             }
         
-        # Remove None values if necessary, or let DB handle defaults
+
         data.append(event_dict)
 
     # Perform upsert
     try:
-        # 'on_conflict' needs columns that form the unique constraint
-        response = supabase.table("events").upsert(data, on_conflict="url").execute()
-        # print(f"Upsert Response: {response}") 
+        response = supabase.table("events").upsert(data, on_conflict="url").execute() 
     except Exception as e:
         print(f"Supabase upsert error: {e}")
         raise e
@@ -55,7 +54,6 @@ def get_all_artists(supabase: Client) -> list[str]:
     """Fetch all unique artist names from the 'artists' table."""
     try:
         response = supabase.table("artists").select("name").execute()
-        # response.data is a list of dicts: [{'name': 'Radiohead'}, ...]
         return [row['name'] for row in response.data]
     except Exception as e:
         print(f"Error fetching artists from DB: {e}")
@@ -67,12 +65,12 @@ def delete_old_events(supabase: Client):
     """
     from datetime import datetime
     
-    # Use current time for comparison
+    from datetime import datetime
+    
     now_iso = datetime.now().isoformat()
     
     print("Deleting old events...")
     try:
-        # lt = less than
         response = supabase.table("events").delete().lt("date", now_iso).execute()
         if response.data:
             print(f"  -> Deleted {len(response.data)} old events.")
