@@ -88,7 +88,8 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
             <div className="p-5 flex flex-col h-full">
 
                 {/* Content: Title & Artist */}
-                <div className="flex-grow space-y-1 pt-1 pl-2 overflow-hidden">
+                {/* Added more padding to prevent horizontal clipping, added pb-1 for vertical clipping */}
+                <div className="flex-grow space-y-2 pt-1 px-1 overflow-hidden">
                     <TruncatedText
                         as="h3"
                         text={decodeHtml(event.title)}
@@ -96,20 +97,25 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
                     />
                     <TruncatedText
                         text={decodeHtml(event.artist)}
-                        className="text-muted-foreground font-medium text-sm line-clamp-5"
+                        className="text-muted-foreground font-medium text-sm line-clamp-5 pb-0.5"
                     />
                 </div>
 
                 {/* Footer: Details & CTA */}
                 <div className="mt-4 flex flex-col gap-3 shrink-0">
                     <div className="flex flex-col gap-1.5 text-xs text-muted-foreground">
-                        <div className="flex items-center gap-2" title={format(parseISO(event.date), "PPP p", { locale: language === 'ja' ? ja : enUS })}>
+                        <div className="flex items-center gap-2">
                             <Calendar className="w-3.5 h-3.5 shrink-0" />
                             <span>
-                                {format(parseISO(event.date),
-                                    language === 'ja' ? "M月d日(EEE) HH:mm" : "EEE, MMM d @ h:mm a",
-                                    { locale: language === 'ja' ? ja : enUS }
-                                )}
+                                {(event.displayDates && event.displayDates.length > 0 ? event.displayDates : [event.date]).map((d, i, arr) => (
+                                    <span key={i}>
+                                        {format(parseISO(d),
+                                            language === 'ja' ? "M月d日(EEE) HH:mm" : "EEE, MMM d, h:mm a",
+                                            { locale: language === 'ja' ? ja : enUS }
+                                        )}
+                                        {i < arr.length - 1 && " / "}
+                                    </span>
+                                ))}
                             </span>
                         </div>
                         <div className="flex items-center gap-2">

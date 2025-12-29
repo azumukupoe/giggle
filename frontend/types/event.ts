@@ -16,4 +16,5 @@ export interface GroupedEvent {
     location: string
     date: string
     urls: string[]       // All ticket URLs for this event
+    displayDates: string[] // List of ISO strings to display for merged events
 }
