@@ -14,7 +14,8 @@ class PiaConnector(BaseConnector):
         # Setup session with retry
         self.session = requests.Session()
         retries = requests.adapters.Retry(total=3, backoff_factor=1, status_forcelist=[500, 502, 503, 504])
-        adapter = requests.adapters.HTTPAdapter(max_retries=retries)
+        # Increase pool size for concurrency (5 prefectures * 10 threads each = ~50 connections)
+        adapter = requests.adapters.HTTPAdapter(max_retries=retries, pool_connections=60, pool_maxsize=60)
         self.session.mount('http://', adapter)
         self.session.mount('https://', adapter)
 
@@ -22,80 +23,106 @@ class PiaConnector(BaseConnector):
         max_pages_per_pf = max_pages if max_pages else 100
         
         raw_events = []
+        
+        # Process prefectures in parallel
+        # We use 5 workers for prefectures. Each prefecture uses 10 threads for items.
+        # Total potential threads = 50.
+        print("[Pia] Starting parallel fetch for 47 prefectures...")
+        
+        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+            # map prefecture codes 1..47
+            future_to_pf = {
+                executor.submit(self._process_prefecture, pf, max_pages_per_pf): pf 
+                for pf in range(1, 48)
+            }
+            
+            for future in concurrent.futures.as_completed(future_to_pf):
+                pf = future_to_pf[future]
+                try:
+                    events = future.result()
+                    if events:
+                        raw_events.extend(events)
+                    # print(f"[Pia] Finished prefecture {pf:02d}. Total events so far: {len(raw_events)}")
+                except Exception as e:
+                    print(f"[Pia] Exception processing prefecture {pf}: {e}")
+
+        return self._merge_events(raw_events)
+
+    def _process_prefecture(self, pf_code: int, max_pages_per_pf: int) -> List[dict]:
+        pf_str = f"{pf_code:02d}"
+        print(f"[Pia] Scanning prefecture {pf_str}...")
+        
+        local_events = []
         url = "https://t.pia.jp/pia/rlsInfo.do"
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
             "Referer": "https://t.pia.jp/pia/search_all.do"
         }
-
-        # Iterate through prefectures 01 to 47
-        for pf_code in range(1, 48):
-            pf_str = f"{pf_code:02d}"
-            print(f"[Pia] Scanning prefecture {pf_str}...")
-            
-            page = 0
-            while True:
-                page += 1
-                if page > max_pages_per_pf:
-                    print(f"  [Pia] Reached max page {max_pages_per_pf} for pf={pf_str}. Moving to next.")
-                    break
-                
-
-                params = {
-                    "rlsIn": "0",
-                    "perfIn": "0",
-                    "includeSaleEnd": "true",
-                    "lg": "01", # Music
-                    "pf": pf_str,
-                    "page": str(page),
-                    "responsive": "true",
-                    "noConvert": "true",
-                    "searchMode": "1",
-                    "mode": "2",
-                    "dispMode": "1"
-                }
-
-                try:
-
-                    resp = self.session.get(url, params=params, headers=headers)
-                    resp.encoding = 'UTF-8'
-                    
-                    if resp.status_code != 200:
-                        print(f"  [Pia] Error: Status {resp.status_code} on pf={pf_str} page={page}")
-                        break
-
-                    soup = BeautifulSoup(resp.text, 'html.parser')
-
-                    # Check for maintenance
-                    if "ただいまシステムメンテナンス中です" in soup.get_text() or "system maintenance" in soup.get_text().lower():
-                        print(f"  [Pia] WARNING: System Maintenance. Stopping.")
-                        return self._merge_events(raw_events)
-
-                    event_links = soup.select('div.event_link, ul.common_list_item')
-                    
-                    if not event_links:
-                        # No events on this page means we are done with this prefecture
-                        break
-
-                    print(f"  [Pia] Found {len(event_links)} event items on pf={pf_str} page={page}.")
-
-                    # Process items concurrently
-                    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
-                        futures = [executor.submit(self._process_event_div, str(div)) for div in event_links]
-                        
-                        for future in concurrent.futures.as_completed(futures):
-                            try:
-                                result = future.result()
-                                if result:
-                                    raw_events.extend(result)
-                            except Exception as e:
-                                pass
-                                
-                except Exception as e:
-                    print(f"  [Pia] Request failed on pf={pf_str} page={page}: {e}")
-                    break
         
-        return self._merge_events(raw_events)
+        page = 0
+        while True:
+            page += 1
+            if page > max_pages_per_pf:
+                print(f"  [Pia] Reached max page {max_pages_per_pf} for pf={pf_str}. Moving to next.")
+                break
+
+            params = {
+                "rlsIn": "0",
+                "perfIn": "0",
+                "includeSaleEnd": "true",
+                "lg": "01", # Music
+                "pf": pf_str,
+                "page": str(page),
+                "responsive": "true",
+                "noConvert": "true",
+                "searchMode": "1",
+                "mode": "2",
+                "dispMode": "1"
+            }
+
+            try:
+                resp = self.session.get(url, params=params, headers=headers)
+                resp.encoding = 'UTF-8'
+                
+                if resp.status_code != 200:
+                    print(f"  [Pia] Error: Status {resp.status_code} on pf={pf_str} page={page}")
+                    break
+
+                soup = BeautifulSoup(resp.text, 'html.parser')
+
+                # Check for maintenance
+                if "ただいまシステムメンテナンス中です" in soup.get_text() or "system maintenance" in soup.get_text().lower():
+                    print(f"  [Pia] WARNING: System Maintenance. Stopping.")
+                    return local_events
+
+                event_links = soup.select('div.event_link, ul.common_list_item')
+                
+                if not event_links:
+                    # No events on this page means we are done with this prefecture
+                    break
+
+                print(f"  [Pia] Found {len(event_links)} event items on pf={pf_str} page={page}.")
+
+                # Process items concurrently
+                # Note: this creates nested threads. 
+                # Since we are inside a thread already, we are sharing the CPU/Network.
+                # 'self.session' is thread-safe.
+                with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+                    futures = [executor.submit(self._process_event_div, str(div)) for div in event_links]
+                    
+                    for future in concurrent.futures.as_completed(futures):
+                        try:
+                            result = future.result()
+                            if result:
+                                local_events.extend(result)
+                        except Exception as e:
+                            pass
+                            
+            except Exception as e:
+                print(f"  [Pia] Request failed on pf={pf_str} page={page}: {e}")
+                break
+        
+        return local_events
 
     def _merge_events(self, raw_events: List[dict]) -> List[Event]:
         # Merging logic
