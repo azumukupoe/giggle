@@ -53,6 +53,7 @@ const TruncatedText = ({
 }) => {
     const ref = useRef<HTMLElement>(null);
     const [isTruncated, setIsTruncated] = useState(false);
+    const [isExpanded, setIsExpanded] = useState(false);
 
     useEffect(() => {
         if (ref.current) {
@@ -60,11 +61,18 @@ const TruncatedText = ({
         }
     }, [text]);
 
+    const toggleExpand = () => {
+        if (isTruncated || isExpanded) {
+            setIsExpanded(!isExpanded);
+        }
+    };
+
     return (
         <Component
             ref={ref}
-            className={className}
-            title={isTruncated ? text : undefined}
+            onClick={toggleExpand}
+            className={`${className} ${isExpanded ? 'line-clamp-none' : ''} ${(isTruncated || isExpanded) ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
+            title={!isExpanded && isTruncated ? text : undefined}
         >
             {text}
         </Component>
@@ -82,8 +90,8 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
         <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            whileHover={{ scale: 1.02 }}
-            className="group h-[280px] flex flex-col justify-between overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm transition-all hover:shadow-md"
+            whileHover={{ scale: 1.01 }}
+            className="group flex flex-col justify-between overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm transition-all hover:shadow-md min-h-[350px] h-full"
         >
             <div className="p-5 flex flex-col h-full">
 

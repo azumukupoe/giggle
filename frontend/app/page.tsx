@@ -12,10 +12,8 @@ export default function Home() {
 
       <Navbar />
 
-      <div className="relative z-10 pt-24 pb-0 h-full flex flex-col overflow-hidden">
-        <div className="max-w-7xl mx-auto px-6 mb-8 shrink-0">
-          {/* Header Removed as requested */}
-        </div>
+      <div className="relative z-10 pt-20 pb-0 h-full flex flex-col overflow-hidden">
+        {/* Header Removed as requested - and removed the empty container too */}
 
         <div className="flex-1 overflow-hidden">
           <Feed />

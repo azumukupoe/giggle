@@ -112,22 +112,27 @@ export const Feed = () => {
             </div>
 
             {/* Search Bar */}
-            <div className="max-w-xl mx-auto mb-8 relative w-full shrink-0">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => {
-                        setSearchQuery(e.target.value);
-                        setCurrentPage(1); // Reset page on search
-                    }}
-                    placeholder={t('feed.searchPlaceholder')}
-                    className="w-full pl-10 pr-4 py-3 rounded-xl bg-background border border-input text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring transition-all"
-                />
+            <div className="max-w-xl mx-auto mb-8 w-full shrink-0 flex flex-col gap-2">
+                <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                    <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => {
+                            setSearchQuery(e.target.value);
+                            setCurrentPage(1); // Reset page on search
+                        }}
+                        placeholder={t('feed.searchPlaceholder')}
+                        className="w-full pl-10 pr-4 py-3 rounded-xl bg-background/50 border border-input text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring transition-all"
+                    />
+                </div>
+                <p className="text-right text-xs text-muted-foreground px-1 h-4">
+                    {filteredGroupedEvents.length > 0 && `${filteredGroupedEvents.length} events found`}
+                </p>
             </div>
 
             {/* Grid */}
-            <div className="flex-1 overflow-y-auto min-h-0">
+            <div className="flex-1 overflow-y-auto min-h-0 overflow-x-hidden px-1">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-4">
                     {displayedEvents.length > 0 ? (
                         displayedEvents.map((event) => (
@@ -143,7 +148,7 @@ export const Feed = () => {
 
             {/* Pagination Controls */}
             {totalPages > 1 && (
-                <div className="flex justify-between items-center mt-4 pt-4 border-t border-border shrink-0 bg-background/50 backdrop-blur-sm">
+                <div className="flex justify-between items-center mt-4 pt-2 shrink-0">
                     <button
                         onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                         disabled={currentPage === 1}
