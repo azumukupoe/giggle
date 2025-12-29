@@ -83,12 +83,12 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             whileHover={{ scale: 1.02 }}
-            className="group h-[340px] flex flex-col justify-between overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm transition-all hover:shadow-md"
+            className="group h-[280px] flex flex-col justify-between overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm transition-all hover:shadow-md"
         >
             <div className="p-5 flex flex-col h-full">
 
                 {/* Content: Title & Artist */}
-                <div className="flex-grow space-y-1 pt-1 overflow-hidden">
+                <div className="flex-grow space-y-1 pt-1 pl-1 overflow-hidden">
                     <TruncatedText
                         as="h3"
                         text={decodeHtml(event.title)}

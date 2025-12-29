@@ -3,7 +3,7 @@ import { Feed } from "@/components/Feed";
 
 export default function Home() {
   return (
-    <main className="min-h-screen bg-white dark:bg-black text-black dark:text-white relative overflow-x-hidden selection:bg-purple-500 selection:text-white">
+    <main className="h-screen bg-white dark:bg-black text-black dark:text-white relative overflow-hidden selection:bg-purple-500 selection:text-white">
       {/* Dynamic Background */}
       <div className="fixed inset-0 z-0 pointer-events-none">
         <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-purple-500/10 dark:bg-purple-900/20 blur-[120px]" />
@@ -12,7 +12,7 @@ export default function Home() {
 
       <Navbar />
 
-      <div className="relative z-10 pt-24 pb-10">
+      <div className="relative z-10 pt-24 pb-24 h-full overflow-y-auto">
         <div className="max-w-7xl mx-auto px-6 mb-8">
           {/* Header Removed as requested */}
         </div>

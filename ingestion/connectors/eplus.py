@@ -190,7 +190,7 @@ class EplusConnector(BaseConnector):
             all_events.extend(extract_from_json(first_page))
 
             # Remaining pages
-            for start_index in range(1 + items_per_page, limit_count + 1, items_per_page):
+            for start_index in range(1 + items_per_page, total_count + 1, items_per_page):
                 p = params.copy()
                 p['shutoku_start_ichi'] = start_index
                 tasks.append(self._fetch(session, p))
