@@ -274,6 +274,10 @@ class PiaConnector(BaseConnector):
     def _deep_fetch_and_expand(self, url: str, base_info: dict) -> List[dict]:
         """Deep fetch logical component."""
         time.sleep(random.uniform(self.min_delay_item, self.max_delay_item))
+        
+        bundle_title = base_info.get('bundle_title')
+        bundle_url = base_info.get('bundle_url')
+
         results = []
         try:
              headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
@@ -333,44 +337,44 @@ class PiaConnector(BaseConnector):
                  return results
              
              else:
-                 # Parsing Logic for Dates on Detail Page
+                # Parsing Logic for Dates on Detail Page
                 date_containers = soup.select('.item_list .item, .common_list_item, .ticket_list .item, .Y15-regular-section') 
                  
-                 found_in_containers = False
+                found_in_containers = False
                  
-                 if date_containers:
-                     for item in date_containers:
-                         d_obj = self._parse_date_from_soup(item)
-                         if d_obj:
-                             found_in_containers = True
-                             # Clone base info
-                             new_ev = base_info.copy()
-                             new_ev['date'] = d_obj
-                             new_ev['url'] = url
-                             new_ev['artist'] = page_artist or base_info['artist']
-                             new_ev['bundle_title'] = bundle_title
-                             new_ev['bundle_url'] = bundle_url
+                if date_containers:
+                    for item in date_containers:
+                        d_obj = self._parse_date_from_soup(item)
+                        if d_obj:
+                            found_in_containers = True
+                            # Clone base info
+                            new_ev = base_info.copy()
+                            new_ev['date'] = d_obj
+                            new_ev['url'] = url
+                            new_ev['artist'] = page_artist or base_info['artist']
+                            new_ev['bundle_title'] = bundle_title
+                            new_ev['bundle_url'] = bundle_url
                              
-                             # Try to find venue specific to this item
-                             # item -> .place or similar?
-                             # Reuse base venue if not found
+                            # Try to find venue specific to this item
+                            # item -> .place or similar?
+                            # Reuse base venue if not found
                              
-                             results.append(new_ev)
+                            results.append(new_ev)
                              
-                 if not found_in_containers:
-                     # Fallball: try just searching globally for .Y15-event-date
-                     # This works for single event pages
-                     d_obj = self._parse_date_from_soup(soup)
-                     if d_obj:
-                         new_ev = base_info.copy()
-                         new_ev['date'] = d_obj
-                         new_ev['url'] = url
-                         new_ev['artist'] = page_artist or base_info['artist']
-                         new_ev['bundle_title'] = bundle_title
-                         new_ev['bundle_url'] = bundle_url
-                         results.append(new_ev)
+                if not found_in_containers:
+                    # Fallball: try just searching globally for .Y15-event-date
+                    # This works for single event pages
+                    d_obj = self._parse_date_from_soup(soup)
+                    if d_obj:
+                        new_ev = base_info.copy()
+                        new_ev['date'] = d_obj
+                        new_ev['url'] = url
+                        new_ev['artist'] = page_artist or base_info['artist']
+                        new_ev['bundle_title'] = bundle_title
+                        new_ev['bundle_url'] = bundle_url
+                        results.append(new_ev)
 
-                 return results
+                return results
 
         except Exception as e:
              # print(f"Deep fetch failed: {e}")
