@@ -18,6 +18,18 @@ export const Feed = () => {
 
     // UI State
     const [searchQuery, setSearchQuery] = useState("");
+    const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+
+    // Debounce search query
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            setDebouncedSearchQuery(searchQuery);
+        }, 300);
+
+        return () => {
+            clearTimeout(handler);
+        };
+    }, [searchQuery]);
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 9;
 
@@ -73,15 +85,15 @@ export const Feed = () => {
         const grouped = groupEvents(allEvents);
 
         // Then filter
-        if (!searchQuery) return grouped;
-        const lowerQ = searchQuery.toLowerCase();
+        if (!debouncedSearchQuery) return grouped;
+        const lowerQ = debouncedSearchQuery.toLowerCase();
         return grouped.filter(e =>
             e.title.toLowerCase().includes(lowerQ) ||
             e.artist.toLowerCase().includes(lowerQ) ||
             e.venue.toLowerCase().includes(lowerQ) ||
             e.location.toLowerCase().includes(lowerQ)
         );
-    }, [allEvents, searchQuery]);
+    }, [allEvents, debouncedSearchQuery]);
 
     // Paginate filtered events
     useEffect(() => {
