@@ -71,7 +71,7 @@ const TruncatedText = ({
     const ref = useRef<HTMLElement>(null);
     const [isTruncated, setIsTruncated] = useState(false);
     const [showTooltip, setShowTooltip] = useState(false);
-    const [tooltipPos, setTooltipPos] = useState({ bottom: 0, left: 0 });
+    const [tooltipPos, setTooltipPos] = useState<{ top?: number, bottom?: number, left: number }>({ left: 0, bottom: 0 });
 
     useEffect(() => {
         const checkTruncation = () => {
@@ -90,10 +90,36 @@ const TruncatedText = ({
     const handleMouseEnter = () => {
         if (isTruncated && ref.current) {
             const rect = ref.current.getBoundingClientRect();
-            setTooltipPos({
-                bottom: window.innerHeight - rect.top + 8, // 8px spacing
-                left: rect.left
-            });
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+
+            // Calculate horizontal position
+            // Max width is 250px + padding/margin safety
+            const MAX_WIDTH = 260;
+            let left = rect.left;
+
+            // If tooltip would go off right screen, align to right side or shift left
+            if (left + MAX_WIDTH > viewportWidth) {
+                left = Math.max(16, viewportWidth - MAX_WIDTH - 16);
+            }
+
+            // Calculate vertical position
+            // Default to showing above, but flip to below if not enough space at top
+            // and more space at bottom
+            const spaceAbove = rect.top;
+            const TOOLTIP_HEIGHT_ESTIMATE = 100; // Rough estimate for safety check
+
+            let pos: { top?: number; bottom?: number; left: number } = { left };
+
+            if (spaceAbove < TOOLTIP_HEIGHT_ESTIMATE) {
+                // Show below
+                pos.top = rect.bottom + 8;
+            } else {
+                // Show above
+                pos.bottom = viewportHeight - rect.top + 8;
+            }
+
+            setTooltipPos(pos);
             setShowTooltip(true);
         }
     };
@@ -125,7 +151,8 @@ const TruncatedText = ({
                 <div
                     className="fixed z-[100] p-2 bg-black/90 text-white text-xs rounded shadow-lg max-w-[250px] break-words pointer-events-none whitespace-pre-wrap"
                     style={{
-                        bottom: tooltipPos.bottom,
+                        ...(tooltipPos.bottom !== undefined ? { bottom: tooltipPos.bottom } : {}),
+                        ...(tooltipPos.top !== undefined ? { top: tooltipPos.top } : {}),
                         left: tooltipPos.left,
                         backdropFilter: 'blur(4px)'
                     }}
