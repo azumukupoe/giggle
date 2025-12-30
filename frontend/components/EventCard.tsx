@@ -71,7 +71,7 @@ const TruncatedText = ({
     const ref = useRef<HTMLElement>(null);
     const [isTruncated, setIsTruncated] = useState(false);
     const [showTooltip, setShowTooltip] = useState(false);
-    const [tooltipPos, setTooltipPos] = useState<{ top?: number, bottom?: number, left: number }>({ left: 0, bottom: 0 });
+    const [tooltipPos, setTooltipPos] = useState<{ top?: number, bottom?: number, left: number, maxHeight?: number }>({ left: 0, bottom: 0 });
 
     useEffect(() => {
         const checkTruncation = () => {
@@ -103,20 +103,34 @@ const TruncatedText = ({
                 left = Math.max(16, viewportWidth - MAX_WIDTH - 16);
             }
 
-            // Calculate vertical position
-            // Default to showing above, but flip to below if not enough space at top
-            // and more space at bottom
+            // Calculate vertical position and max height
             const spaceAbove = rect.top;
-            const TOOLTIP_HEIGHT_ESTIMATE = 100; // Rough estimate for safety check
+            const spaceBelow = viewportHeight - rect.bottom;
+            // minimum space requirement for a useful tooltip
+            const MIN_TOOLTIP_HEIGHT = 100;
+            const SAFETY_MARGIN = 16; // Margin from screen edge
 
-            let pos: { top?: number; bottom?: number; left: number } = { left };
+            let pos: { top?: number; bottom?: number; left: number; maxHeight: number } = {
+                left,
+                maxHeight: 200 // Default, will be overwritten
+            };
 
-            if (spaceAbove < TOOLTIP_HEIGHT_ESTIMATE) {
+            // Heuristic: Prefer above if there is enough space OR if space above is greater than space below
+            // But if space above is critically small (< 100) and space below is better, flip.
+            // Actually, simplest logic: Go where there is MORE space, unless "Above" has "Enough" space (e.g. > 300px).
+
+            // Let's stick to the previous preference (Above) but be smarter about flipping.
+            const preferBelow = spaceAbove < MIN_TOOLTIP_HEIGHT && spaceBelow > spaceAbove;
+
+            if (preferBelow) {
                 // Show below
                 pos.top = rect.bottom + 8;
+                pos.maxHeight = spaceBelow - 8 - SAFETY_MARGIN;
             } else {
                 // Show above
+                // For "bottom" positioning (css property), the value is distance from bottom of viewport.
                 pos.bottom = viewportHeight - rect.top + 8;
+                pos.maxHeight = spaceAbove - 8 - SAFETY_MARGIN;
             }
 
             setTooltipPos(pos);
@@ -149,11 +163,12 @@ const TruncatedText = ({
 
             {showTooltip && typeof document !== 'undefined' && createPortal(
                 <div
-                    className="fixed z-[100] p-2 bg-black/90 text-white text-xs rounded shadow-lg max-w-[250px] break-words pointer-events-none whitespace-pre-wrap"
+                    className="fixed z-[100] p-2 bg-black/90 text-white text-xs rounded shadow-lg max-w-[250px] break-words whitespace-pre-wrap overflow-y-auto"
                     style={{
                         ...(tooltipPos.bottom !== undefined ? { bottom: tooltipPos.bottom } : {}),
                         ...(tooltipPos.top !== undefined ? { top: tooltipPos.top } : {}),
                         left: tooltipPos.left,
+                        maxHeight: tooltipPos.maxHeight,
                         backdropFilter: 'blur(4px)'
                     }}
                 >
