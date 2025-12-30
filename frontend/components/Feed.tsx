@@ -107,7 +107,28 @@ export const Feed = () => {
                 // So for "today", we keep date-only entries until midnight usually.
                 return true;
             });
-            return { ...group, displayDates: validDates };
+
+            // Filter URLs based on validDates
+            // Only keep URLs from source events that match the remaining dates
+            const validDateSet = new Set(validDates);
+            const validUrls = group.sourceEvents
+                .filter(ev => {
+                    const dStr = ev.time ? `${ev.date}T${ev.time}` : ev.date;
+                    // If the exact date string is in validDates, keep the URL
+                    // Note: validDates has already been filtered by 'now' AND by redundancy (in groupEvents)
+                    // So if "Dec 30" was removed because "Dec 30 19:00" exists, the URL for "Dec 30" event will also be removed here.
+                    return validDateSet.has(dStr);
+                })
+                .map(ev => ev.url);
+
+            // Deduplicate URLs
+            const uniqueUrls = Array.from(new Set(validUrls));
+
+            return {
+                ...group,
+                displayDates: validDates,
+                urls: uniqueUrls
+            };
         }).filter(group => group.displayDates.length > 0);
 
         // Then filter by search query

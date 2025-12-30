@@ -27,6 +27,7 @@ interface IntermediateGroup {
     artists: Set<string>;
     dates: Set<string>; // Set of ISO strings
     venueNormalized: string;
+    sourceEvents: Event[];
 }
 
 export function groupEvents(events: Event[]): GroupedEvent[] {
@@ -91,6 +92,7 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
                 group.artists.add(event.artist);
                 const dateTimeStr = event.time ? `${event.date}T${event.time}` : event.date;
                 group.dates.add(dateTimeStr);
+                group.sourceEvents.push(event);
                 matched = true;
                 break;
             }
@@ -105,7 +107,8 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
                 urls: new Set([event.url]),
                 titles: new Set([event.title]),
                 artists: new Set([event.artist]),
-                dates: new Set([dateTimeStr])
+                dates: new Set([dateTimeStr]),
+                sourceEvents: [event]
             });
         }
     }
@@ -124,6 +127,7 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
             group.titles.forEach(t => existing.titles.add(t));
             group.artists.forEach(a => existing.artists.add(a));
             group.dates.forEach(d => existing.dates.add(d));
+            existing.sourceEvents.push(...group.sourceEvents);
         } else {
             pass2Map.set(key, group);
         }
@@ -158,6 +162,7 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
             date: g.baseEvent.date, // Use earliest date for sorting usually?
             time,
             urls: Array.from(g.urls),
+            sourceEvents: g.sourceEvents,
             displayDates: filterRedundantDates(Array.from(g.dates)) // Sorted list for display
         };
     }).sort((a, b) => {
