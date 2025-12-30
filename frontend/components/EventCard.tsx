@@ -29,19 +29,7 @@ const formatLocation = (loc: string) => {
     return decoded.replace(/, Japan$/, "").replace(/Japan$/, "").trim();
 };
 
-const getSourceLabel = (url: string | undefined) => {
-    try {
-        if (!url) return "Event Link";
-        const urlObj = new URL(url);
-        let hostname = urlObj.hostname;
-        if (hostname.startsWith('www.')) {
-            hostname = hostname.substring(4);
-        }
-        return hostname;
-    } catch {
-        return "Event Link";
-    }
-};
+
 
 const formatArtistText = (str: string) => {
     if (!str) return "";
@@ -194,8 +182,8 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
         const hasTime = d.includes('T');
         return format(parseISO(d),
             language === 'ja'
-                ? (hasTime ? "M月d日(EEE) HH:mm" : "M月d日(EEE)")
-                : (hasTime ? "EEE, MMM d, h:mm a" : "EEE, MMM d"),
+                ? (hasTime ? "yyyy年M月d日(EEE) HH:mm" : "yyyy年M月d日(EEE)")
+                : (hasTime ? "EEE, MMM d, yyyy, h:mm a" : "EEE, MMM d, yyyy"),
             { locale: language === 'ja' ? ja : enUS }
         );
     }).join(" / ");
@@ -285,17 +273,38 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
 
                     {/* Ticket Links */}
                     <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar md:flex-wrap">
-                        {event.urls.map((url, index) => (
-                            <a
-                                key={index}
-                                href={url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex-none md:flex-1 min-w-[80px] flex items-center justify-center gap-1.5 py-1.5 rounded-md bg-secondary text-secondary-foreground font-medium text-xs hover:bg-secondary/80 transition-colors whitespace-nowrap"
-                            >
-                                {getSourceLabel(url)} <ExternalLink className="w-3 h-3" />
-                            </a>
-                        ))}
+                        {event.sourceEvents.map((sourceEvent, index) => {
+                            const date = parseISO(sourceEvent.date);
+                            const month = date.getMonth() + 1;
+                            const day = date.getDate();
+                            const timeStr = sourceEvent.time ? sourceEvent.time.substring(0, 5) : "";
+                            const label = timeStr ? `${month}/${day} ${timeStr}` : `${month}/${day}`;
+
+                            let hostname = "";
+                            try {
+                                hostname = new URL(sourceEvent.url).hostname;
+                            } catch { }
+
+                            return (
+                                <a
+                                    key={index}
+                                    href={sourceEvent.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex-none min-w-[80px] flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-md bg-secondary text-secondary-foreground font-medium text-xs hover:bg-secondary/80 transition-colors whitespace-nowrap"
+                                >
+                                    {hostname && (
+                                        <img
+                                            src={`https://www.google.com/s2/favicons?domain=${hostname}&sz=64`}
+                                            alt={hostname}
+                                            className="w-4 h-4 rounded-sm"
+                                        />
+                                    )}
+                                    <span>{label}</span>
+                                    <ExternalLink className="w-3 h-3 opacity-50" />
+                                </a>
+                            );
+                        })}
                     </div>
                 </div>
             </div>
