@@ -109,7 +109,7 @@ const TruncatedText = ({
 
             {showTooltip && typeof document !== 'undefined' && createPortal(
                 <div
-                    className="fixed z-[100] p-2 bg-black/90 text-white text-xs rounded shadow-lg max-w-[250px] break-words pointer-events-none"
+                    className="fixed z-[100] p-2 bg-black/90 text-white text-xs rounded shadow-lg max-w-[250px] break-words pointer-events-none whitespace-pre-wrap"
                     style={{
                         bottom: tooltipPos.bottom,
                         left: tooltipPos.left,
