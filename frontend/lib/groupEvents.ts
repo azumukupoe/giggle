@@ -12,6 +12,14 @@ const normalizeTitle = (title: string): string => {
     return title.toLowerCase().trim();
 };
 
+const getDomain = (url: string): string => {
+    try {
+        return new URL(url).hostname.replace(/^www\./, "");
+    } catch {
+        return "";
+    }
+};
+
 interface IntermediateGroup {
     baseEvent: Event;
     urls: Set<string>;
@@ -31,7 +39,9 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
 
         // If dates are equal, sort by time (nulls first to match DB query)
         if (!a.time && !b.time) {
-            return a.title.localeCompare(b.title);
+            const titleDiff = a.title.localeCompare(b.title);
+            if (titleDiff !== 0) return titleDiff;
+            return getDomain(a.url).localeCompare(getDomain(b.url));
         }
         if (!a.time) return -1;
         if (!b.time) return 1;
@@ -39,7 +49,10 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
         const timeDiff = a.time.localeCompare(b.time);
         if (timeDiff !== 0) return timeDiff;
 
-        return a.title.localeCompare(b.title);
+        const titleDiff = a.title.localeCompare(b.title);
+        if (titleDiff !== 0) return titleDiff;
+
+        return getDomain(a.url).localeCompare(getDomain(b.url));
     });
 
     // --- Pass 1: Group by Title + Venue (detecting consecutive days) ---
@@ -153,7 +166,11 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
 
         // If dates are equal, sort by time (nulls first)
         if (!a.time && !b.time) {
-            return a.title.localeCompare(b.title);
+            const titleDiff = a.title.localeCompare(b.title);
+            if (titleDiff !== 0) return titleDiff;
+            const domainA = a.urls.length > 0 ? getDomain(a.urls[0]) : "";
+            const domainB = b.urls.length > 0 ? getDomain(b.urls[0]) : "";
+            return domainA.localeCompare(domainB);
         }
         if (!a.time) return -1;
         if (!b.time) return 1;
@@ -161,7 +178,12 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
         const timeDiff = a.time.localeCompare(b.time);
         if (timeDiff !== 0) return timeDiff;
 
-        return a.title.localeCompare(b.title);
+        const titleDiff = a.title.localeCompare(b.title);
+        if (titleDiff !== 0) return titleDiff;
+
+        const domainA = a.urls.length > 0 ? getDomain(a.urls[0]) : "";
+        const domainB = b.urls.length > 0 ? getDomain(b.urls[0]) : "";
+        return domainA.localeCompare(domainB);
     });
 }
 
