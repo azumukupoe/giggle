@@ -17,17 +17,30 @@ class EplusConnector(BaseConnector):
             'X-APIToken': 'FGXySj3mTd' # Static token
         }
 
-        self.sem = asyncio.Semaphore(50) 
+        self.sem = asyncio.Semaphore(40) 
 
     async def _fetch(self, session, params):
+        retries = 3
+        base_delay = 1
+        
         async with self.sem:
-            try:
-                async with session.get(self.api_url, headers=self.headers, params=params, timeout=30) as response:
-                    if response.status != 200:
-                        return None
-                    return await response.json()
-            except Exception:
-                return None
+            for attempt in range(retries):
+                try:
+                    async with session.get(self.api_url, headers=self.headers, params=params, timeout=30) as response:
+                        if response.status != 200:
+                            if attempt < retries - 1:
+                                await asyncio.sleep(base_delay * (2 ** attempt))
+                                continue
+                            print(f"  [eplus] Fetch failed after {retries} attempts. Status: {response.status}")
+                            return None
+                        return await response.json()
+                except Exception as e:
+                    if attempt < retries - 1:
+                        await asyncio.sleep(base_delay * (2 ** attempt))
+                        continue
+                    print(f"  [eplus] Fetch failed after {retries} attempts. Exception: {e}")
+                    return None
+        return None
 
     async def _get_all_ids_async(self, session, genre_code: str):
         """
@@ -39,7 +52,8 @@ class EplusConnector(BaseConnector):
             "shutoku_kensu": 1,
             "shutoku_start_ichi": 1,
             "parent_genre_code_list": genre_code,
-            "streaming_haishin_kubun_list": "0"
+            "streaming_haishin_kubun_list": "0",
+            "sort_key": "koenbi,kaien_time,parent_koen_taisho_flag,kogyo_code,kogyo_sub_code"
         }
         
 
@@ -67,9 +81,9 @@ class EplusConnector(BaseConnector):
                     k_code = item.get('kogyo_code')
                     k_sub = item.get('kogyo_sub_code')
                     if k_code and k_sub:
-                        ids.add((k_code, k_sub))
+                        ids.add((str(k_code), str(k_sub)))
                         
-        print(f"  [eplus] Fetched {len(ids)} exclusion IDs for genre {genre_code}.")
+        print(f"  [eplus] Fetched {len(ids)} unique exclusion IDs for genre {genre_code} out of {total_count} total items reported.")
         return ids
 
     def _process_item_sync(self, item, dt_now, excluded_ids):
@@ -78,7 +92,8 @@ class EplusConnector(BaseConnector):
             k_code = item.get('kogyo_code')
             k_sub = item.get('kogyo_sub_code')
             if k_code and k_sub:
-                if (k_code, k_sub) in excluded_ids:
+                if (str(k_code), str(k_sub)) in excluded_ids:
+                    # print(f"  [eplus] EXCLUDED: {k_code}-{k_sub} {item.get('kanren_kogyo_sub', {}).get('kogyo_name_1')}")
                     return None
 
             kogyo = item.get('kanren_kogyo_sub', {})
