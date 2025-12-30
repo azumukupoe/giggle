@@ -175,12 +175,15 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
         .join(", ");
 
     // Format dates into a single string for the tooltip/truncation
-    const dateString = (event.displayDates && event.displayDates.length > 0 ? event.displayDates : [event.date]).map((d) => (
-        format(parseISO(d),
-            language === 'ja' ? "M月d日(EEE) HH:mm" : "EEE, MMM d, h:mm a",
+    const dateString = (event.displayDates && event.displayDates.length > 0 ? event.displayDates : [event.date]).map((d) => {
+        const hasTime = d.includes('T');
+        return format(parseISO(d),
+            language === 'ja'
+                ? (hasTime ? "M月d日(EEE) HH:mm" : "M月d日(EEE)")
+                : (hasTime ? "EEE, MMM d, h:mm a" : "EEE, MMM d"),
             { locale: language === 'ja' ? ja : enUS }
-        )
-    )).join(" / ");
+        );
+    }).join(" / ");
 
     useEffect(() => {
         if (!artistContainerRef.current) return;
