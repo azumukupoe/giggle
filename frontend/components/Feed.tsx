@@ -191,7 +191,7 @@ export const Feed = () => {
                     />
                 </div>
                 <p className="text-right text-xs text-muted-foreground px-1 h-4">
-                    {filteredGroupedEvents.length > 0 && `${filteredGroupedEvents.length} events found`}
+                    {filteredGroupedEvents.length > 0 && t('feed.eventsFound', { count: filteredGroupedEvents.length })}
                 </p>
             </div>
 

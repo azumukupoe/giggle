@@ -5,8 +5,11 @@ import { Moon, Sun, Laptop } from "lucide-react"
 import { useTheme } from "next-themes"
 import { motion, AnimatePresence } from "framer-motion"
 
+import { useLanguage } from "./LanguageContext"
+
 export function ThemeToggle() {
     const { setTheme, theme } = useTheme()
+    const { t } = useLanguage()
     const [isOpen, setIsOpen] = React.useState(false)
     const [mounted, setMounted] = React.useState(false)
 
@@ -54,19 +57,19 @@ export function ThemeToggle() {
                                     onClick={() => { setTheme("light"); setIsOpen(false) }}
                                     className={`flex items-center gap-2 px-2 py-2 text-sm rounded-sm hover:bg-accent hover:text-accent-foreground transition-colors w-full text-left ${theme === 'light' ? 'bg-accent/50 text-accent-foreground' : ''}`}
                                 >
-                                    <Sun className="w-4 h-4" /> Light
+                                    <Sun className="w-4 h-4" /> {t('theme.light')}
                                 </button>
                                 <button
                                     onClick={() => { setTheme("dark"); setIsOpen(false) }}
                                     className={`flex items-center gap-2 px-2 py-2 text-sm rounded-sm hover:bg-accent hover:text-accent-foreground transition-colors w-full text-left ${theme === 'dark' ? 'bg-accent/50 text-accent-foreground' : ''}`}
                                 >
-                                    <Moon className="w-4 h-4" /> Dark
+                                    <Moon className="w-4 h-4" /> {t('theme.dark')}
                                 </button>
                                 <button
                                     onClick={() => { setTheme("system"); setIsOpen(false) }}
                                     className={`flex items-center gap-2 px-2 py-2 text-sm rounded-sm hover:bg-accent hover:text-accent-foreground transition-colors w-full text-left ${theme === 'system' ? 'bg-accent/50 text-accent-foreground' : ''}`}
                                 >
-                                    <Laptop className="w-4 h-4" /> System
+                                    <Laptop className="w-4 h-4" /> {t('theme.system')}
                                 </button>
                             </div>
                         </motion.div>

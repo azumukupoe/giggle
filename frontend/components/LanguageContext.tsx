@@ -7,27 +7,27 @@ type Language = 'en' | 'ja';
 interface LanguageContextType {
     language: Language;
     setLanguage: (lang: Language) => void;
-    t: (key: string) => string;
+    t: (key: string, args?: Record<string, string | number>) => string;
 }
 
 const translations = {
     en: {
         "feed.searchPlaceholder": "Search by artist, venue, or city...",
         "feed.noEvents": "No upcoming concerts found.",
+        "feed.eventsFound": "{count} events found",
         "feed.loading": "Loading events...",
-        "card.date": "Date",
-        "card.venue": "Venue",
-        "card.location": "Location",
-        "card.source": "Source",
+        "theme.light": "Light",
+        "theme.dark": "Dark",
+        "theme.system": "System",
     },
     ja: {
         "feed.searchPlaceholder": "アーティスト、会場、都市で検索...",
         "feed.noEvents": "予定されているコンサートは見つかりませんでした。",
+        "feed.eventsFound": "{count} 件のイベント",
         "feed.loading": "読み込み中...",
-        "card.date": "日付",
-        "card.venue": "会場",
-        "card.location": "場所",
-        "card.source": "情報元",
+        "theme.light": "ライト",
+        "theme.dark": "ダーク",
+        "theme.system": "システム",
     }
 };
 
@@ -42,9 +42,17 @@ export const LanguageProvider = ({ children }: { children: React.ReactNode }) =>
         setLanguage(browserLang);
     }, []);
 
-    const t = (key: string): string => {
+    const t = (key: string, args?: Record<string, string | number>): string => {
         // @ts-ignore
-        return translations[language][key] || key;
+        let text = translations[language][key] || key;
+
+        if (args) {
+            Object.entries(args).forEach(([k, v]) => {
+                text = text.replace(`{${k}}`, String(v));
+            });
+        }
+
+        return text;
     };
 
     return (
