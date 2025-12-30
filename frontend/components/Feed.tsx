@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { EventCard } from "./EventCard";
 import { Event, GroupedEvent } from "@/types/event";
 import { supabase } from "@/lib/supabase";
@@ -15,6 +15,7 @@ export const Feed = () => {
     const [allEvents, setAllEvents] = useState<Event[]>([]);
     const [displayedEvents, setDisplayedEvents] = useState<GroupedEvent[]>([]);
     const [loading, setLoading] = useState(true);
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
 
     // UI State
     const [searchQuery, setSearchQuery] = useState("");
@@ -152,6 +153,11 @@ export const Feed = () => {
         const startIndex = (currentPage - 1) * itemsPerPage;
         const paged = filteredGroupedEvents.slice(startIndex, startIndex + itemsPerPage);
         setDisplayedEvents(paged);
+
+        // Scroll to top when page changes
+        if (scrollContainerRef.current) {
+            scrollContainerRef.current.scrollTo({ top: 0, behavior: "smooth" });
+        }
     }, [filteredGroupedEvents, currentPage, itemsPerPage]);
 
     const totalPages = useMemo(() =>
@@ -196,7 +202,7 @@ export const Feed = () => {
             </div>
 
             {/* Grid */}
-            <div className="flex-1 overflow-y-auto min-h-0 overflow-x-hidden px-1">
+            <div ref={scrollContainerRef} className="flex-1 overflow-y-auto min-h-0 overflow-x-hidden px-1">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-4">
                     {displayedEvents.length > 0 ? (
                         displayedEvents.map((event) => (
