@@ -6,7 +6,8 @@ create table public.events (
   artist text not null,
   venue text not null,
   location text,
-  date timestamp with time zone not null,
+  date date not null,
+  time time without time zone,
   url text not null,
   unique(url)
 );

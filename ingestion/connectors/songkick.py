@@ -1,6 +1,6 @@
 import requests
 from typing import List
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from .base import BaseConnector, Event
 from bs4 import BeautifulSoup
 import urllib.parse
@@ -148,8 +148,19 @@ class SongkickConnector(BaseConnector):
             return []
 
     def _parse_json_ld(self, item, artist_name):
-
         try:
+            # Extract all performers
+            performers = item.get('performer', [])
+            if not isinstance(performers, list):
+                performers = [performers]
+            
+            artist_names = [p.get('name') for p in performers if isinstance(p, dict) and p.get('name')]
+            if not artist_names:
+                # Fallback to main item name if no performers listed (unlikely for well-formed JSON-LD)
+                artist_names = [item.get('name', 'Unknown Artist')]
+
+            all_artists_str = ", ".join(artist_names)
+
             date_str = item.get('startDate')
             if not date_str: return None
             event_date = datetime.fromisoformat(date_str)
@@ -173,27 +184,41 @@ class SongkickConnector(BaseConnector):
             
             # 2. If not in JSON, scrape the detail page (Slow but accurate)
             url = item.get('url')
+
+            # Strip UTM parameters
+            if url:
+                parsed = urllib.parse.urlparse(url)
+                qs = urllib.parse.parse_qs(parsed.query)
+                qs.pop('utm_medium', None)
+                qs.pop('utm_source', None)
+                new_query = urllib.parse.urlencode(qs, doseq=True)
+                url = urllib.parse.urlunparse(parsed._replace(query=new_query))
+
             if not tour_name and url:
                  tour_name = self._get_tour_name_from_page(url)
 
-            # Prioritize Tour Name as the main title if found
+            # Logic for Title vs Artist
             if tour_name:
                 title = tour_name
+                artist_final = all_artists_str
+            else:
+                # If no tour name, set Title to Artist Names and leave Artist field empty
+                title = all_artists_str
+                artist_final = ""
             
             # DATE HANDLING: Force JST if naive
             if event_date.tzinfo is None:
-                # DATE HANDLING: Force JST if naive
-                from datetime import timezone, timedelta
                 jst = timezone(timedelta(hours=9))
                 event_date = event_date.replace(tzinfo=jst)
             
             return Event(
                 title=title, 
-                artist=artist_name,
+                artist=artist_final,
                 venue=venue_name if venue_name != 'Unknown' else 'Unknown venue',
                 location=loc,
-                date=event_date,
-                url=item.get('url')
+                date=event_date.date(),
+                time=event_date.time() if date_str and ('T' in date_str or ' ' in date_str) else None, # Rough check if time existed in input
+                url=url
             )
         except Exception as e:
             print(f"Error parsing JSON-LD item: {e}")
@@ -224,7 +249,6 @@ class SongkickConnector(BaseConnector):
 
             return None
         except Exception as e:
-            # print(f"    [Songkick] Detail scrape failed: {e}")
             return None
 
     def _process_single_item(self, item, artist_name):

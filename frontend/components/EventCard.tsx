@@ -69,7 +69,7 @@ const TruncatedText = ({
         // Re-check on window resize
         window.addEventListener('resize', checkTruncation);
         return () => window.removeEventListener('resize', checkTruncation);
-    }, [text]);
+    }, [text, maxLines, className, Component]);
 
     const handleInteraction = (active: boolean) => {
         if (isTruncated) {
@@ -107,10 +107,42 @@ const TruncatedText = ({
 
 export const EventCard = ({ event }: { event: GroupedEvent }) => {
     const { language } = useLanguage();
+    const [artistMaxLines, setArtistMaxLines] = useState(0);
+    const artistContainerRef = useRef<HTMLDivElement>(null);
 
     const formattedLocation = [formatVenue(event.venue), formatLocation(event.location)]
         .filter(Boolean)
         .join(", ");
+
+    // Format dates into a single string for the tooltip/truncation
+    const dateString = (event.displayDates && event.displayDates.length > 0 ? event.displayDates : [event.date]).map((d) => (
+        format(parseISO(d),
+            language === 'ja' ? "M月d日(EEE) HH:mm" : "EEE, MMM d, h:mm a",
+            { locale: language === 'ja' ? ja : enUS }
+        )
+    )).join(" / ");
+
+    useEffect(() => {
+        if (!artistContainerRef.current) return;
+
+        const updateMaxLines = () => {
+            if (artistContainerRef.current) {
+                const height = artistContainerRef.current.clientHeight;
+                // Roughly 20px per line for text-sm (14px * 1.4 line-height ~ 19.6px)
+                const lineHeight = 20;
+                const lines = Math.max(1, Math.floor(height / lineHeight));
+                setArtistMaxLines(lines);
+            }
+        };
+
+        const observer = new ResizeObserver(updateMaxLines);
+        observer.observe(artistContainerRef.current);
+
+        // Initial check
+        updateMaxLines();
+
+        return () => observer.disconnect();
+    }, []);
 
     return (
         <motion.div
@@ -129,15 +161,16 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
                             as="h3"
                             text={decodeHtml(event.title)}
                             className="text-lg font-bold leading-tight"
-                            maxLines={2}
+                        // Removed maxLines to never truncate title
                         />
                     </div>
 
                     {/* Artist/Details takes remaining space */}
-                    <div className="flex-1 min-h-0">
+                    <div className="flex-1 min-h-0" ref={artistContainerRef}>
                         <TruncatedText
                             text={decodeHtml(event.artist)}
                             className="text-muted-foreground font-medium text-sm"
+                            maxLines={artistMaxLines}
                         />
                     </div>
                 </div>
@@ -147,17 +180,13 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
                     <div className="flex flex-col gap-1 text-xs text-muted-foreground">
                         <div className="flex items-center gap-2">
                             <Calendar className="w-3.5 h-3.5 shrink-0" />
-                            <span className="truncate">
-                                {(event.displayDates && event.displayDates.length > 0 ? event.displayDates : [event.date]).map((d, i, arr) => (
-                                    <span key={i}>
-                                        {format(parseISO(d),
-                                            language === 'ja' ? "M月d日(EEE) HH:mm" : "EEE, MMM d, h:mm a",
-                                            { locale: language === 'ja' ? ja : enUS }
-                                        )}
-                                        {i < arr.length - 1 && " / "}
-                                    </span>
-                                ))}
-                            </span>
+                            <div className="min-w-0 flex-1">
+                                <TruncatedText
+                                    text={dateString}
+                                    className="block"
+                                    maxLines={1}
+                                />
+                            </div>
                         </div>
                         <div className="flex items-center gap-2">
                             <MapPin className="w-3.5 h-3.5 shrink-0" />

@@ -26,10 +26,14 @@ def upsert_events(supabase: Client, events: list):
 
         if hasattr(e, "model_dump"):
             event_dict = e.model_dump()
-        if hasattr(e, "model_dump"):
-            event_dict = e.model_dump()
+            # Serialize date and time
             if "date" in event_dict and event_dict["date"]:
                 event_dict["date"] = event_dict["date"].isoformat()
+            if "time" in event_dict:
+                if event_dict["time"]:
+                    event_dict["time"] = event_dict["time"].isoformat()
+                else:
+                    event_dict["time"] = None
         else:
             event_dict = {
                 "title": e.title,
@@ -37,6 +41,7 @@ def upsert_events(supabase: Client, events: list):
                 "venue": e.venue,
                 "location": e.location,
                 "date": e.date.isoformat(),
+                "time": e.time.isoformat() if e.time else None,
                 "url": e.url
             }
         
@@ -67,11 +72,12 @@ def delete_old_events(supabase: Client):
     
     from datetime import datetime
     
-    now_iso = datetime.now().isoformat()
+    today_iso = datetime.now().date().isoformat()
     
     print("Deleting old events...")
     try:
-        response = supabase.table("events").delete().lt("date", now_iso).execute()
+        # Compare against date column (YYYY-MM-DD)
+        response = supabase.table("events").delete().lt("date", today_iso).execute()
         if response.data:
             print(f"  -> Deleted {len(response.data)} old events.")
         else:

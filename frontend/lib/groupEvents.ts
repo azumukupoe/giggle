@@ -74,7 +74,8 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
                 group.urls.add(event.url);
                 group.titles.add(event.title);
                 group.artists.add(event.artist);
-                group.dates.add(event.date);
+                const dateTimeStr = event.time ? `${event.date}T${event.time}` : event.date;
+                group.dates.add(dateTimeStr);
                 matched = true;
                 break; // Stop looking after finding match
             }
@@ -82,13 +83,14 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
 
         if (!matched) {
             // Create new group
+            const dateTimeStr = event.time ? `${event.date}T${event.time}` : event.date;
             pass1Groups.push({
                 baseEvent: event,
                 venueNormalized: normVenue,
                 urls: new Set([event.url]),
                 titles: new Set([event.title]),
                 artists: new Set([event.artist]),
-                dates: new Set([event.date])
+                dates: new Set([dateTimeStr])
             });
         }
     }
@@ -122,7 +124,7 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
     // Convert back to Array
     return Array.from(pass2Map.values()).map(g => ({
         id: g.baseEvent.id, // Use ID of first event
-        title: Array.from(g.titles).join(" / "),
+        title: mergeTitles(g.titles),
         artist: Array.from(g.artists).join(" / "),
         venue: g.baseEvent.venue,
         location: g.baseEvent.location,
@@ -130,4 +132,17 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
         urls: Array.from(g.urls),
         displayDates: Array.from(g.dates).sort() // Sorted list for display
     }));
+}
+
+function mergeTitles(titlesSet: Set<string>): string {
+    const titles = Array.from(titlesSet);
+    // Filter out any title that is strictly contained in another title
+    // Example: "A" vs "A / B" -> "A" is in "A / B", so we keep "A / B" and drop "A"
+    // Wait, requirement is: "CHAQLA. ONE MAN..." vs "CHAQLA." -> Display "CHAQLA. ONE MAN..."
+    const uniqueTitles = titles.filter(t1 => {
+        // If t1 is contained in any OTHER title t2, drop t1.
+        return !titles.some(t2 => t2 !== t1 && t2.includes(t1));
+    });
+
+    return uniqueTitles.join(" / ");
 }

@@ -1,415 +1,200 @@
+from typing import List, Optional, Set
 import requests
 from bs4 import BeautifulSoup
-from datetime import datetime
-from typing import List
-from .base import BaseConnector, Event
+from datetime import datetime, timezone, timedelta, date
+import unicodedata
 import re
+import urllib.parse
+import concurrent.futures
 import time
 import random
-import concurrent.futures
-
+from .base import BaseConnector, Event
 
 class PiaConnector(BaseConnector):
-    def __init__(self, max_workers_pf: int = 3, max_workers_item: int = 6, 
-                 min_delay_pf: float = 0.5, max_delay_pf: float = 1.5,
-                 min_delay_item: float = 0.2, max_delay_item: float = 0.8):
+    def __init__(self):
         super().__init__()
-        self.max_workers_pf = max_workers_pf
-        self.max_workers_item = max_workers_item
-        self.min_delay_pf = min_delay_pf
-        self.max_delay_pf = max_delay_pf
-        self.min_delay_item = min_delay_item
-        self.max_delay_item = max_delay_item
-        
-        # Setup session with retry
-        self.session = requests.Session()
-        retries = requests.adapters.Retry(total=3, backoff_factor=1, status_forcelist=[500, 502, 503, 504])
-        # Increase pool size for concurrency (5 prefectures * 10 threads each = ~50 connections)
-        # We'll set it high enough to cover max likely usage
-        adapter = requests.adapters.HTTPAdapter(max_retries=retries, pool_connections=60, pool_maxsize=60)
-        self.session.mount('http://', adapter)
-        self.session.mount('https://', adapter)
+        self.base_url = "https://t.pia.jp/pia/rlsInfo.do"
+        self.headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+        }
 
-    def get_events(self, max_pages: int = None) -> List[Event]:
-        max_pages_per_pf = max_pages if max_pages else 100
+    PREFECTURES = {
+        "01": "Hokkaido", "02": "Aomori", "03": "Iwate", "04": "Miyagi", "05": "Akita",
+        "06": "Yamagata", "07": "Fukushima", "08": "Ibaraki", "09": "Tochigi", "10": "Gunma",
+        "11": "Saitama", "12": "Chiba", "13": "Tokyo", "14": "Kanagawa", "15": "Niigata",
+        "16": "Toyama", "17": "Ishikawa", "18": "Fukui", "19": "Yamanashi", "20": "Nagano",
+        "21": "Gifu", "22": "Shizuoka", "23": "Aichi", "24": "Mie", "25": "Shiga",
+        "26": "Kyoto", "27": "Osaka", "28": "Hyogo", "29": "Nara", "30": "Wakayama",
+        "31": "Tottori", "32": "Shimane", "33": "Okayama", "34": "Hiroshima", "35": "Yamaguchi",
+        "36": "Tokushima", "37": "Kagawa", "38": "Ehime", "39": "Kochi", "40": "Fukuoka",
+        "41": "Saga", "42": "Nagasaki", "43": "Kumamoto", "44": "Oita", "45": "Miyazaki",
+        "46": "Kagoshima", "47": "Okinawa"
+    }
+
+    def get_events(self, query: str = None) -> List[Event]:
+        all_events = []
         
-        raw_events = []
-        
-        # Process prefectures in parallel
-        # We use 5 workers for prefectures. Each prefecture uses 10 threads for items.
-        # Total potential threads = 50.
-        print("[Pia] Starting parallel fetch for 47 prefectures...")
-        
-        with concurrent.futures.ThreadPoolExecutor(max_workers=self.max_workers_pf) as executor:
-            # map prefecture codes 1..47
+        # Concurrent fetching
+        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
             future_to_pf = {
-                executor.submit(self._process_prefecture, pf, max_pages_per_pf): pf 
-                for pf in range(1, 48)
+                executor.submit(self._fetch_prefecture_events, pf_code, pf_name): pf_name 
+                for pf_code, pf_name in self.PREFECTURES.items()
             }
             
             for future in concurrent.futures.as_completed(future_to_pf):
-                pf = future_to_pf[future]
+                pf_name = future_to_pf[future]
                 try:
                     events = future.result()
-                    if events:
-                        raw_events.extend(events)
-                    # print(f"[Pia] Finished prefecture {pf:02d}. Total events so far: {len(raw_events)}")
+                    all_events.extend(events)
+                    print(f"  [Pia] Finished {pf_name}: {len(events)} events.")
                 except Exception as e:
-                    print(f"[Pia] Exception processing prefecture {pf}: {e}")
+                    print(f"  [Pia] Error fetching {pf_name}: {e}")
 
-        return [Event(**ev) for ev in raw_events]
+        return all_events
 
-    def _process_prefecture(self, pf_code: int, max_pages_per_pf: int) -> List[dict]:
-        pf_str = f"{pf_code:02d}"
-        print(f"[Pia] Scanning prefecture {pf_str}...")
+    def _fetch_prefecture_events(self, pf_code: str, pf_name: str) -> List[Event]:
+        pf_events = []
+        page = 1
+        processed_urls: Set[str] = set()
         
-        local_events = []
-        url = "https://t.pia.jp/pia/rlsInfo.do"
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-            "Referer": "https://t.pia.jp/pia/search_all.do"
+        # Base query parameters as requested
+        # https://t.pia.jp/pia/rlsInfo.do?pf=13&lg=01&page=1&dispMode=1
+        params = {
+            "pf": pf_code,
+            "lg": "01",      # Genre: Music
+            "dispMode": "1", # Required for the new format
+            "page": page
         }
-        
-        page = 0
-        while True:
-            time.sleep(random.uniform(self.min_delay_pf, self.max_delay_pf))
-            page += 1
-            if page > max_pages_per_pf:
-                print(f"  [Pia] Reached max page {max_pages_per_pf} for pf={pf_str}. Moving to next.")
-                break
 
-            params = {
-                "pf": pf_str,
-                "perfIn": "0",
-                "lg": "01", # Music
-                "page": str(page)
-            }
+        print(f"  [Pia] Starting {pf_name} (pf={pf_code})...")
+
+        while True:
+            params["page"] = page
+            # print(f"    [Pia] {pf_name} page {page}...")
 
             try:
-                resp = self.session.get(url, params=params, headers=headers)
-                resp.encoding = 'UTF-8'
-                
+                # Random sleep to be polite
+                time.sleep(random.uniform(1.0, 3.0))
+
+                resp = requests.get(self.base_url, headers=self.headers, params=params, timeout=15)
                 if resp.status_code != 200:
-                    print(f"  [Pia] Error: Status {resp.status_code} on pf={pf_str} page={page}")
+                    print(f"    [Pia] {pf_name} page {page} failed. Status: {resp.status_code}")
                     break
 
-                soup = BeautifulSoup(resp.text, 'html.parser')
+                soup = BeautifulSoup(resp.content, 'html.parser')
+                event_bundles = soup.select('#contents_html > ul > li')
 
-                # Check for maintenance
-                if "ただいまシステムメンテナンス中です" in soup.get_text() or "system maintenance" in soup.get_text().lower():
-                    print(f"  [Pia] WARNING: System Maintenance. Stopping.")
-                    return local_events
-
-                event_links = soup.select('div.event_link, ul.common_list_item, li.listWrp_title_list')
-                
-                if not event_links:
-                    # No events on this page means we are done with this prefecture
+                if not event_bundles:
+                    # No events found means we reached the end
                     break
 
-                print(f"  [Pia] Found {len(event_links)} event items on pf={pf_str} page={page}.")
+                page_events = []
+                for bundle in event_bundles:
+                    # Title from h3 > a
+                    title_tag = bundle.select_one('h3 > a')
+                    title = self._normalize_text(title_tag.get_text()) if title_tag else "Unknown"
+                    if title == "Unknown":
+                        continue
 
-                # Process items concurrently
-                # Note: this creates nested threads. 
-                # Since we are inside a thread already, we are sharing the CPU/Network.
-                # 'self.session' is thread-safe.
-                with concurrent.futures.ThreadPoolExecutor(max_workers=self.max_workers_item) as executor:
-                    futures = [executor.submit(self._process_event_div, str(div)) for div in event_links]
-                    
-                    for future in concurrent.futures.as_completed(futures):
+                    # Sub-events in the bundle
+                    sub_items = bundle.select('ul > li')
+                    for sub in sub_items:
                         try:
-                            result = future.result()
-                            if result:
-                                local_events.extend(result)
-                        except Exception as e:
-                            pass
+                            # URL Extraction & Validation
+                            link_tag = sub.select_one('.PC-detaillink-button a')
+                            if not link_tag or 'href' not in link_tag.attrs:
+                                continue
                             
+                            url = link_tag['href']
+                            # Ensure absolute URL
+                            if url.startswith('/'):
+                                url = f"http://ticket.pia.jp{url}"
+                            
+                            # Only standard ticket info pages
+                            if 'ticketInformation.do' not in url:
+                                continue
+
+                            # Deduplication
+                            if url in processed_urls:
+                                continue
+                            processed_urls.add(url)
+
+                            # Date Parsing
+                            period_div = sub.select_one('.PC-perfinfo-period')
+                            date_str = period_div.get_text() if period_div else ""
+                            event_date = self._parse_date(date_str)
+                            if not event_date:
+                                continue
+
+                            # Venue Parsing
+                            venue_div = sub.select_one('.PC-perfinfo-venue')
+                            raw_venue = self._normalize_text(venue_div.get_text()) if venue_div else "Unknown"
+                            
+                            # Extract location from venue if present "Venue (Location)"
+                            # e.g. "日本工学院アリーナ(東京都)" -> title="日本工学院アリーナ", location="東京都"
+                            venue = raw_venue
+                            location = pf_name # Default fallback
+                            
+                            loc_match = re.search(r'\(([^)]+)\)$', raw_venue)
+                            if loc_match:
+                                location = loc_match.group(1)
+                                venue = raw_venue[:loc_match.start()].strip()
+
+                            # Create Event
+                            event = Event(
+                                title=title,
+                                artist="",  # Explicitly blank
+                                venue=venue,
+                                location=location,
+                                date=event_date,
+                                time=None,
+                                url=url
+                            )
+                            page_events.append(event)
+                            pf_events.append(event)
+
+                        except Exception as e:
+                            print(f"      [Pia] Error parsing event in {pf_name}: {e}")
+                            continue
+
+                if not page_events:
+                    # Page loaded but no valid events extracted, break
+                    break
+
+                page += 1
+
             except Exception as e:
-                print(f"  [Pia] Request failed on pf={pf_str} page={page}: {e}")
+                print(f"    [Pia] Error scraping {pf_name} page {page}: {e}")
                 break
         
-        return local_events
-
-
-
-    def _process_event_div(self, div_html: str) -> List[dict]:
-        """
-        Parses an event div OR list item from the list page.
-        Returns a LIST of event dicts.
-        """
-        try:
-            soup = BeautifulSoup(div_html, 'html.parser')
-            
-            # Identify if this is a "mobile-like" div or "desktop-like" list item
-            # We treat 'div' as the root element passed in
-            root = soup.find('div', class_='event_link')
-            is_desktop = False
-            
-            if not root:
-                # Check for desktop structure: root might be a <li> or we just search inside soup
-                # If passed markup is <li>...</li>, soup.find('li') works
-                root = soup.find('li', class_='listWrp_title_list')
-                if root:
-                     # This is just the title part of the desktop row? 
-                     # Actually, usually we passed the parent container?
-                     # If we passed the entire row (ul or whatever), let's find that.
-                     pass 
-                
-                # If we are passed the whole block, let's try to detect title method
-                if soup.select_one('.listWrp_title_list'):
-                    is_desktop = True
-                    root = soup # Treat entire snippet as root
-                else:
-                    root = soup # Fallback
-            
-            # --- TITLE & URL ---
-            title = "Unknown Title"
-            link = ""
-            
-            if is_desktop:
-                # Desktop: <li class="listWrp_title_list"><a ...>Title</a></li>
-                # Prioritize listWrp_title_list as requested
-                title_tag = root.select_one('.listWrp_title_list a')
-                if not title_tag and root.name == 'li' and 'listWrp_title_list' in root.get('class', []):
-                     # If root IS the li
-                     title_tag = root.find('a')
-                
-                if title_tag:
-                    title = title_tag.get_text(strip=True)
-                    link = title_tag['href']
-            else:
-                # Mobile/Default
-                # 1. h3.sales_data_title a
-                t_tag = root.select_one('h3.sales_data_title a') 
-                if t_tag:
-                     title = t_tag.get_text(strip=True)
-                     link = t_tag['href']
-                else:
-                     # 2. h3.sales_data_title text
-                     t_h3 = root.select_one('h3.sales_data_title')
-                     if t_h3:
-                         title = t_h3.get_text(strip=True)
-                     else:
-                         t_li = root.select_one('li.is_title')
-                         if t_li:
-                             title = t_li.get_text(strip=True)
-
-                if not link:
-                    a_tag = root.find('a', href=True)
-                    link = a_tag['href'] if a_tag else ""
-
-            # Normalize Link
-            if link:
-                if link.startswith('/'):
-                    link = f"https://t.pia.jp{link}"
-                elif not link.startswith('http'):
-                    link = f"https://t.pia.jp/{link}"
-
-            # --- METADATA (Date/Venue) ---
-
-            venue = "Unknown Venue"
-            location = ""
-            date_obj = None
-
-            if is_desktop:
-                # Desktop Date: <span class="list_03">2026/2/28(土)</span>
-                d_tag = root.select_one('.list_03')
-                if d_tag:
-                    # Clean text
-                    d_text = d_tag.get_text(strip=True)
-                    # Simple parse if possible, or wait for deep fetch
-                    match = re.search(r'(\d{4}/\d{1,2}/\d{1,2})', d_text)
-                    if match:
-                        try:
-                            date_obj = datetime.strptime(match.group(1), "%Y/%m/%d")
-                            # Add JST
-                            from datetime import timezone, timedelta
-                            jst = timezone(timedelta(hours=9))
-                            date_obj = date_obj.replace(tzinfo=jst)
-                        except: pass
-
-                # Desktop Venue: <span class="list_04">Venue(Loc)</span>
-                v_tag = root.select_one('.list_04')
-                if v_tag:
-                    full_venue = v_tag.get_text(strip=True)
-                    # "Venue(Loc)" -> extract
-                    if '(' in full_venue and full_venue.endswith(')'):
-                        venue = full_venue.split('(')[0]
-                        location = full_venue.split('(')[-1].strip(')')
-                    else:
-                        venue = full_venue
-            else:
-                # Mobile
-                time_tag = root.select_one('time[itemprop="startDate"]')
-                if time_tag and time_tag.has_attr('datetime'):
-                    try:
-                        date_obj = datetime.fromisoformat(time_tag['datetime'])
-                        if date_obj.tzinfo is None:
-                            from datetime import timezone, timedelta
-                            jst = timezone(timedelta(hours=9))
-                            date_obj = date_obj.replace(tzinfo=jst)
-                    except: pass
-                
-                place_tag = root.select_one('li.is_place span[itemprop="name"]')
-                if place_tag:
-                        venue = place_tag.get_text(strip=True)
-                
-                region_tag = root.select_one('li.is_place span[itemprop="addressRegion"]')
-                if region_tag:
-                    location = region_tag.get_text(strip=True)
-
-            base_info = {
-                "title": title,
-                "venue": venue,
-                "location": location,
-                "date": date_obj,
-                "url": link,
-                "artist": title
-            }
-            
-            return self._deep_fetch_and_expand(link, base_info)
-
-        except Exception as e:
-            return []
-
-    def _deep_fetch_and_expand(self, url: str, base_info: dict) -> List[dict]:
-        """Deep fetch logical component."""
-        time.sleep(random.uniform(self.min_delay_item, self.max_delay_item))
-        
-        bundle_title = base_info.get('bundle_title')
-        bundle_url = base_info.get('bundle_url')
-
-        results = []
-        try:
-             headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
-             resp = self.session.get(url, headers=headers, timeout=10)
-             resp.encoding = 'UTF-8'
-             if resp.status_code != 200:
-                 return [] # If we can't open page, we probably can't get reliable date, skip?
-
-             soup = BeautifulSoup(resp.text, 'html.parser')
-
-             # 1. Common Metadata
-             page_artist = ""
-             
-             # Artist
-             desc_div = soup.select_one('div.Y15-event-description')
-             if desc_div:
-                 full_text = desc_div.get_text(separator="\n", strip=True) 
-                 match = re.search(r'［(?:出演|ゲスト)］(.*?)(?:\n|$)', full_text)
-                 if match:
-                     page_artist = match.group(1).strip()
-
-             child_links = []
-             for a in soup.find_all('a', href=True):
-                 href = a['href']
-                 if 'ticketInformation.do' in href:
-                     # Filter out self?
-                     if href in url: 
-                         continue
-                     
-                     full = href
-                     if not href.startswith('http'):
-                         if href.startswith('/'): full = f"https://t.pia.jp{href}"
-                         else: full = f"https://t.pia.jp/{href}"
-                     
-                     if full not in child_links and full != url:
-                         child_links.append(full)
-             
-             # Uniq
-             child_links = list(set(child_links))
-
-             if child_links:
-                 # This is a container page. Delegate to children.
-                 # We pass artist/bundle info down.
-                 
-                 for c_url in child_links:
-                     child_results = self._deep_fetch_and_expand(c_url, base_info)
-                     # Update artist/bundle if missing
-                     for res in child_results:
-                         if not res['artist'] or res['artist'] == res['title']:
-                             res['artist'] = page_artist or res['title']
-                         if not res['bundle_title']:
-                             res['bundle_title'] = bundle_title
-                         if not res['bundle_url']:
-                             res['bundle_url'] = bundle_url
-                     results.extend(child_results)
-                 
-                 return results
-             
-             else:
-                # Parsing Logic for Dates on Detail Page
-                date_containers = soup.select('.item_list .item, .common_list_item, .ticket_list .item, .Y15-regular-section') 
-                 
-                found_in_containers = False
-                 
-                if date_containers:
-                    for item in date_containers:
-                        d_obj = self._parse_date_from_soup(item)
-                        if d_obj:
-                            found_in_containers = True
-                            # Clone base info
-                            new_ev = base_info.copy()
-                            new_ev['date'] = d_obj
-                            new_ev['url'] = url
-                            new_ev['artist'] = page_artist or base_info['artist']
-                            new_ev['bundle_title'] = bundle_title
-                            new_ev['bundle_url'] = bundle_url
-                             
-                            # Try to find venue specific to this item
-                            # item -> .place or similar?
-                            # Reuse base venue if not found
-                             
-                            results.append(new_ev)
-                             
-                if not found_in_containers:
-                    # Fallball: try just searching globally for .Y15-event-date
-                    # This works for single event pages
-                    d_obj = self._parse_date_from_soup(soup)
-                    if d_obj:
-                        new_ev = base_info.copy()
-                        new_ev['date'] = d_obj
-                        new_ev['url'] = url
-                        new_ev['artist'] = page_artist or base_info['artist']
-                        new_ev['bundle_title'] = bundle_title
-                        new_ev['bundle_url'] = bundle_url
-                        results.append(new_ev)
-
-                return results
-
-        except Exception as e:
-             # print(f"Deep fetch failed: {e}")
-             return []
-
-    def _parse_date_from_soup(self, soup_element):
-        try:
-            date_tag = soup_element.select_one('.Y15-event-date')
-            if not date_tag:
-                return None
-            
-            d_text = date_tag.get_text(strip=True)
-            match = re.search(r'(\d{4}/\d{1,2}/\d{1,2})', d_text)
-            if not match:
-                return None
-                
-            date_obj = datetime.strptime(match.group(1), "%Y/%m/%d")
-            
-            # Time
-            time_tag = soup_element.select_one('.Y15-event-time')
-            if time_tag:
-                 time_text = time_tag.get_text(strip=True)
-                 t_match = re.search(r'(\d{1,2}:\d{2})', time_text)
-                 if t_match:
-                     time_parts = t_match.group(1).split(':')
-                     date_obj = date_obj.replace(hour=int(time_parts[0]), minute=int(time_parts[1]))
-            
-            # TZ
-            from datetime import timezone, timedelta
-            jst = timezone(timedelta(hours=9))
-            date_obj = date_obj.replace(tzinfo=jst)
-            
-            return date_obj
-        except:
-            return None
+        return pf_events
 
     def get_artist_events(self, artist_name: str) -> List[Event]:
+        # Not implementing specific artist search for now as the main requirement changed 
+        # to generic list scraping, but keeping interface compliant.
         return []
+
+    def _normalize_text(self, text: str) -> str:
+        if not text:
+            return ""
+        # NFKC normalizes full-width to half-width (e.g. Ｚｅｐｐ -> Zepp)
+        return unicodedata.normalize('NFKC', text).strip()
+
+    def _parse_date(self, date_str: str) -> Optional[date]:
+        if not date_str:
+            return None
+        
+        # Remove day of week (e.g., (土))
+        cleaned_date = re.sub(r'\([^\)]+\)', '', date_str)
+        
+        # Handle ranges: keep start date
+        # "2026/7/25 ～ 2026/8/23" -> "2026/7/25 "
+        if '～' in cleaned_date:
+            cleaned_date = cleaned_date.split('～')[0].strip()
+            
+        try:
+            dt = datetime.strptime(cleaned_date.strip(), '%Y/%m/%d')
+            # Pia usually doesn't give time here, so just return date
+            return dt.date()
+        except ValueError:
+            return None

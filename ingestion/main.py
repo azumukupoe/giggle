@@ -69,9 +69,8 @@ def main():
     # Save to Supabase
     if all_events:
         # Filter Past Events
-        # Filter Past Events
-        dt_today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-        future_events = [e for e in all_events if (e.date.replace(tzinfo=None) if e.date.tzinfo else e.date) >= dt_today]
+        dt_today = datetime.now().date()
+        future_events = [e for e in all_events if e.date >= dt_today]
         all_events = future_events
 
         unique_events_map = {}

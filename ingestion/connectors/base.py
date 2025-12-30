@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, date, time
 from pydantic import BaseModel
 
 class Event(BaseModel):
@@ -8,7 +8,8 @@ class Event(BaseModel):
     artist: str
     venue: str
     location: str
-    date: datetime
+    date: date
+    time: Optional[time]
     url: str
 
 class BaseConnector(ABC):

@@ -131,7 +131,8 @@ class EplusConnector(BaseConnector):
                     title=title,
                     artist=artist,
                     venue=venue_name,
-                    date=date_obj,
+                    date=date_obj.date(),
+                    time=date_obj.time() if item.get('kaien_time') and len(item.get('kaien_time')) == 4 else None,
                     location=location,
                     url=link
                 )
