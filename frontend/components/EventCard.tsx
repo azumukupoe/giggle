@@ -272,7 +272,7 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
                     </div>
 
                     {/* Ticket Links */}
-                    <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar md:flex-wrap">
+                    <div className="grid grid-cols-2 gap-2">
                         {event.sourceEvents.map((sourceEvent, index) => {
                             const date = parseISO(sourceEvent.date);
                             const month = date.getMonth() + 1;
@@ -291,7 +291,7 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
                                     href={sourceEvent.url}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="flex-none min-w-[80px] flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-md bg-secondary text-secondary-foreground font-medium text-xs hover:bg-secondary/80 transition-colors whitespace-nowrap"
+                                    className="flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-md bg-secondary text-secondary-foreground font-medium text-xs hover:bg-secondary/80 transition-colors whitespace-nowrap w-full"
                                 >
                                     {hostname && (
                                         <img
