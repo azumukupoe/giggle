@@ -5,7 +5,7 @@ const normalizeVenue = (venue: string): string => {
     return venue
         .toLowerCase()
         .replace(/,?\s*japan$/, "")
-        .trim();
+        .replace(/\s+/g, "");
 };
 
 const normalizeTitle = (title: string): string => {
