@@ -94,8 +94,8 @@ const TruncatedText = ({
             const viewportHeight = window.innerHeight;
 
             // Calculate horizontal position
-            // Max width is 250px + padding/margin safety
-            const MAX_WIDTH = 260;
+            // Max width is 500px + padding/margin safety
+            const MAX_WIDTH = 510;
             let left = rect.left;
 
             // If tooltip would go off right screen, align to right side or shift left
@@ -163,7 +163,7 @@ const TruncatedText = ({
 
             {showTooltip && typeof document !== 'undefined' && createPortal(
                 <div
-                    className="fixed z-[100] p-2 bg-black/90 text-white text-xs rounded shadow-lg max-w-[250px] break-words whitespace-pre-wrap overflow-y-auto"
+                    className="fixed z-[100] p-2 bg-black/90 text-white text-xs rounded shadow-lg max-w-[min(500px,calc(100vw-32px))] break-words whitespace-pre-wrap overflow-y-auto"
                     style={{
                         ...(tooltipPos.bottom !== undefined ? { bottom: tooltipPos.bottom } : {}),
                         ...(tooltipPos.top !== undefined ? { top: tooltipPos.top } : {}),
