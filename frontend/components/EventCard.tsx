@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { GroupedEvent } from "@/types/event";
 import { parseISO, format } from "date-fns";
 import { enUS, ja } from "date-fns/locale";
@@ -56,6 +57,7 @@ const TruncatedText = ({
     const ref = useRef<HTMLElement>(null);
     const [isTruncated, setIsTruncated] = useState(false);
     const [showTooltip, setShowTooltip] = useState(false);
+    const [tooltipPos, setTooltipPos] = useState({ bottom: 0, left: 0 });
 
     useEffect(() => {
         const checkTruncation = () => {
@@ -71,14 +73,28 @@ const TruncatedText = ({
         return () => window.removeEventListener('resize', checkTruncation);
     }, [text, maxLines, className, Component]);
 
-    const handleInteraction = (active: boolean) => {
-        if (isTruncated) {
-            setShowTooltip(active);
+    const handleMouseEnter = () => {
+        if (isTruncated && ref.current) {
+            const rect = ref.current.getBoundingClientRect();
+            setTooltipPos({
+                bottom: window.innerHeight - rect.top + 8, // 8px spacing
+                left: rect.left
+            });
+            setShowTooltip(true);
         }
     };
 
+    const handleMouseLeave = () => {
+        setShowTooltip(false);
+    };
+
     return (
-        <div className="relative flex min-h-0 min-w-0" onMouseLeave={() => handleInteraction(false)}>
+        <div
+            className="relative flex min-h-0 min-w-0"
+            onMouseLeave={handleMouseLeave}
+            onMouseEnter={handleMouseEnter}
+            onClick={() => isTruncated && setShowTooltip(!showTooltip)}
+        >
             <Component
                 ref={ref}
                 className={`${className} break-words overflow-hidden text-ellipsis ${maxLines > 0 ? '' : 'h-full'}`}
@@ -87,19 +103,22 @@ const TruncatedText = ({
                     WebkitLineClamp: maxLines,
                     WebkitBoxOrient: 'vertical'
                 } : {}}
-                onMouseEnter={() => handleInteraction(true)}
-                onClick={() => handleInteraction(!showTooltip)}
             >
                 {text}
             </Component>
 
-            {showTooltip && (
+            {showTooltip && typeof document !== 'undefined' && createPortal(
                 <div
-                    className="absolute z-50 bottom-full left-0 mb-2 p-2 bg-black/90 text-white text-xs rounded shadow-lg max-w-[250px] break-words pointer-events-none"
-                    style={{ backdropFilter: 'blur(4px)' }}
+                    className="fixed z-[100] p-2 bg-black/90 text-white text-xs rounded shadow-lg max-w-[250px] break-words pointer-events-none"
+                    style={{
+                        bottom: tooltipPos.bottom,
+                        left: tooltipPos.left,
+                        backdropFilter: 'blur(4px)'
+                    }}
                 >
                     {text}
-                </div>
+                </div>,
+                document.body
             )}
         </div>
     );
