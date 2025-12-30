@@ -158,7 +158,7 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
             date: g.baseEvent.date, // Use earliest date for sorting usually?
             time,
             urls: Array.from(g.urls),
-            displayDates: sortedDates // Sorted list for display
+            displayDates: filterRedundantDates(Array.from(g.dates)) // Sorted list for display
         };
     }).sort((a, b) => {
         const dateDiff = new Date(a.date).getTime() - new Date(b.date).getTime();
@@ -198,4 +198,27 @@ function mergeTitles(titlesSet: Set<string>): string {
     });
 
     return uniqueTitles.join(" / ");
+}
+
+function filterRedundantDates(dates: string[]): string[] {
+    const datesWithTime = new Set<string>();
+    const datesWithoutTime = new Set<string>();
+
+    dates.forEach(d => {
+        if (d.includes("T")) {
+            datesWithTime.add(d.split("T")[0]);
+        } else {
+            datesWithoutTime.add(d);
+        }
+    });
+
+    return dates.filter(d => {
+        // If it matches YYYY-MM-DD exactly (no time)
+        if (!d.includes("T")) {
+            // Keep it ONLY if there is NO corresponding entry with time
+            return !datesWithTime.has(d);
+        }
+        // Always keep entries with time
+        return true;
+    }).sort();
 }

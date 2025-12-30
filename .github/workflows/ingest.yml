@@ -2,7 +2,7 @@ name: Daily Concert Ingestion
 
 on:
   schedule:
-    - cron: '0 8 * * *' # Run daily at 8am UTC
+    - cron: '0 15 * * *' # Run daily at midnight JST (3pm UTC)
   workflow_dispatch: # Allow manual trigger
 
 jobs:

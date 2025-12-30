@@ -81,9 +81,26 @@ export const Feed = () => {
     }, []);
 
     // Memoized grouped and filtered events
+    const [now, setNow] = useState(new Date());
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setNow(new Date());
+        }, 60000); // Update every minute
+        return () => clearInterval(interval);
+    }, []);
+
     const filteredGroupedEvents = useMemo(() => {
+        // Filter out events that have already started
+        const validEvents = allEvents.filter(event => {
+            if (!event.time) return true; // Keep date-only events (handled by DB query)
+
+            const eventDateTime = new Date(`${event.date}T${event.time}`);
+            return eventDateTime > now;
+        });
+
         // First group events
-        const grouped = groupEvents(allEvents);
+        const grouped = groupEvents(validEvents);
 
         // Then filter
         if (!debouncedSearchQuery) return grouped;
@@ -94,7 +111,7 @@ export const Feed = () => {
             e.venue.toLowerCase().includes(lowerQ) ||
             e.location.toLowerCase().includes(lowerQ)
         );
-    }, [allEvents, debouncedSearchQuery]);
+    }, [allEvents, debouncedSearchQuery, now]);
 
     // Paginate filtered events
     useEffect(() => {
