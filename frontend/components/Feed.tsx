@@ -91,21 +91,29 @@ export const Feed = () => {
     }, []);
 
     const filteredGroupedEvents = useMemo(() => {
-        // Filter out events that have already started
-        const validEvents = allEvents.filter(event => {
-            if (!event.time) return true; // Keep date-only events (handled by DB query)
+        // First group events (raw, so date-only + date-time logic works)
+        const grouped = groupEvents(allEvents);
 
-            const eventDateTime = new Date(`${event.date}T${event.time}`);
-            return eventDateTime > now;
-        });
+        // Filter out started events from the groups
+        const timeFiltered = grouped.map(group => {
+            const validDates = group.displayDates.filter(dStr => {
+                // If it has a time, check if it's in the future
+                if (dStr.includes("T")) {
+                    const dt = new Date(dStr);
+                    return dt > now;
+                }
+                // If it's date-only, we generally keep it (until the day is over)
+                // The DB query filters out past days. 
+                // So for "today", we keep date-only entries until midnight usually.
+                return true;
+            });
+            return { ...group, displayDates: validDates };
+        }).filter(group => group.displayDates.length > 0);
 
-        // First group events
-        const grouped = groupEvents(validEvents);
-
-        // Then filter
-        if (!debouncedSearchQuery) return grouped;
+        // Then filter by search query
+        if (!debouncedSearchQuery) return timeFiltered;
         const lowerQ = debouncedSearchQuery.toLowerCase();
-        return grouped.filter(e =>
+        return timeFiltered.filter(e =>
             e.title.toLowerCase().includes(lowerQ) ||
             e.artist.toLowerCase().includes(lowerQ) ||
             e.venue.toLowerCase().includes(lowerQ) ||
