@@ -192,7 +192,7 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
     });
 }
 
-function mergeTitles(titlesSet: Set<string>): string {
+export function mergeTitles(titlesSet: Set<string>): string {
     const titles = Array.from(titlesSet);
     // Filter out any title that is strictly contained in another title
     // Example: "A" vs "A / B" -> "A" is in "A / B", so we keep "A / B" and drop "A"

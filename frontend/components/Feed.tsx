@@ -6,7 +6,7 @@ import { Event, GroupedEvent } from "@/types/event";
 import { supabase } from "@/lib/supabase";
 import { useLanguage } from "./LanguageContext";
 import { Search } from "lucide-react";
-import { groupEvents } from "@/lib/groupEvents";
+import { groupEvents, mergeTitles } from "@/lib/groupEvents";
 
 export const Feed = () => {
     const { t } = useLanguage();
@@ -111,21 +111,26 @@ export const Feed = () => {
             // Filter URLs based on validDates
             // Only keep URLs from source events that match the remaining dates
             const validDateSet = new Set(validDates);
-            const validUrls = group.sourceEvents
+            const validEvents = group.sourceEvents
                 .filter(ev => {
                     const dStr = ev.time ? `${ev.date}T${ev.time}` : ev.date;
                     // If the exact date string is in validDates, keep the URL
                     // Note: validDates has already been filtered by 'now' AND by redundancy (in groupEvents)
                     // So if "Dec 30" was removed because "Dec 30 19:00" exists, the URL for "Dec 30" event will also be removed here.
                     return validDateSet.has(dStr);
-                })
-                .map(ev => ev.url);
+                });
 
             // Deduplicate URLs
-            const uniqueUrls = Array.from(new Set(validUrls));
+            const uniqueUrls = Array.from(new Set(validEvents.map(ev => ev.url)));
+
+            // Recalculate Titles and Artists for the valid events
+            const validTitles = new Set(validEvents.map(ev => ev.title));
+            const validArtists = new Set(validEvents.map(ev => ev.artist));
 
             return {
                 ...group,
+                title: mergeTitles(validTitles),
+                artist: Array.from(validArtists).join("\n\n"),
                 displayDates: validDates,
                 urls: uniqueUrls
             };
