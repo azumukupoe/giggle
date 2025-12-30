@@ -43,13 +43,27 @@ const getSourceLabel = (url: string | undefined) => {
     }
 };
 
+const formatArtistText = (str: string) => {
+    if (!str) return "";
+    // Normalize CRLF to LF
+    const normalized = str.replace(/\r\n/g, "\n");
+    // Split by double newline (paragraph break)
+    const paragraphs = normalized.split(/\n\n+/);
+    // For each paragraph, replace single newlines with space
+    const processedParagraphs = paragraphs.map(p => p.replace(/\n/g, " "));
+    // Join paragraphs with a single newline
+    return processedParagraphs.join("\n");
+};
+
 const TruncatedText = ({
     text,
+    tooltipText,
     className,
     as: Component = 'p',
     maxLines = 0
 }: {
     text: string,
+    tooltipText?: string,
     className?: string,
     as?: any,
     maxLines?: number
@@ -116,7 +130,7 @@ const TruncatedText = ({
                         backdropFilter: 'blur(4px)'
                     }}
                 >
-                    {text}
+                    {tooltipText || text}
                 </div>,
                 document.body
             )}
@@ -163,6 +177,9 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
         return () => observer.disconnect();
     }, []);
 
+    const rawArtist = decodeHtml(event.artist);
+    const displayArtist = formatArtistText(rawArtist);
+
     return (
         <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -187,8 +204,9 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
                     {/* Artist/Details takes remaining space */}
                     <div className="flex-1 min-h-0" ref={artistContainerRef}>
                         <TruncatedText
-                            text={decodeHtml(event.artist)}
-                            className="text-muted-foreground font-medium text-sm"
+                            text={displayArtist}
+                            tooltipText={rawArtist}
+                            className="text-muted-foreground font-medium text-sm whitespace-pre-wrap"
                             maxLines={artistMaxLines}
                         />
                     </div>
