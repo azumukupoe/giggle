@@ -30,10 +30,16 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
         if (dateDiff !== 0) return dateDiff;
 
         // If dates are equal, sort by time (nulls first to match DB query)
-        if (!a.time && !b.time) return 0;
+        if (!a.time && !b.time) {
+            return a.title.localeCompare(b.title);
+        }
         if (!a.time) return -1;
         if (!b.time) return 1;
-        return a.time.localeCompare(b.time);
+
+        const timeDiff = a.time.localeCompare(b.time);
+        if (timeDiff !== 0) return timeDiff;
+
+        return a.title.localeCompare(b.title);
     });
 
     // --- Pass 1: Group by Title + Venue (detecting consecutive days) ---
@@ -146,10 +152,16 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
         if (dateDiff !== 0) return dateDiff;
 
         // If dates are equal, sort by time (nulls first)
-        if (!a.time && !b.time) return 0;
+        if (!a.time && !b.time) {
+            return a.title.localeCompare(b.title);
+        }
         if (!a.time) return -1;
         if (!b.time) return 1;
-        return a.time.localeCompare(b.time);
+
+        const timeDiff = a.time.localeCompare(b.time);
+        if (timeDiff !== 0) return timeDiff;
+
+        return a.title.localeCompare(b.title);
     });
 }
 
