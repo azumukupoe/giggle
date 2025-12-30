@@ -111,16 +111,46 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
     }
 
     // Convert back to Array
-    return Array.from(pass2Map.values()).map(g => ({
-        id: g.baseEvent.id, // Use ID of first event
-        title: mergeTitles(g.titles),
-        artist: Array.from(g.artists).join("\n\n"),
-        venue: g.baseEvent.venue,
-        location: g.baseEvent.location,
-        date: g.baseEvent.date, // Use earliest date for sorting usually?
-        urls: Array.from(g.urls),
-        displayDates: Array.from(g.dates).sort() // Sorted list for display
-    }));
+    return Array.from(pass2Map.values()).map(g => {
+        const sortedDates = Array.from(g.dates).sort();
+
+        let time: string | null = null;
+        const baseDate = g.baseEvent.date;
+
+        for (const dStr of sortedDates) {
+            // We only look for a time on the *same day* as the group starts.
+            // If the group starts on Jan 1 with no time, but has a Jan 1 19:00 entry, use 19:00.
+            // If the group starts on Jan 1 with no time, and next entry is Jan 2 19:00, we stick with null (Jan 1).
+            if (!dStr.startsWith(baseDate)) {
+                break;
+            }
+            if (dStr.includes("T")) {
+                time = dStr.split("T")[1];
+                break;
+            }
+        }
+
+        return {
+            id: g.baseEvent.id, // Use ID of first event
+            title: mergeTitles(g.titles),
+            artist: Array.from(g.artists).join("\n\n"),
+            venue: g.baseEvent.venue,
+            location: g.baseEvent.location,
+            date: g.baseEvent.date, // Use earliest date for sorting usually?
+            time,
+            urls: Array.from(g.urls),
+            displayDates: sortedDates // Sorted list for display
+        };
+    }).sort((a, b) => {
+        const dateDiff = new Date(a.date).getTime() - new Date(b.date).getTime();
+        if (dateDiff !== 0) return dateDiff;
+
+        // If dates are equal, sort by time (nulls first)
+        if (!a.time && !b.time) return 0;
+        if (!a.time) return -1;
+        if (!b.time) return 1;
+        return a.time.localeCompare(b.time);
+    });
 }
 
 function mergeTitles(titlesSet: Set<string>): string {
