@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import List, Optional
 from datetime import datetime, date, time
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 class Event(BaseModel):
     title: str
@@ -11,6 +11,13 @@ class Event(BaseModel):
     date: date
     time: Optional[time]
     url: str
+
+    @field_validator('title', 'artist', 'venue', 'location')
+    @classmethod
+    def clean_text(cls, v: str) -> str:
+        if not v:
+            return v
+        return v.replace('\xa0', ' ').strip()
 
 class BaseConnector(ABC):
     def __init__(self):
