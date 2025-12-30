@@ -24,8 +24,17 @@ interface IntermediateGroup {
 export function groupEvents(events: Event[]): GroupedEvent[] {
     if (events.length === 0) return [];
 
-    // Sort by date first to make consecutive check easier
-    const sortedEvents = [...events].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    // Sort by date then time to make consecutive check easier
+    const sortedEvents = [...events].sort((a, b) => {
+        const dateDiff = new Date(a.date).getTime() - new Date(b.date).getTime();
+        if (dateDiff !== 0) return dateDiff;
+
+        // If dates are equal, sort by time (nulls first to match DB query)
+        if (!a.time && !b.time) return 0;
+        if (!a.time) return -1;
+        if (!b.time) return 1;
+        return a.time.localeCompare(b.time);
+    });
 
     // --- Pass 1: Group by Title + Venue (detecting consecutive days) ---
     const pass1Groups: IntermediateGroup[] = [];

@@ -49,6 +49,7 @@ export const Feed = () => {
                         .select('*')
                         .gte('date', new Date().toISOString())
                         .order('date', { ascending: true })
+                        .order('time', { ascending: true, nullsFirst: true })
                         .range(page * pageSize, (page + 1) * pageSize - 1);
 
                     if (error) {
