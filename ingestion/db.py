@@ -69,10 +69,9 @@ def delete_old_events(supabase: Client):
     Deletes events from the 'events' table that are in the past.
     """
     from datetime import datetime
+    from zoneinfo import ZoneInfo
     
-    from datetime import datetime
-    
-    today_iso = datetime.now().date().isoformat()
+    today_iso = datetime.now(ZoneInfo("Asia/Tokyo")).date().isoformat()
     
     print("Deleting old events...")
     try:

@@ -9,6 +9,8 @@ import { ExternalLink, MapPin, Calendar } from "lucide-react";
 import { motion } from "framer-motion";
 import { useLanguage } from "./LanguageContext";
 
+import { localizePrefecture } from "@/lib/prefectures";
+
 // Utility functions extracted outside component to avoid recreation on each render
 const decodeHtml = (str: string) => {
     if (!str) return "";
@@ -24,9 +26,10 @@ const formatVenue = (ven: string) => {
     return decodeHtml(ven);
 };
 
-const formatLocation = (loc: string) => {
+const formatLocation = (loc: string, language: string) => {
     const decoded = decodeHtml(loc);
-    return decoded.replace(/, Japan$/, "").replace(/Japan$/, "").trim();
+    const cleaned = decoded.replace(/, Japan$/, "").replace(/Japan$/, "").trim();
+    return localizePrefecture(cleaned, language);
 };
 
 
@@ -214,7 +217,7 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
     const { language } = useLanguage();
 
 
-    const formattedLocation = [formatVenue(event.venue), formatLocation(event.location)]
+    const formattedLocation = [formatVenue(event.venue), formatLocation(event.location, language)]
         .filter(Boolean)
         .join(", ");
 

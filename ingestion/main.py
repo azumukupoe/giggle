@@ -4,6 +4,7 @@ import json
 from datetime import datetime
 from typing import List
 import concurrent.futures
+from zoneinfo import ZoneInfo
 
 from connectors.base import Event
 from connectors.songkick import SongkickConnector
@@ -69,7 +70,7 @@ def main():
     # Save to Supabase
     if all_events:
         # Filter Past Events
-        dt_today = datetime.now().date()
+        dt_today = datetime.now(ZoneInfo("Asia/Tokyo")).date()
         future_events = [e for e in all_events if e.date >= dt_today]
         all_events = future_events
 
