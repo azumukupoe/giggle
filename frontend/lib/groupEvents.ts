@@ -12,13 +12,7 @@ const normalizeTitle = (title: string): string => {
     return title.toLowerCase().trim();
 };
 
-const getDomain = (url: string): string => {
-    try {
-        return new URL(url).hostname.replace(/^www\./, "");
-    } catch {
-        return "";
-    }
-};
+
 
 interface IntermediateGroup {
     baseEvent: Event;
@@ -165,31 +159,42 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
             sourceEvents: g.sourceEvents,
             displayDates: filterRedundantDates(Array.from(g.dates)) // Sorted list for display
         };
-    }).sort((a, b) => {
-        const dateDiff = new Date(a.date).getTime() - new Date(b.date).getTime();
-        if (dateDiff !== 0) return dateDiff;
+    }).sort(compareGroupedEvents);
+}
 
-        // If dates are equal, sort by time (nulls first)
-        if (!a.time && !b.time) {
-            const titleDiff = a.title.localeCompare(b.title);
-            if (titleDiff !== 0) return titleDiff;
-            const domainA = a.urls.length > 0 ? getDomain(a.urls[0]) : "";
-            const domainB = b.urls.length > 0 ? getDomain(b.urls[0]) : "";
-            return domainA.localeCompare(domainB);
-        }
-        if (!a.time) return -1;
-        if (!b.time) return 1;
+export const getDomain = (url: string): string => {
+    try {
+        return new URL(url).hostname.replace(/^www\./, "");
+    } catch {
+        return "";
+    }
+};
 
-        const timeDiff = a.time.localeCompare(b.time);
-        if (timeDiff !== 0) return timeDiff;
+export function compareGroupedEvents(a: GroupedEvent, b: GroupedEvent): number {
+    const dateDiff = new Date(a.date).getTime() - new Date(b.date).getTime();
+    if (dateDiff !== 0) return dateDiff;
 
+    // If dates are equal, sort by time (nulls first)
+    if (!a.time && !b.time) {
         const titleDiff = a.title.localeCompare(b.title);
         if (titleDiff !== 0) return titleDiff;
-
         const domainA = a.urls.length > 0 ? getDomain(a.urls[0]) : "";
         const domainB = b.urls.length > 0 ? getDomain(b.urls[0]) : "";
         return domainA.localeCompare(domainB);
-    });
+    }
+    if (!a.time) return -1;
+    if (!b.time) return 1;
+
+    const timeDiff = a.time.localeCompare(b.time);
+    if (timeDiff !== 0) return timeDiff;
+
+    const titleDiff = a.title.localeCompare(b.title);
+    if (titleDiff !== 0) return titleDiff;
+
+    const domainA = a.urls.length > 0 ? getDomain(a.urls[0]) : "";
+    const domainB = b.urls.length > 0 ? getDomain(b.urls[0]) : "";
+    return domainA.localeCompare(domainB);
+}
 }
 
 export function mergeTitles(titlesSet: Set<string>): string {

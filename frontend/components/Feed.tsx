@@ -6,7 +6,7 @@ import { Event, GroupedEvent } from "@/types/event";
 import { supabase } from "@/lib/supabase";
 import { useLanguage } from "./LanguageContext";
 import { Search } from "lucide-react";
-import { groupEvents, mergeTitles } from "@/lib/groupEvents";
+import { groupEvents, mergeTitles, compareGroupedEvents } from "@/lib/groupEvents";
 
 export const Feed = () => {
     const { t } = useLanguage();
@@ -128,14 +128,33 @@ export const Feed = () => {
             const validTitles = new Set(validEvents.map(ev => ev.title));
             const validArtists = new Set(validEvents.map(ev => ev.artist));
 
+            // Update date and time for sorting
+            const firstDateStr = validDates[0];
+            let newDate = group.date;
+            let newTime = group.time;
+
+            if (firstDateStr) {
+                if (firstDateStr.includes("T")) {
+                    const parts = firstDateStr.split("T");
+                    newDate = parts[0];
+                    newTime = parts[1];
+                } else {
+                    newDate = firstDateStr;
+                    newTime = null;
+                }
+            }
+
             return {
                 ...group,
                 title: mergeTitles(validTitles),
                 artist: Array.from(validArtists).join("\n\n"),
                 displayDates: validDates,
-                urls: uniqueUrls
+                urls: uniqueUrls,
+                date: newDate,
+                time: newTime
             };
-        }).filter(group => group.displayDates.length > 0);
+        }).filter(group => group.displayDates.length > 0)
+            .sort(compareGroupedEvents);
 
         // Then filter by search query
         if (!debouncedSearchQuery) return timeFiltered;
