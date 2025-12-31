@@ -18,41 +18,30 @@ class PiaConnector(BaseConnector):
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
         }
 
-    PREFECTURES = {
-        "01": "Hokkaido", "02": "Aomori", "03": "Iwate", "04": "Miyagi", "05": "Akita",
-        "06": "Yamagata", "07": "Fukushima", "08": "Ibaraki", "09": "Tochigi", "10": "Gunma",
-        "11": "Saitama", "12": "Chiba", "13": "Tokyo", "14": "Kanagawa", "15": "Niigata",
-        "16": "Toyama", "17": "Ishikawa", "18": "Fukui", "19": "Yamanashi", "20": "Nagano",
-        "21": "Gifu", "22": "Shizuoka", "23": "Aichi", "24": "Mie", "25": "Shiga",
-        "26": "Kyoto", "27": "Osaka", "28": "Hyogo", "29": "Nara", "30": "Wakayama",
-        "31": "Tottori", "32": "Shimane", "33": "Okayama", "34": "Hiroshima", "35": "Yamaguchi",
-        "36": "Tokushima", "37": "Kagawa", "38": "Ehime", "39": "Kochi", "40": "Fukuoka",
-        "41": "Saga", "42": "Nagasaki", "43": "Kumamoto", "44": "Oita", "45": "Miyazaki",
-        "46": "Kagoshima", "47": "Okinawa"
-    }
-
     def get_events(self, query: str = None) -> List[Event]:
         all_events = []
         
-        # Concurrent fetching
+        # Concurrent fetching for prefectures 01-47
+        prefecture_codes = [f"{i:02d}" for i in range(1, 48)]
+        
         with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
-            future_to_pf = {
-                executor.submit(self._fetch_prefecture_events, pf_code, pf_name): pf_name 
-                for pf_code, pf_name in self.PREFECTURES.items()
+            future_to_code = {
+                executor.submit(self._fetch_prefecture_events, pf_code): pf_code 
+                for pf_code in prefecture_codes
             }
             
-            for future in concurrent.futures.as_completed(future_to_pf):
-                pf_name = future_to_pf[future]
+            for future in concurrent.futures.as_completed(future_to_code):
+                pf_code = future_to_code[future]
                 try:
                     events = future.result()
                     all_events.extend(events)
-                    print(f"  [Pia] Finished {pf_name}: {len(events)} events.")
+                    print(f"  [Pia] Finished prefecture {pf_code}: {len(events)} events.")
                 except Exception as e:
-                    print(f"  [Pia] Error fetching {pf_name}: {e}")
+                    print(f"  [Pia] Error fetching prefecture {pf_code}: {e}")
 
         return all_events
 
-    def _fetch_prefecture_events(self, pf_code: str, pf_name: str) -> List[Event]:
+    def _fetch_prefecture_events(self, pf_code: str) -> List[Event]:
         pf_events = []
         page = 1
         processed_urls: Set[str] = set()
@@ -66,11 +55,10 @@ class PiaConnector(BaseConnector):
             "page": page
         }
 
-        print(f"  [Pia] Starting {pf_name} (pf={pf_code})...")
+        print(f"  [Pia] Starting prefecture {pf_code}...")
 
         while True:
             params["page"] = page
-            # print(f"    [Pia] {pf_name} page {page}...")
 
             try:
                 # Random sleep to be polite
@@ -78,7 +66,7 @@ class PiaConnector(BaseConnector):
 
                 resp = requests.get(self.base_url, headers=self.headers, params=params, timeout=15)
                 if resp.status_code != 200:
-                    print(f"    [Pia] {pf_name} page {page} failed. Status: {resp.status_code}")
+                    print(f"    [Pia] Prefecture {pf_code} page {page} failed. Status: {resp.status_code}")
                     break
 
                 soup = BeautifulSoup(resp.content, 'html.parser')
@@ -130,15 +118,29 @@ class PiaConnector(BaseConnector):
                             venue_div = sub.select_one('.PC-perfinfo-venue')
                             raw_venue = self._normalize_text(venue_div.get_text()) if venue_div else "Unknown"
                             
-                            # Extract location from venue if present "Venue (Location)"
-                            # e.g. "日本工学院アリーナ(東京都)" -> title="日本工学院アリーナ", location="東京都"
                             venue = raw_venue
-                            location = pf_name # Default fallback
+                            location = "" # Default to empty
                             
+                            # 1. Check for (Location) pattern at the end
                             loc_match = re.search(r'\(([^)]+)\)$', raw_venue)
                             if loc_match:
                                 location = loc_match.group(1)
                                 venue = raw_venue[:loc_match.start()].strip()
+                            else:
+                                # 2. Check if the string is a location list
+                                # Split by full-width or half-width slash
+                                parts = re.split(r'[／/]', raw_venue)
+                                # Check if ALL parts end with 都, 道, 府, or 県
+                                is_location_list = all(
+                                    part.strip().endswith(('都', '道', '府', '県')) 
+                                    for part in parts 
+                                    if part.strip()
+                                )
+                                
+                                if is_location_list:
+                                    venue = ""
+                                    location = raw_venue
+                                # Else: strictly use raw_venue as venue, location empty
 
                             # Create Event
                             event = Event(
@@ -154,7 +156,7 @@ class PiaConnector(BaseConnector):
                             pf_events.append(event)
 
                         except Exception as e:
-                            print(f"      [Pia] Error parsing event in {pf_name}: {e}")
+                            print(f"      [Pia] Error parsing event in prefecture {pf_code}: {e}")
                             continue
 
                 if not page_events:
@@ -164,7 +166,7 @@ class PiaConnector(BaseConnector):
                 page += 1
 
             except Exception as e:
-                print(f"    [Pia] Error scraping {pf_name} page {page}: {e}")
+                print(f"    [Pia] Error scraping prefecture {pf_code} page {page}: {e}")
                 break
         
         return pf_events

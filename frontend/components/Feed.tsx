@@ -48,7 +48,13 @@ export const Feed = () => {
                     const { data, error } = await supabase
                         .from('events')
                         .select('*')
-                        .gte('date', new Date().toISOString())
+                        .gte('date', (() => {
+                            const d = new Date();
+                            const year = d.getFullYear();
+                            const month = String(d.getMonth() + 1).padStart(2, '0');
+                            const day = String(d.getDate()).padStart(2, '0');
+                            return `${year}-${month}-${day}`;
+                        })())
                         .order('date', { ascending: true })
                         .order('time', { ascending: true, nullsFirst: true })
                         .range(page * pageSize, (page + 1) * pageSize - 1);
