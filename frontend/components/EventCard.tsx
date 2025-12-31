@@ -38,7 +38,8 @@ const TruncatedText = ({
     tooltipText,
     className,
     as: Component = 'p',
-    maxLines = 0
+    maxLines = 0,
+    followCursor = false
 }: {
     text: string,
     tooltipText?: string,

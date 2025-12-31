@@ -8,6 +8,7 @@ export const Navbar = () => {
     const { language, setLanguage } = useLanguage();
     const [mounted, setMounted] = useState(false);
 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     useEffect(() => setMounted(true), []);
 
     const toggleLanguage = () => {
