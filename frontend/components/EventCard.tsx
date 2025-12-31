@@ -44,7 +44,8 @@ const TruncatedText = ({
     tooltipText?: string,
     className?: string,
     as?: any,
-    maxLines?: number
+    maxLines?: number,
+    followCursor?: boolean
 }) => {
     const ref = useRef<HTMLElement>(null);
     const [isTruncated, setIsTruncated] = useState(false);
@@ -65,54 +66,103 @@ const TruncatedText = ({
         return () => window.removeEventListener('resize', checkTruncation);
     }, [text, maxLines, className, Component]);
 
-    const handleMouseEnter = () => {
+    const updatePosition = (clientX: number, clientY: number) => {
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+
+        // Calculate horizontal position
+        // Max width is 500px + padding/margin safety
+        const MAX_WIDTH = 510;
+        let left = clientX + 16; // Offset from cursor
+
+        // If tooltip would go off right screen, align to left of cursor
+        if (left + MAX_WIDTH > viewportWidth) {
+            left = clientX - MAX_WIDTH - 16;
+        }
+        // Ensure it doesn't go off left screen
+        left = Math.max(16, left);
+
+        // Calculate vertical position
+        const spaceAbove = clientY;
+        const spaceBelow = viewportHeight - clientY;
+        const MIN_TOOLTIP_HEIGHT = 100;
+        const SAFETY_MARGIN = 16;
+
+        let pos: { top?: number; bottom?: number; left: number; maxHeight: number } = {
+            left,
+            maxHeight: 200 // Default
+        };
+
+        // Prefer below
+        if (spaceBelow > MIN_TOOLTIP_HEIGHT || spaceBelow > spaceAbove) {
+            pos.top = clientY + 16;
+            pos.maxHeight = spaceBelow - 16 - SAFETY_MARGIN;
+        } else {
+            pos.bottom = viewportHeight - clientY + 16;
+            pos.maxHeight = spaceAbove - 16 - SAFETY_MARGIN;
+        }
+
+        setTooltipPos(pos);
+    };
+
+    const handleMouseEnter = (e: React.MouseEvent) => {
         if (isTruncated && ref.current) {
-            const rect = ref.current.getBoundingClientRect();
-            const viewportWidth = window.innerWidth;
-            const viewportHeight = window.innerHeight;
-
-            // Calculate horizontal position
-            // Max width is 500px + padding/margin safety
-            const MAX_WIDTH = 510;
-            let left = rect.left;
-
-            // If tooltip would go off right screen, align to right side or shift left
-            if (left + MAX_WIDTH > viewportWidth) {
-                left = Math.max(16, viewportWidth - MAX_WIDTH - 16);
-            }
-
-            // Calculate vertical position and max height
-            const spaceAbove = rect.top;
-            const spaceBelow = viewportHeight - rect.bottom;
-            // minimum space requirement for a useful tooltip
-            const MIN_TOOLTIP_HEIGHT = 100;
-            const SAFETY_MARGIN = 16; // Margin from screen edge
-
-            let pos: { top?: number; bottom?: number; left: number; maxHeight: number } = {
-                left,
-                maxHeight: 200 // Default, will be overwritten
-            };
-
-            // Heuristic: Prefer above if there is enough space OR if space above is greater than space below
-            // But if space above is critically small (< 100) and space below is better, flip.
-            // Actually, simplest logic: Go where there is MORE space, unless "Above" has "Enough" space (e.g. > 300px).
-
-            // Let's stick to the previous preference (Above) but be smarter about flipping.
-            const preferBelow = spaceAbove < MIN_TOOLTIP_HEIGHT && spaceBelow > spaceAbove;
-
-            if (preferBelow) {
-                // Show below
-                pos.top = rect.bottom + 8;
-                pos.maxHeight = spaceBelow - 8 - SAFETY_MARGIN;
+            if (followCursor) {
+                updatePosition(e.clientX, e.clientY);
             } else {
-                // Show above
-                // For "bottom" positioning (css property), the value is distance from bottom of viewport.
-                pos.bottom = viewportHeight - rect.top + 8;
-                pos.maxHeight = spaceAbove - 8 - SAFETY_MARGIN;
-            }
+                const rect = ref.current.getBoundingClientRect();
+                const viewportWidth = window.innerWidth;
+                const viewportHeight = window.innerHeight;
 
-            setTooltipPos(pos);
+                // Calculate horizontal position
+                // Max width is 500px + padding/margin safety
+                const MAX_WIDTH = 510;
+                let left = rect.left;
+
+                // If tooltip would go off right screen, align to right side or shift left
+                if (left + MAX_WIDTH > viewportWidth) {
+                    left = Math.max(16, viewportWidth - MAX_WIDTH - 16);
+                }
+
+                // Calculate vertical position and max height
+                const spaceAbove = rect.top;
+                const spaceBelow = viewportHeight - rect.bottom;
+                // minimum space requirement for a useful tooltip
+                const MIN_TOOLTIP_HEIGHT = 100;
+                const SAFETY_MARGIN = 16; // Margin from screen edge
+
+                let pos: { top?: number; bottom?: number; left: number; maxHeight: number } = {
+                    left,
+                    maxHeight: 200 // Default, will be overwritten
+                };
+
+                // Heuristic: Prefer above if there is enough space OR if space above is greater than space below
+                // But if space above is critically small (< 100) and space below is better, flip.
+                // Actually, simplest logic: Go where there is MORE space, unless "Above" has "Enough" space (e.g. > 300px).
+
+                // Let's stick to the previous preference (Above) but be smarter about flipping.
+                const preferBelow = spaceAbove < MIN_TOOLTIP_HEIGHT && spaceBelow > spaceAbove;
+
+                if (preferBelow) {
+                    // Show below
+                    pos.top = rect.bottom + 8;
+                    pos.maxHeight = spaceBelow - 8 - SAFETY_MARGIN;
+                } else {
+                    // Show above
+                    // For "bottom" positioning (css property), the value is distance from bottom of viewport.
+                    pos.bottom = viewportHeight - rect.top + 8;
+                    pos.maxHeight = spaceAbove - 8 - SAFETY_MARGIN;
+                }
+
+                setTooltipPos(pos);
+            }
             setShowTooltip(true);
+        }
+    };
+
+    const handleMouseMove = (e: React.MouseEvent) => {
+        if (showTooltip && followCursor) {
+            updatePosition(e.clientX, e.clientY);
         }
     };
 
@@ -125,6 +175,7 @@ const TruncatedText = ({
             className="relative flex min-h-0 min-w-0"
             onMouseLeave={handleMouseLeave}
             onMouseEnter={handleMouseEnter}
+            onMouseMove={handleMouseMove}
             onClick={() => isTruncated && setShowTooltip(!showTooltip)}
         >
             <Component
@@ -219,6 +270,7 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
                                     text={dateString}
                                     className="block"
                                     maxLines={1}
+                                    followCursor={true}
                                 />
                             </div>
                         </div>
