@@ -195,7 +195,7 @@ export function compareGroupedEvents(a: GroupedEvent, b: GroupedEvent): number {
     const domainB = b.urls.length > 0 ? getDomain(b.urls[0]) : "";
     return domainA.localeCompare(domainB);
 }
-}
+
 
 export function mergeTitles(titlesSet: Set<string>): string {
     const titles = Array.from(titlesSet);
