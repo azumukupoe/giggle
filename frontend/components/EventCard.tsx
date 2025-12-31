@@ -31,17 +31,7 @@ const formatLocation = (loc: string) => {
 
 
 
-const formatArtistText = (str: string) => {
-    if (!str) return "";
-    // Normalize CRLF to LF
-    const normalized = str.replace(/\r\n/g, "\n");
-    // Split by double newline (paragraph break)
-    const paragraphs = normalized.split(/\n\n+/);
-    // For each paragraph, replace single newlines with space
-    const processedParagraphs = paragraphs.map(p => p.replace(/\n/g, " "));
-    // Join paragraphs with a single newline
-    return processedParagraphs.join("\n");
-};
+
 
 const TruncatedText = ({
     text,
@@ -170,8 +160,7 @@ const TruncatedText = ({
 
 export const EventCard = ({ event }: { event: GroupedEvent }) => {
     const { language } = useLanguage();
-    const [artistMaxLines, setArtistMaxLines] = useState(0);
-    const artistContainerRef = useRef<HTMLDivElement>(null);
+
 
     const formattedLocation = [formatVenue(event.venue), formatLocation(event.location)]
         .filter(Boolean)
@@ -188,30 +177,10 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
         );
     }).join(" / ");
 
-    useEffect(() => {
-        if (!artistContainerRef.current) return;
 
-        const updateMaxLines = () => {
-            if (artistContainerRef.current) {
-                const height = artistContainerRef.current.clientHeight;
-                // Roughly 20px per line for text-sm (14px * 1.4 line-height ~ 19.6px)
-                const lineHeight = 20;
-                const lines = Math.max(1, Math.floor(height / lineHeight));
-                setArtistMaxLines(lines);
-            }
-        };
-
-        const observer = new ResizeObserver(updateMaxLines);
-        observer.observe(artistContainerRef.current);
-
-        // Initial check
-        updateMaxLines();
-
-        return () => observer.disconnect();
-    }, []);
 
     const rawArtist = decodeHtml(event.artist);
-    const displayArtist = formatArtistText(rawArtist);
+
 
     return (
         <motion.div
@@ -235,13 +204,8 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
                     </div>
 
                     {/* Artist/Details takes remaining space */}
-                    <div className="flex-1 min-h-0" ref={artistContainerRef}>
-                        <TruncatedText
-                            text={displayArtist}
-                            tooltipText={rawArtist}
-                            className="text-muted-foreground font-medium text-sm whitespace-pre-wrap"
-                            maxLines={artistMaxLines}
-                        />
+                    <div className="flex-1 min-h-0 overflow-y-auto text-muted-foreground font-medium text-sm whitespace-pre-wrap break-words">
+                        {rawArtist}
                     </div>
                 </div>
 
