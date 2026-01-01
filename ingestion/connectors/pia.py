@@ -155,13 +155,13 @@ class PiaConnector(BaseConnector):
 
                             # Create Event
                             event = Event(
-                                title=title,
-                                artist="",  # Explicitly blank
+                                event=title,
+                                performer="",  # Explicitly blank
+                                ticket=ticket_name,
                                 venue=venue,
                                 location=location,
                                 date=event_date,
                                 time=None,
-                                ticket_name=ticket_name,
                                 url=url
                             )
                             page_events.append(event)

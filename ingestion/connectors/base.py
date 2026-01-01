@@ -4,16 +4,16 @@ from datetime import datetime, date, time
 from pydantic import BaseModel, field_validator
 
 class Event(BaseModel):
-    title: str
-    artist: str
-    venue: str
-    location: str
+    event: str
+    ticket: Optional[str] = None
+    performer: str
     date: date
     time: Optional[time]
-    ticket_name: Optional[str] = None
+    venue: str
+    location: str
     url: str
 
-    @field_validator('title', 'artist', 'venue', 'location', 'ticket_name')
+    @field_validator('event', 'performer', 'venue', 'location', 'ticket')
     @classmethod
     def clean_text(cls, v: str) -> str:
         if not v:

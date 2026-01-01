@@ -212,12 +212,13 @@ class SongkickConnector(BaseConnector):
                 event_date = event_date.replace(tzinfo=jst)
             
             return Event(
-                title=title, 
-                artist=artist_final,
+                event=title, 
+                performer=artist_final,
+                ticket=None,
                 venue=venue_name if venue_name != 'Unknown' else 'Unknown venue',
                 location=loc,
                 date=event_date.date(),
-                time=event_date.time() if date_str and ('T' in date_str or ' ' in date_str) else None, # Rough check if time existed in input
+                time=event_date.timetz() if date_str and ('T' in date_str or ' ' in date_str) else None, # Rough check if time existed in input
                 url=url
             )
         except Exception as e:

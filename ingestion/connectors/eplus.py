@@ -144,13 +144,13 @@ class EplusConnector(BaseConnector):
 
             if link:
                 return Event(
-                    title=title,
-                    artist=artist,
+                    event=title,
+                    performer=artist,
+                    ticket=ticket_name,
                     venue=venue_name,
-                    date=date_obj.date(),
-                    time=date_obj.time() if item.get('kaien_time') and len(item.get('kaien_time')) == 4 else None,
                     location=location,
-                    ticket_name=ticket_name,
+                    date=date_obj.date(),
+                    time=date_obj.timetz() if item.get('kaien_time') and len(item.get('kaien_time')) == 4 else None,
                     url=link
                 )
             return None

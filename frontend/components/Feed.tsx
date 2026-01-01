@@ -6,7 +6,7 @@ import { Event, GroupedEvent } from "@/types/event";
 import { supabase } from "@/lib/supabase";
 import { useLanguage } from "./LanguageContext";
 import { Search } from "lucide-react";
-import { groupEvents, mergeTitles, compareGroupedEvents } from "@/lib/groupEvents";
+import { groupEvents, mergeEventNames, compareGroupedEvents } from "@/lib/groupEvents";
 
 export const Feed = () => {
     const { t } = useLanguage();
@@ -130,9 +130,9 @@ export const Feed = () => {
             // Deduplicate URLs
             const uniqueUrls = Array.from(new Set(validEvents.map(ev => ev.url)));
 
-            // Recalculate Titles and Artists for the valid events
-            const validTitles = new Set(validEvents.map(ev => ev.title));
-            const validArtists = new Set(validEvents.map(ev => ev.artist));
+            // Recalculate Event Names and Performers for the valid events
+            const validEventNames = new Set(validEvents.map(ev => ev.event));
+            const validPerformers = new Set(validEvents.map(ev => ev.performer));
 
             // Update date and time for sorting
             const firstDateStr = validDates[0];
@@ -152,8 +152,8 @@ export const Feed = () => {
 
             return {
                 ...group,
-                title: mergeTitles(validTitles),
-                artist: Array.from(validArtists).join("\n\n"),
+                event: mergeEventNames(validEventNames),
+                performer: Array.from(validPerformers).join("\n\n"),
                 displayDates: validDates,
                 urls: uniqueUrls,
                 date: newDate,
@@ -166,8 +166,8 @@ export const Feed = () => {
         if (!debouncedSearchQuery) return timeFiltered;
         const lowerQ = debouncedSearchQuery.toLowerCase();
         return timeFiltered.filter(e =>
-            e.title.toLowerCase().includes(lowerQ) ||
-            e.artist.toLowerCase().includes(lowerQ) ||
+            e.event.toLowerCase().includes(lowerQ) ||
+            e.performer.toLowerCase().includes(lowerQ) ||
             e.venue.toLowerCase().includes(lowerQ) ||
             e.location.toLowerCase().includes(lowerQ)
         );

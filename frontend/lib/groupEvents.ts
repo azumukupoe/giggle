@@ -8,8 +8,8 @@ const normalizeVenue = (venue: string): string => {
         .replace(/\s+/g, "");
 };
 
-const normalizeTitle = (title: string): string => {
-    return title.toLowerCase().trim();
+const normalizeEventName = (name: string): string => {
+    return name.toLowerCase().trim();
 };
 
 
@@ -17,8 +17,8 @@ const normalizeTitle = (title: string): string => {
 interface IntermediateGroup {
     baseEvent: Event;
     urls: Set<string>;
-    titles: Set<string>;
-    artists: Set<string>;
+    eventNames: Set<string>;
+    performers: Set<string>;
     dates: Set<string>; // Set of ISO strings
     venueNormalized: string;
     sourceEvents: Event[];
@@ -34,8 +34,8 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
 
         // If dates are equal, sort by time (nulls first to match DB query)
         if (!a.time && !b.time) {
-            const titleDiff = a.title.localeCompare(b.title);
-            if (titleDiff !== 0) return titleDiff;
+            const eventDiff = a.event.localeCompare(b.event);
+            if (eventDiff !== 0) return eventDiff;
             return getDomain(a.url).localeCompare(getDomain(b.url));
         }
         if (!a.time) return -1;
@@ -44,18 +44,18 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
         const timeDiff = a.time.localeCompare(b.time);
         if (timeDiff !== 0) return timeDiff;
 
-        const titleDiff = a.title.localeCompare(b.title);
-        if (titleDiff !== 0) return titleDiff;
+        const eventDiff = a.event.localeCompare(b.event);
+        if (eventDiff !== 0) return eventDiff;
 
         return getDomain(a.url).localeCompare(getDomain(b.url));
     });
 
-    // --- Pass 1: Group by Title + Venue (detecting consecutive days) ---
+    // --- Pass 1: Group by EventName + Venue (detecting consecutive days) ---
     const pass1Groups: IntermediateGroup[] = [];
 
     for (const event of sortedEvents) {
         const normVenue = normalizeVenue(event.venue);
-        const normTitle = normalizeTitle(event.title);
+        const normEventName = normalizeEventName(event.event);
         const eventDate = parseISO(event.date);
 
         let matched = false;
@@ -66,8 +66,8 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
 
             if (group.venueNormalized !== normVenue) continue;
 
-            const groupTitleSample = group.baseEvent.title;
-            if (normalizeTitle(groupTitleSample) !== normTitle) continue;
+            const groupEventNameSample = group.baseEvent.event;
+            if (normalizeEventName(groupEventNameSample) !== normEventName) continue;
 
             let isConsecutiveOrSame = false;
             for (const dStr of Array.from(group.dates)) {
@@ -82,8 +82,8 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
             if (isConsecutiveOrSame) {
                 // Merge into this group
                 group.urls.add(event.url);
-                group.titles.add(event.title);
-                group.artists.add(event.artist);
+                group.eventNames.add(event.event);
+                group.performers.add(event.performer);
                 const dateTimeStr = event.time ? `${event.date}T${event.time}` : event.date;
                 group.dates.add(dateTimeStr);
                 group.sourceEvents.push(event);
@@ -99,8 +99,8 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
                 baseEvent: event,
                 venueNormalized: normVenue,
                 urls: new Set([event.url]),
-                titles: new Set([event.title]),
-                artists: new Set([event.artist]),
+                eventNames: new Set([event.event]),
+                performers: new Set([event.performer]),
                 dates: new Set([dateTimeStr]),
                 sourceEvents: [event]
             });
@@ -118,8 +118,8 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
             const existing = pass2Map.get(key)!;
             // Merge
             group.urls.forEach(u => existing.urls.add(u));
-            group.titles.forEach(t => existing.titles.add(t));
-            group.artists.forEach(a => existing.artists.add(a));
+            group.eventNames.forEach(t => existing.eventNames.add(t));
+            group.performers.forEach(a => existing.performers.add(a));
             group.dates.forEach(d => existing.dates.add(d));
             existing.sourceEvents.push(...group.sourceEvents);
         } else {
@@ -149,8 +149,8 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
 
         return {
             id: g.baseEvent.id, // Use ID of first event
-            title: mergeTitles(g.titles),
-            artist: Array.from(g.artists).join("\n\n"),
+            event: mergeEventNames(g.eventNames),
+            performer: Array.from(g.performers).join("\n\n"),
             venue: g.baseEvent.venue,
             location: g.baseEvent.location,
             date: g.baseEvent.date, // Use earliest date for sorting usually?
@@ -176,8 +176,8 @@ export function compareGroupedEvents(a: GroupedEvent, b: GroupedEvent): number {
 
     // If dates are equal, sort by time (nulls first)
     if (!a.time && !b.time) {
-        const titleDiff = a.title.localeCompare(b.title);
-        if (titleDiff !== 0) return titleDiff;
+        const eventDiff = a.event.localeCompare(b.event);
+        if (eventDiff !== 0) return eventDiff;
         const domainA = a.urls.length > 0 ? getDomain(a.urls[0]) : "";
         const domainB = b.urls.length > 0 ? getDomain(b.urls[0]) : "";
         return domainA.localeCompare(domainB);
@@ -188,8 +188,8 @@ export function compareGroupedEvents(a: GroupedEvent, b: GroupedEvent): number {
     const timeDiff = a.time.localeCompare(b.time);
     if (timeDiff !== 0) return timeDiff;
 
-    const titleDiff = a.title.localeCompare(b.title);
-    if (titleDiff !== 0) return titleDiff;
+    const eventDiff = a.event.localeCompare(b.event);
+    if (eventDiff !== 0) return eventDiff;
 
     const domainA = a.urls.length > 0 ? getDomain(a.urls[0]) : "";
     const domainB = b.urls.length > 0 ? getDomain(b.urls[0]) : "";
@@ -197,17 +197,16 @@ export function compareGroupedEvents(a: GroupedEvent, b: GroupedEvent): number {
 }
 
 
-export function mergeTitles(titlesSet: Set<string>): string {
-    const titles = Array.from(titlesSet);
-    // Filter out any title that is strictly contained in another title
+export function mergeEventNames(namesSet: Set<string>): string {
+    const names = Array.from(namesSet);
+    // Filter out any name that is strictly contained in another name
     // Example: "A" vs "A / B" -> "A" is in "A / B", so we keep "A / B" and drop "A"
-    // Wait, requirement is: "CHAQLA. ONE MAN..." vs "CHAQLA." -> Display "CHAQLA. ONE MAN..."
-    const uniqueTitles = titles.filter(t1 => {
-        // If t1 is contained in any OTHER title t2, drop t1.
-        return !titles.some(t2 => t2 !== t1 && t2.includes(t1));
+    const uniqueNames = names.filter(t1 => {
+        // If t1 is contained in any OTHER name t2, drop t1.
+        return !names.some(t2 => t2 !== t1 && t2.includes(t1));
     });
 
-    return uniqueTitles.join(" / ");
+    return uniqueNames.join(" / ");
 }
 
 function filterRedundantDates(dates: string[]): string[] {

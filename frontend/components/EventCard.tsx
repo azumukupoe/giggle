@@ -234,9 +234,7 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
 
 
 
-    const rawArtist = decodeHtml(event.artist);
-
-
+    const rawPerformer = decodeHtml(event.performer);
     return (
         <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -252,7 +250,7 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
                     <div className="mb-1 shrink-0">
                         <TruncatedText
                             as="h3"
-                            text={decodeHtml(event.title)}
+                            text={decodeHtml(event.event)}
                             className="text-lg font-bold leading-tight"
                         // Removed maxLines to never truncate title
                         />
@@ -260,7 +258,7 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
 
                     {/* Artist/Details takes remaining space */}
                     <div className="flex-1 min-h-0 overflow-y-auto text-muted-foreground font-medium text-sm whitespace-pre-wrap break-words">
-                        {rawArtist}
+                        {rawPerformer}
                     </div>
                 </div>
 
@@ -311,7 +309,7 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
                                     href={sourceEvent.url}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    title={sourceEvent.ticket_name || ""}
+                                    title={sourceEvent.ticket || ""}
                                     className="flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-md bg-secondary text-secondary-foreground font-medium text-xs hover:bg-secondary/80 transition-colors whitespace-nowrap w-full"
                                 >
                                     {hostname && (

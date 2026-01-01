@@ -1,19 +1,19 @@
 export interface Event {
     id: string
-    title: string
-    artist: string
+    event: string
+    performer: string
     venue: string
     location: string
     date: string
     time: string | null
-    ticket_name: string | null
+    ticket: string | null
     url: string
 }
 
 export interface GroupedEvent {
     id: string           // Primary event's id
-    title: string
-    artist: string
+    event: string
+    performer: string
     venue: string
     location: string
     date: string

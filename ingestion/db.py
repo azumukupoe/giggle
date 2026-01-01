@@ -36,13 +36,13 @@ def upsert_events(supabase: Client, events: list):
                     event_dict["time"] = None
         else:
             event_dict = {
-                "title": e.title,
-                "artist": e.artist,
-                "venue": e.venue,
-                "location": e.location,
+                "event": e.event,
+                "ticket": e.ticket,
+                "performer": e.performer,
                 "date": e.date.isoformat(),
                 "time": e.time.isoformat() if e.time else None,
-                "ticket_name": e.ticket_name,
+                "venue": e.venue,
+                "location": e.location,
                 "url": e.url
             }
         

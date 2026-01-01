@@ -46,13 +46,13 @@ Run the following SQL commands in your Supabase project's SQL editor to create t
 create table public.events (
   id uuid default gen_random_uuid() primary key,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
-  title text not null,
-  artist text not null,
+  event text not null,
+  ticket text,
+  performer text not null,
+  date date not null,
+  time time with time zone,
   venue text not null,
   location text,
-  date date not null,
-  time time without time zone,
-  ticket_name text,
   url text not null,
   unique(url)
 );
