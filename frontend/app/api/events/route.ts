@@ -3,23 +3,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { groupEvents } from "@/lib/groupEvents";
 import { createIsoDate, mergeEventNames, compareGroupedEvents } from "@/lib/eventUtils";
-import { Event, GroupedEvent } from "@/types/event";
+import { Event } from "@/types/event";
+import { unstable_cache } from "next/cache";
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(request: NextRequest) {
-    try {
-        const searchParams = request.nextUrl.searchParams;
-        const page = parseInt(searchParams.get("page") || "1");
-        const limit = parseInt(searchParams.get("limit") || "9");
-        const searchQuery = (searchParams.get("search") || "").toLowerCase();
-        const filters = searchParams.get("filters")?.split(",").filter(Boolean) || [];
-
+// Cache the heavy lifting: Fetching, Grouping, and Initial Filtering
+const getCachedGroupedEvents = unstable_cache(
+    async () => {
         // Fetch all future events
-        // We fetch ALL events then group/filter in memory because grouping requires full context
-        // and database filtering on grouped properties is hard.
-        // Optimization: In a real large scale app, we might need a better strategy,
-        // but for now this matches the client-side behavior but on the server.
         let allData: Event[] = [];
         let hasMore = true;
         let p = 0;
@@ -62,6 +54,7 @@ export async function GET(request: NextRequest) {
         const grouped = groupEvents(allData);
 
         // 2. Filter out past occurrences (Time filtering)
+        // We use 'now' from the time of execution.
         const timeFiltered = grouped.map(group => {
             const validDates = group.displayDates.filter(dStr => {
                 // If it has a time, check if it's in the future
@@ -69,7 +62,6 @@ export async function GET(request: NextRequest) {
                     const dt = new Date(dStr);
                     return dt > now;
                 }
-                // If it's date-only, we keep it (it passed the DB >= today check)
                 return true;
             });
 
@@ -115,6 +107,23 @@ export async function GET(request: NextRequest) {
             };
         }).filter(group => group.displayDates.length > 0)
             .sort(compareGroupedEvents);
+
+        return timeFiltered;
+    },
+    ['all-grouped-events'], // Cache key
+    { revalidate: 60 } // Revalidate every 60 seconds
+);
+
+export async function GET(request: NextRequest) {
+    try {
+        const searchParams = request.nextUrl.searchParams;
+        const page = parseInt(searchParams.get("page") || "1");
+        const limit = parseInt(searchParams.get("limit") || "9");
+        const searchQuery = (searchParams.get("search") || "").toLowerCase();
+        const filters = searchParams.get("filters")?.split(",").filter(Boolean) || [];
+
+        // Get cached result
+        const timeFiltered = await getCachedGroupedEvents();
 
         // 3. Search / Advanced Filters
         let finalEvents = timeFiltered;
