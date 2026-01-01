@@ -6,7 +6,7 @@ from pydantic import BaseModel, field_validator
 class Event(BaseModel):
     event: str
     ticket: Optional[str] = None
-    performer: str
+    performer: Optional[str] = None
     date: date
     time: Optional[time]
     venue: str
@@ -15,7 +15,7 @@ class Event(BaseModel):
 
     @field_validator('event', 'performer', 'venue', 'location', 'ticket')
     @classmethod
-    def clean_text(cls, v: str) -> str:
+    def clean_text(cls, v: Optional[str]) -> Optional[str]:
         if not v:
             return v
         return v.replace('\xa0', ' ').strip()

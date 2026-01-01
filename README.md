@@ -48,7 +48,7 @@ create table public.events (
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   event text not null,
   ticket text,
-  performer text not null,
+  performer text,
   date date not null,
   time time with time zone,
   venue text not null,
