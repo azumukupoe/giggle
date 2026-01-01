@@ -3,6 +3,7 @@ from typing import List, Optional
 import unicodedata
 from datetime import datetime, date, time
 from pydantic import BaseModel, field_validator
+import html
 
 class Event(BaseModel):
     event: str
@@ -20,7 +21,9 @@ class Event(BaseModel):
         if not v:
             return v
         # NFKC normalizes full-width to half-width (e.g. Ｚｅｐｐ -> Zepp)
-        return unicodedata.normalize('NFKC', v).strip().replace('\xa0', ' ')
+        # Also unescape HTML entities (e.g. &amp; -> &)
+        normalized = unicodedata.normalize('NFKC', v).strip().replace('\xa0', ' ')
+        return html.unescape(normalized)
 
 class BaseConnector(ABC):
     def __init__(self):

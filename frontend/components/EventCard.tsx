@@ -12,23 +12,14 @@ import { useLanguage } from "./LanguageContext";
 import { localizePrefecture } from "@/lib/prefectures";
 
 // Utility functions extracted outside component to avoid recreation on each render
-const decodeHtml = (str: string) => {
-    if (!str) return "";
-    return str.replace(/&amp;/g, "&")
-        .replace(/&lt;/g, "<")
-        .replace(/&gt;/g, ">")
-        .replace(/&quot;/g, '"')
-        .replace(/&#039;/g, "'")
-        .replace(/&#39;/g, "'");
-};
+
 
 const formatVenue = (ven: string) => {
-    return decodeHtml(ven);
+    return ven;
 };
 
 const formatLocation = (loc: string, language: string) => {
-    const decoded = decodeHtml(loc);
-    const cleaned = decoded.replace(/, Japan$/, "").replace(/Japan$/, "").trim();
+    const cleaned = loc.replace(/, Japan$/, "").replace(/Japan$/, "").trim();
     return localizePrefecture(cleaned, language);
 };
 
@@ -298,7 +289,7 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
 
 
 
-    const rawPerformer = decodeHtml(event.performer);
+    const rawPerformer = event.performer;
     return (
         <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -313,7 +304,7 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
                 <div className="flex flex-col flex-grow min-h-0 mb-2">
                     <div className="mb-1 shrink-0">
                         <h3 className="text-lg font-bold leading-tight break-words">
-                            {decodeHtml(event.event)}
+                            {event.event}
                         </h3>
                     </div>
 
@@ -368,7 +359,7 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
                                 <TooltippedLink
                                     key={index}
                                     href={sourceEvent.url}
-                                    title={decodeHtml(sourceEvent.ticket || "")}
+                                    title={sourceEvent.ticket || ""}
                                     className="flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-md bg-secondary text-secondary-foreground font-medium text-xs hover:bg-secondary/80 transition-colors whitespace-nowrap w-full"
                                 >
                                     {hostname && (

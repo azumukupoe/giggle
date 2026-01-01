@@ -1,224 +1,103 @@
 "use client";
 
-import { useEffect, useState, useMemo, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import { EventCard } from "./EventCard";
-import { Event, GroupedEvent } from "@/types/event";
-import { supabase } from "@/lib/supabase";
+import { GroupedEvent } from "@/types/event";
 import { useLanguage } from "./LanguageContext";
 import { Search } from "lucide-react";
-import { groupEvents } from "@/lib/groupEvents";
-import { mergeEventNames, compareGroupedEvents, createIsoDate } from "@/lib/eventUtils";
 
 export const Feed = () => {
     const { t } = useLanguage();
 
     // Data State
-    const [allEvents, setAllEvents] = useState<Event[]>([]);
     const [displayedEvents, setDisplayedEvents] = useState<GroupedEvent[]>([]);
     const [loading, setLoading] = useState(true);
+    const [totalEvents, setTotalEvents] = useState(0);
+    const [totalPages, setTotalPages] = useState(1);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
 
     // UI State
     const [searchQuery, setSearchQuery] = useState("");
     const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
     const [activeFilters, setActiveFilters] = useState<string[]>([]);
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 9;
 
     const toggleFilter = (filter: string) => {
-        setActiveFilters(prev =>
-            prev.includes(filter)
+        setActiveFilters(prev => {
+            const newFilters = prev.includes(filter)
                 ? prev.filter(f => f !== filter)
-                : [...prev, filter]
-        );
+                : [...prev, filter];
+            setCurrentPage(1); // Reset to page 1 on filter change
+            return newFilters;
+        });
     };
 
     // Debounce search query
     useEffect(() => {
         const handler = setTimeout(() => {
             setDebouncedSearchQuery(searchQuery);
+            setCurrentPage(1); // Reset page on search change
         }, 300);
 
         return () => {
             clearTimeout(handler);
         };
     }, [searchQuery]);
-    const [currentPage, setCurrentPage] = useState(1);
-    const itemsPerPage = 9;
 
     useEffect(() => {
+        let ignore = false;
+
         const fetchEvents = async () => {
             setLoading(true);
 
             try {
-                let allData: Event[] = [];
-                let hasMore = true;
-                let page = 0;
-                const pageSize = 1000;
+                const params = new URLSearchParams({
+                    page: currentPage.toString(),
+                    limit: itemsPerPage.toString(),
+                    search: debouncedSearchQuery,
+                    filters: activeFilters.join(",")
+                });
 
-                while (hasMore) {
-                    const { data, error } = await supabase
-                        .from('events')
-                        .select('*')
-                        .gte('date', (() => {
-                            const d = new Date();
-                            const year = d.getFullYear();
-                            const month = String(d.getMonth() + 1).padStart(2, '0');
-                            const day = String(d.getDate()).padStart(2, '0');
-                            return `${year}-${month}-${day}`;
-                        })())
-                        .order('date', { ascending: true })
-                        .order('time', { ascending: true, nullsFirst: true })
-                        .range(page * pageSize, (page + 1) * pageSize - 1);
-
-                    if (error) {
-                        console.error("Error fetching events:", error);
-                        break;
-                    }
-
-                    if (data) {
-                        allData = [...allData, ...(data as Event[])];
-                        if (data.length < pageSize) {
-                            hasMore = false;
-                        } else {
-                            page++;
-                        }
-                    } else {
-                        hasMore = false;
-                    }
+                const response = await fetch(`/api/events?${params.toString()}`);
+                if (!response.ok) {
+                    throw new Error("Failed to fetch events");
                 }
-                setAllEvents(allData);
-            } catch (error) {
-                console.error("Unexpected error fetching events:", error);
-                setAllEvents([]);
-            }
 
-            setLoading(false);
+                const data = await response.json();
+
+                if (!ignore) {
+                    setDisplayedEvents(data.events);
+                    setTotalEvents(data.total);
+                    setTotalPages(data.totalPages);
+                }
+            } catch (error) {
+                console.error("Error loading events:", error);
+                if (!ignore) {
+                    setDisplayedEvents([]);
+                }
+            } finally {
+                if (!ignore) {
+                    setLoading(false);
+                }
+            }
         };
 
         fetchEvents();
-    }, []);
 
-    // Memoized grouped and filtered events
-    const [now, setNow] = useState(new Date());
+        return () => {
+            ignore = true;
+        };
+    }, [debouncedSearchQuery, activeFilters, currentPage, itemsPerPage]);
 
+    // Scroll to top when events change (e.g. page change)
     useEffect(() => {
-        const interval = setInterval(() => {
-            setNow(new Date());
-        }, 60000); // Update every minute
-        return () => clearInterval(interval);
-    }, []);
-
-    const filteredGroupedEvents = useMemo(() => {
-        // First group events (raw, so date-only + date-time logic works)
-        const grouped = groupEvents(allEvents);
-
-        // Filter out started events from the groups
-        const timeFiltered = grouped.map(group => {
-            const validDates = group.displayDates.filter(dStr => {
-                // If it has a time, check if it's in the future
-                if (dStr.includes("T")) {
-                    const dt = new Date(dStr);
-                    return dt > now;
-                }
-                // If it's date-only, we generally keep it (until the day is over)
-                // The DB query filters out past days. 
-                // So for "today", we keep date-only entries until midnight usually.
-                return true;
-            });
-
-            // Filter URLs based on validDates
-            // Only keep URLs from source events that match the remaining dates
-            const validDateSet = new Set(validDates);
-            const validEvents = group.sourceEvents
-                .filter(ev => {
-                    const dStr = createIsoDate(ev.date, ev.time);
-                    // If the exact date string is in validDates, keep the URL
-                    // Note: validDates has already been filtered by 'now' AND by redundancy (in groupEvents)
-                    // So if "Dec 30" was removed because "Dec 30 19:00" exists, the URL for "Dec 30" event will also be removed here.
-                    return validDateSet.has(dStr);
-                });
-
-            // Deduplicate URLs
-            const uniqueUrls = Array.from(new Set(validEvents.map(ev => ev.url)));
-
-            // Recalculate Event Names and Performers for the valid events
-            const validEventNames = new Set(validEvents.map(ev => ev.event));
-            const validPerformers = new Set(validEvents.map(ev => ev.performer));
-
-            // Update date and time for sorting
-            const firstDateStr = validDates[0];
-            let newDate = group.date;
-            let newTime = group.time;
-
-            if (firstDateStr) {
-                if (firstDateStr.includes("T")) {
-                    const parts = firstDateStr.split("T");
-                    newDate = parts[0];
-                    newTime = parts[1];
-                } else {
-                    newDate = firstDateStr;
-                    newTime = null;
-                }
-            }
-
-            return {
-                ...group,
-                event: mergeEventNames(validEventNames),
-                performer: Array.from(validPerformers).join("\n\n"),
-                displayDates: validDates,
-                urls: uniqueUrls,
-                date: newDate,
-                time: newTime
-            };
-        }).filter(group => group.displayDates.length > 0)
-            .sort(compareGroupedEvents);
-
-        // Then filter by search query
-        if (!debouncedSearchQuery) return timeFiltered;
-        const lowerQ = debouncedSearchQuery.toLowerCase();
-
-        return timeFiltered.filter(e => {
-            const searchAll = activeFilters.length === 0;
-
-            const matchEvent = (searchAll || activeFilters.includes('event')) &&
-                e.event.toLowerCase().includes(lowerQ);
-
-            const matchPerformer = (searchAll || activeFilters.includes('performer')) &&
-                e.performer.toLowerCase().includes(lowerQ);
-
-            const matchVenue = (searchAll || activeFilters.includes('venue')) &&
-                e.venue.toLowerCase().includes(lowerQ);
-
-            const matchLocation = (searchAll || activeFilters.includes('location')) &&
-                e.location.toLowerCase().includes(lowerQ);
-
-            // Check date if filter is active or searching all
-            // Search against YYYY-MM-DD or display dates strings
-            const matchDate = (searchAll || activeFilters.includes('date')) && (
-                e.date.toLowerCase().includes(lowerQ) ||
-                e.displayDates.some(d => d.toLowerCase().includes(lowerQ))
-            );
-
-            return matchEvent || matchPerformer || matchVenue || matchLocation || matchDate;
-        });
-    }, [allEvents, debouncedSearchQuery, now]);
-
-    // Paginate filtered events
-    useEffect(() => {
-        const startIndex = (currentPage - 1) * itemsPerPage;
-        const paged = filteredGroupedEvents.slice(startIndex, startIndex + itemsPerPage);
-        setDisplayedEvents(paged);
-
-        // Scroll to top when page changes
         if (scrollContainerRef.current) {
             scrollContainerRef.current.scrollTo({ top: 0, behavior: "smooth" });
         }
-    }, [filteredGroupedEvents, currentPage, itemsPerPage]);
+    }, [displayedEvents]);
 
-    const totalPages = useMemo(() =>
-        Math.ceil(filteredGroupedEvents.length / itemsPerPage)
-        , [filteredGroupedEvents.length, itemsPerPage]);
-
-    if (loading) {
+    if (loading && displayedEvents.length === 0) {
         return (
             <div className="flex justify-center items-center h-96">
                 <p className="text-xl text-muted-foreground animate-pulse">Loading events...</p>
@@ -244,14 +123,14 @@ export const Feed = () => {
                         value={searchQuery}
                         onChange={(e) => {
                             setSearchQuery(e.target.value);
-                            setCurrentPage(1); // Reset page on search
+                            // Page reset handled in debounce effect
                         }}
                         placeholder={t('feed.searchPlaceholder')}
                         className="w-full pl-10 pr-4 py-3 rounded-xl bg-background/50 border border-input text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring transition-all"
                     />
                 </div>
                 <p className="text-right text-xs text-muted-foreground px-1 h-4">
-                    {filteredGroupedEvents.length > 0 && t('feed.eventsFound', { count: filteredGroupedEvents.length })}
+                    {totalEvents > 0 && t('feed.eventsFound', { count: totalEvents })}
                 </p>
                 {/* Search Filters */}
                 <div className="max-w-xl mx-auto mb-6 w-full shrink-0 flex flex-col gap-2">
@@ -293,7 +172,7 @@ export const Feed = () => {
                 <div className="flex justify-between items-center mt-4 pt-2 shrink-0">
                     <button
                         onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                        disabled={currentPage === 1}
+                        disabled={currentPage === 1 || loading}
                         className="px-4 py-2 rounded-lg bg-secondary text-secondary-foreground disabled:opacity-50 disabled:cursor-not-allowed hover:bg-secondary/80 transition-colors font-medium text-sm"
                     >
                         Previous
@@ -303,7 +182,7 @@ export const Feed = () => {
                     </span>
                     <button
                         onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                        disabled={currentPage === totalPages}
+                        disabled={currentPage === totalPages || loading}
                         className="px-4 py-2 rounded-lg bg-secondary text-secondary-foreground disabled:opacity-50 disabled:cursor-not-allowed hover:bg-secondary/80 transition-colors font-medium text-sm"
                     >
                         Next
