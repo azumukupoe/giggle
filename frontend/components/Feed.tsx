@@ -1,6 +1,7 @@
+
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { EventCard } from "./EventCard";
 import { GroupedEvent } from "@/types/event";
 import { useLanguage } from "./LanguageContext";
@@ -10,10 +11,9 @@ export const Feed = () => {
     const { t } = useLanguage();
 
     // Data State
+    const [allGroupedEvents, setAllGroupedEvents] = useState<GroupedEvent[]>([]);
     const [displayedEvents, setDisplayedEvents] = useState<GroupedEvent[]>([]);
     const [loading, setLoading] = useState(true);
-    const [totalEvents, setTotalEvents] = useState(0);
-    const [totalPages, setTotalPages] = useState(1);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
 
     // UI State
@@ -45,6 +45,7 @@ export const Feed = () => {
         };
     }, [searchQuery]);
 
+    // Fetch ALL pre-grouped events on mount
     useEffect(() => {
         let ignore = false;
 
@@ -52,14 +53,8 @@ export const Feed = () => {
             setLoading(true);
 
             try {
-                const params = new URLSearchParams({
-                    page: currentPage.toString(),
-                    limit: itemsPerPage.toString(),
-                    search: debouncedSearchQuery,
-                    filters: activeFilters.join(",")
-                });
-
-                const response = await fetch(`/api/events?${params.toString()}`);
+                // Fetch ALL events (already grouped by server)
+                const response = await fetch(`/api/events?all=true`);
                 if (!response.ok) {
                     throw new Error("Failed to fetch events");
                 }
@@ -67,14 +62,12 @@ export const Feed = () => {
                 const data = await response.json();
 
                 if (!ignore) {
-                    setDisplayedEvents(data.events);
-                    setTotalEvents(data.total);
-                    setTotalPages(data.totalPages);
+                    setAllGroupedEvents(data.events || []);
                 }
             } catch (error) {
                 console.error("Error loading events:", error);
                 if (!ignore) {
-                    setDisplayedEvents([]);
+                    setAllGroupedEvents([]);
                 }
             } finally {
                 if (!ignore) {
@@ -88,16 +81,58 @@ export const Feed = () => {
         return () => {
             ignore = true;
         };
-    }, [debouncedSearchQuery, activeFilters, currentPage, itemsPerPage]);
+    }, []);
 
-    // Scroll to top when events change (e.g. page change)
+    // Client-side filtering and pagination
+    const filteredEvents = useMemo(() => {
+        if (!debouncedSearchQuery && activeFilters.length === 0) {
+            return allGroupedEvents;
+        }
+
+        const lowerQ = debouncedSearchQuery.toLowerCase();
+
+        return allGroupedEvents.filter(e => {
+            const searchAll = activeFilters.length === 0;
+
+            const matchEvent = (searchAll || activeFilters.includes('event')) &&
+                e.event.toLowerCase().includes(lowerQ);
+
+            const matchPerformer = (searchAll || activeFilters.includes('performer')) &&
+                e.performer.toLowerCase().includes(lowerQ);
+
+            const matchVenue = (searchAll || activeFilters.includes('venue')) &&
+                e.venue.toLowerCase().includes(lowerQ);
+
+            const matchLocation = (searchAll || activeFilters.includes('location')) &&
+                e.location.toLowerCase().includes(lowerQ);
+
+            const matchDate = (searchAll || activeFilters.includes('date')) && (
+                e.date.toLowerCase().includes(lowerQ) ||
+                e.displayDates.some(d => d.toLowerCase().includes(lowerQ))
+            );
+
+            return matchEvent || matchPerformer || matchVenue || matchLocation || matchDate;
+        });
+    }, [allGroupedEvents, debouncedSearchQuery, activeFilters]);
+
+    // Apply pagination
+    const totalEvents = filteredEvents.length;
+    const totalPages = Math.ceil(totalEvents / itemsPerPage);
+
+    useEffect(() => {
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const paged = filteredEvents.slice(startIndex, startIndex + itemsPerPage);
+        setDisplayedEvents(paged);
+    }, [filteredEvents, currentPage, itemsPerPage]);
+
+    // Scroll to top when displayed events change (only if page changed or filters drastically changed)
     useEffect(() => {
         if (scrollContainerRef.current) {
             scrollContainerRef.current.scrollTo({ top: 0, behavior: "smooth" });
         }
-    }, [displayedEvents]);
+    }, [currentPage]); // Only scroll on page change to avoid jarring jumps on typing
 
-    if (loading && displayedEvents.length === 0) {
+    if (loading && allGroupedEvents.length === 0) {
         return (
             <div className="flex justify-center items-center h-96">
                 <p className="text-xl text-muted-foreground animate-pulse">Loading events...</p>
@@ -130,7 +165,7 @@ export const Feed = () => {
                     />
                 </div>
                 <p className="text-right text-xs text-muted-foreground px-1 h-4">
-                    {totalEvents > 0 && t('feed.eventsFound', { count: totalEvents })}
+                    {filteredEvents.length > 0 && t('feed.eventsFound', { count: filteredEvents.length })}
                 </p>
                 {/* Search Filters */}
                 <div className="max-w-xl mx-auto mb-6 w-full shrink-0 flex flex-col gap-2">
@@ -172,7 +207,7 @@ export const Feed = () => {
                 <div className="flex justify-between items-center mt-4 pt-2 shrink-0">
                     <button
                         onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                        disabled={currentPage === 1 || loading}
+                        disabled={currentPage === 1}
                         className="px-4 py-2 rounded-lg bg-secondary text-secondary-foreground disabled:opacity-50 disabled:cursor-not-allowed hover:bg-secondary/80 transition-colors font-medium text-sm"
                     >
                         Previous
@@ -182,7 +217,7 @@ export const Feed = () => {
                     </span>
                     <button
                         onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                        disabled={currentPage === totalPages || loading}
+                        disabled={currentPage === totalPages}
                         className="px-4 py-2 rounded-lg bg-secondary text-secondary-foreground disabled:opacity-50 disabled:cursor-not-allowed hover:bg-secondary/80 transition-colors font-medium text-sm"
                     >
                         Next
