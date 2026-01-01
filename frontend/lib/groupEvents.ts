@@ -19,6 +19,7 @@ interface IntermediateGroup {
     urls: Set<string>;
     eventNames: Set<string>;
     performers: Set<string>;
+    venues: Set<string>;
     dates: Set<string>; // Set of ISO strings
     venueNormalized: string;
     sourceEvents: Event[];
@@ -84,6 +85,7 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
                 group.urls.add(event.url);
                 group.eventNames.add(event.event);
                 group.performers.add(event.performer);
+                group.venues.add(event.venue);
                 const dateTimeStr = event.time ? `${event.date}T${event.time}` : event.date;
                 group.dates.add(dateTimeStr);
                 group.sourceEvents.push(event);
@@ -101,6 +103,7 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
                 urls: new Set([event.url]),
                 eventNames: new Set([event.event]),
                 performers: new Set([event.performer]),
+                venues: new Set([event.venue]),
                 dates: new Set([dateTimeStr]),
                 sourceEvents: [event]
             });
@@ -121,6 +124,7 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
             group.urls.forEach(u => existing.urls.add(u));
             group.eventNames.forEach(t => existing.eventNames.add(t));
             group.performers.forEach(a => existing.performers.add(a));
+            group.venues.forEach(v => existing.venues.add(v));
             group.dates.forEach(d => existing.dates.add(d));
             existing.sourceEvents.push(...group.sourceEvents);
         } else {
@@ -151,8 +155,8 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
         return {
             id: g.baseEvent.id, // Use ID of first event
             event: mergeEventNames(g.eventNames),
-            performer: Array.from(g.performers).join("\n\n"),
-            venue: g.baseEvent.venue,
+            performer: resolveCaseVariations(Array.from(g.performers)).join("\n\n"),
+            venue: resolveCaseVariations(Array.from(g.venues))[0],
             location: g.baseEvent.location,
             date: g.baseEvent.date, // Use earliest date for sorting usually?
             time,
@@ -199,7 +203,7 @@ export function compareGroupedEvents(a: GroupedEvent, b: GroupedEvent): number {
 
 
 export function mergeEventNames(namesSet: Set<string>): string {
-    const names = Array.from(namesSet);
+    const names = resolveCaseVariations(Array.from(namesSet));
     // Filter out any name that is strictly contained in another name
     // Example: "A" vs "A / B" -> "A" is in "A / B", so we keep "A / B" and drop "A"
     const uniqueNames = names.filter(t1 => {
@@ -208,6 +212,36 @@ export function mergeEventNames(namesSet: Set<string>): string {
     });
 
     return uniqueNames.join(" / ");
+}
+
+function resolveCaseVariations(items: string[]): string[] {
+    const grouped = new Map<string, string[]>();
+    for (const item of items) {
+        const key = item.toLowerCase();
+        if (!grouped.has(key)) grouped.set(key, []);
+        grouped.get(key)!.push(item);
+    }
+
+    const result: string[] = [];
+    for (const variations of grouped.values()) {
+        if (variations.length === 1) {
+            result.push(variations[0]);
+            continue;
+        }
+
+        // Find non-all-caps variants
+        // An item is "all caps" if item === item.toUpperCase() AND item !== item.toLowerCase() (to exclude "123")
+        const nonAllCaps = variations.filter(v => v !== v.toUpperCase() || v === v.toLowerCase());
+
+        if (nonAllCaps.length > 0) {
+            // Pick the first non-all-caps variant
+            result.push(nonAllCaps[0]);
+        } else {
+            // All are all-caps, just pick the first one
+            result.push(variations[0]);
+        }
+    }
+    return result;
 }
 
 function filterRedundantDates(dates: string[]): string[] {
