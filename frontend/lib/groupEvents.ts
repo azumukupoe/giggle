@@ -1,15 +1,15 @@
 import { differenceInCalendarDays, parseISO } from "date-fns";
 import { Event, GroupedEvent } from "@/types/event";
 
-const normalizeVenue = (venue: string): string => {
-    return venue
+const normalizeVenue = (venue: string | null | undefined): string => {
+    return (venue || "")
         .toLowerCase()
         .replace(/,?\s*japan$/, "")
         .replace(/\s+/g, "");
 };
 
-const normalizeEventName = (name: string): string => {
-    return name.toLowerCase().trim();
+const normalizeEventName = (name: string | null | undefined): string => {
+    return (name || "").toLowerCase().trim();
 };
 
 
@@ -162,8 +162,8 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
             id: g.baseEvent.id, // Use ID of first event
             event: mergeEventNames(g.eventNames),
             performer: resolveCaseVariations(Array.from(g.performers)).join("\n\n"),
-            venue: resolveCaseVariations(Array.from(g.venues))[0],
-            location: g.baseEvent.location,
+            venue: resolveCaseVariations(Array.from(g.venues))[0] || "",
+            location: g.baseEvent.location || "",
             date: g.baseEvent.date, // Use earliest date for sorting usually?
             time,
             urls: Array.from(g.urls),
@@ -223,6 +223,7 @@ export function mergeEventNames(namesSet: Set<string>): string {
 function resolveCaseVariations(items: string[]): string[] {
     const grouped = new Map<string, string[]>();
     for (const item of items) {
+        if (!item) continue;
         const key = item.toLowerCase();
         if (!grouped.has(key)) grouped.set(key, []);
         grouped.get(key)!.push(item);
