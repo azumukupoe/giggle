@@ -25,6 +25,20 @@ interface IntermediateGroup {
     sourceEvents: Event[];
 }
 
+// Helper to create safe ISO strings
+export const createIsoDate = (date: string, time: string | null): string => {
+    if (!time) return date;
+
+    // Fix timezone offset if it's missing the minute part (e.g. "+09" -> "+09:00")
+    // This happens with some Postgres versions/configurations and causes "Invalid Date" in JS
+    let properTime = time;
+    if (/[+-]\d{2}$/.test(time)) {
+        properTime = `${time}:00`;
+    }
+
+    return `${date}T${properTime}`;
+};
+
 export function groupEvents(events: Event[]): GroupedEvent[] {
     if (events.length === 0) return [];
 
@@ -72,6 +86,9 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
 
             let isConsecutiveOrSame = false;
             for (const dStr of Array.from(group.dates)) {
+                // Handle potential T-separator in dStr if we used createIsoDate
+                // note: dStr might behave differently if it has Time.
+                // parseISO handles ISO strings well.
                 const groupDate = parseISO(dStr);
                 const diff = Math.abs(differenceInCalendarDays(eventDate, groupDate));
                 if (diff <= 1) {
@@ -86,7 +103,7 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
                 group.eventNames.add(event.event);
                 group.performers.add(event.performer);
                 group.venues.add(event.venue);
-                const dateTimeStr = event.time ? `${event.date}T${event.time}` : event.date;
+                const dateTimeStr = createIsoDate(event.date, event.time);
                 group.dates.add(dateTimeStr);
                 group.sourceEvents.push(event);
                 matched = true;
@@ -96,7 +113,7 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
 
         if (!matched) {
             // Create new group
-            const dateTimeStr = event.time ? `${event.date}T${event.time}` : event.date;
+            const dateTimeStr = createIsoDate(event.date, event.time);
             pass1Groups.push({
                 baseEvent: event,
                 venueNormalized: normVenue,

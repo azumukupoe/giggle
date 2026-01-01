@@ -6,7 +6,7 @@ import { Event, GroupedEvent } from "@/types/event";
 import { supabase } from "@/lib/supabase";
 import { useLanguage } from "./LanguageContext";
 import { Search } from "lucide-react";
-import { groupEvents, mergeEventNames, compareGroupedEvents } from "@/lib/groupEvents";
+import { groupEvents, mergeEventNames, compareGroupedEvents, createIsoDate } from "@/lib/groupEvents";
 
 export const Feed = () => {
     const { t } = useLanguage();
@@ -120,7 +120,7 @@ export const Feed = () => {
             const validDateSet = new Set(validDates);
             const validEvents = group.sourceEvents
                 .filter(ev => {
-                    const dStr = ev.time ? `${ev.date}T${ev.time}` : ev.date;
+                    const dStr = createIsoDate(ev.date, ev.time);
                     // If the exact date string is in validDates, keep the URL
                     // Note: validDates has already been filtered by 'now' AND by redundancy (in groupEvents)
                     // So if "Dec 30" was removed because "Dec 30 19:00" exists, the URL for "Dec 30" event will also be removed here.
