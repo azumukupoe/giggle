@@ -135,18 +135,19 @@ const TooltippedLink = ({
     const [tooltipPos, setTooltipPos] = useState<{ top?: number, bottom?: number, left: number, maxHeight?: number }>({ left: 0 });
     const isTouchRef = useRef(false);
 
-    const updatePosition = () => {
-        if (ref.current) {
-            const rect = ref.current.getBoundingClientRect();
-            setTooltipPos(calculateTooltipPosition(rect, null, null, false));
+
+
+    const handleMouseEnter = (e: React.MouseEvent) => {
+        if (isTouchRef.current) return;
+        if (title) {
+            setTooltipPos(calculateTooltipPosition(null, e.clientX, e.clientY, true));
+            setShowTooltip(true);
         }
     };
 
-    const handleMouseEnter = () => {
-        if (isTouchRef.current) return;
-        if (title) {
-            updatePosition();
-            setShowTooltip(true);
+    const handleMouseMove = (e: React.MouseEvent) => {
+        if (showTooltip) {
+            setTooltipPos(calculateTooltipPosition(null, e.clientX, e.clientY, true));
         }
     };
 
@@ -164,7 +165,7 @@ const TooltippedLink = ({
         if (isTouchRef.current) {
             if (!showTooltip && title) {
                 e.preventDefault();
-                updatePosition();
+                setTooltipPos(calculateTooltipPosition(null, e.clientX, e.clientY, true));
                 setShowTooltip(true);
             }
             // If tooltip is already shown, allow default (navigation)
@@ -180,6 +181,7 @@ const TooltippedLink = ({
                 rel="noopener noreferrer"
                 className={className}
                 onMouseEnter={handleMouseEnter}
+                onMouseMove={handleMouseMove}
                 onMouseLeave={handleMouseLeave}
                 onTouchStart={handleTouchStart}
                 onClick={handleClick}
@@ -197,7 +199,7 @@ const TruncatedText = ({
     className,
     as: Component = 'p',
     maxLines = 0,
-    followCursor = false
+    followCursor = true
 }: {
     text: string,
     tooltipText?: string,
@@ -366,7 +368,7 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
                                 <TooltippedLink
                                     key={index}
                                     href={sourceEvent.url}
-                                    title={sourceEvent.ticket || ""}
+                                    title={decodeHtml(sourceEvent.ticket || "")}
                                     className="flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-md bg-secondary text-secondary-foreground font-medium text-xs hover:bg-secondary/80 transition-colors whitespace-nowrap w-full"
                                 >
                                     {hostname && (
