@@ -107,12 +107,13 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
         }
     }
 
-    // --- Pass 2: Group by Venue + Time Signature ---
+    // --- Pass 2: Group by Venue + Start Time ---
     const pass2Map = new Map<string, IntermediateGroup>();
 
     for (const group of pass1Groups) {
-        const dateSig = Array.from(group.dates).sort().join("|");
-        const key = `${group.venueNormalized}__${dateSig}`;
+        const sortedDates = Array.from(group.dates).sort();
+        const startTime = sortedDates[0];
+        const key = `${group.venueNormalized}__${startTime}`;
 
         if (pass2Map.has(key)) {
             const existing = pass2Map.get(key)!;
