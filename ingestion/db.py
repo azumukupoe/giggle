@@ -34,6 +34,11 @@ def upsert_events(supabase: Client, events: list):
                     event_dict["time"] = event_dict["time"].isoformat()
                 else:
                     event_dict["time"] = None
+            
+            # Convert empty values to None
+            for key in ["ticket", "performer", "venue", "location"]:
+                if key in event_dict and event_dict[key] == "":
+                    event_dict[key] = None
         else:
             event_dict = {
                 "event": e.event,
@@ -45,7 +50,11 @@ def upsert_events(supabase: Client, events: list):
                 "location": e.location,
                 "url": e.url
             }
-        
+
+            # Convert empty values to None
+            for key in ["ticket", "performer", "venue", "location"]:
+                if key in event_dict and event_dict[key] == "":
+                    event_dict[key] = None
 
         data.append(event_dict)
 

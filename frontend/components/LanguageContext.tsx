@@ -12,22 +12,34 @@ interface LanguageContextType {
 
 const translations = {
     en: {
-        "feed.searchPlaceholder": "Search by artist, venue, or city...",
+        "feed.searchPlaceholder": "Search by event, artist, venue, location, or date...",
         "feed.noEvents": "No upcoming concerts found.",
         "feed.eventsFound": "{count} events found",
         "feed.loading": "Loading events...",
         "theme.light": "Light",
         "theme.dark": "Dark",
         "theme.system": "System",
+        "search.filterBy": "Filter by:",
+        "search.event": "Event",
+        "search.performer": "Performer",
+        "search.venue": "Venue",
+        "search.location": "Location",
+        "search.date": "Date",
     },
     ja: {
-        "feed.searchPlaceholder": "アーティスト、会場、都市で検索...",
+        "feed.searchPlaceholder": "イベント、出演者、会場、場所、または日程で検索...",
         "feed.noEvents": "予定されているコンサートは見つかりませんでした。",
         "feed.eventsFound": "{count} 件のイベント",
         "feed.loading": "読み込み中...",
         "theme.light": "ライト",
         "theme.dark": "ダーク",
         "theme.system": "システム",
+        "search.filterBy": "フィルター:",
+        "search.event": "イベント",
+        "search.performer": "出演者",
+        "search.venue": "会場",
+        "search.location": "場所",
+        "search.date": "日程",
     }
 };
 

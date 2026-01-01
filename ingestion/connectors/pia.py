@@ -80,7 +80,7 @@ class PiaConnector(BaseConnector):
                 for bundle in event_bundles:
                     # Title from h3 > a
                     title_tag = bundle.select_one('h3 > a')
-                    title = self._normalize_text(title_tag.get_text()) if title_tag else "Unknown"
+                    title = unicodedata.normalize('NFKC', title_tag.get_text()).strip() if title_tag else "Unknown"
                     if title == "Unknown":
                         continue
 
@@ -116,7 +116,7 @@ class PiaConnector(BaseConnector):
 
                             # Venue Parsing
                             venue_div = sub.select_one('.PC-perfinfo-venue')
-                            raw_venue = self._normalize_text(venue_div.get_text()) if venue_div else "Unknown"
+                            raw_venue = unicodedata.normalize('NFKC', venue_div.get_text()).strip() if venue_div else "Unknown"
                             
                             venue = raw_venue
                             location = "" # Default to empty
@@ -151,7 +151,7 @@ class PiaConnector(BaseConnector):
                                 # Let's try to get text node directly or just strip.
                                 # For now, simple get_text() should work but might include extra chars. 
                                 # Use strip() to clean up.
-                                ticket_name = self._normalize_text(ticket_name_h4.get_text())
+                                ticket_name = unicodedata.normalize('NFKC', ticket_name_h4.get_text()).strip()
 
                             # Create Event
                             event = Event(
@@ -188,11 +188,7 @@ class PiaConnector(BaseConnector):
         # to generic list scraping, but keeping interface compliant.
         return []
 
-    def _normalize_text(self, text: str) -> str:
-        if not text:
-            return ""
-        # NFKC normalizes full-width to half-width (e.g. Ｚｅｐｐ -> Zepp)
-        return unicodedata.normalize('NFKC', text).strip()
+
 
     def _parse_date(self, date_str: str) -> Optional[date]:
         if not date_str:

@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import List, Optional
+import unicodedata
 from datetime import datetime, date, time
 from pydantic import BaseModel, field_validator
 
@@ -18,7 +19,8 @@ class Event(BaseModel):
     def clean_text(cls, v: Optional[str]) -> Optional[str]:
         if not v:
             return v
-        return v.replace('\xa0', ' ').strip()
+        # NFKC normalizes full-width to half-width (e.g. Ｚｅｐｐ -> Zepp)
+        return unicodedata.normalize('NFKC', v).strip().replace('\xa0', ' ')
 
 class BaseConnector(ABC):
     def __init__(self):

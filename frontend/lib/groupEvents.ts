@@ -1,18 +1,15 @@
 import { differenceInCalendarDays, parseISO } from "date-fns";
 import { Event, GroupedEvent } from "@/types/event";
-
-const normalizeVenue = (venue: string | null | undefined): string => {
-    return (venue || "")
-        .toLowerCase()
-        .replace(/,?\s*japan$/, "")
-        .replace(/\s+/g, "");
-};
-
-const normalizeEventName = (name: string | null | undefined): string => {
-    return (name || "").toLowerCase().trim();
-};
-
-
+import {
+    normalizeVenue,
+    normalizeEventName,
+    createIsoDate,
+    getDomain,
+    compareGroupedEvents,
+    mergeEventNames,
+    resolveCaseVariations,
+    filterRedundantDates
+} from "./eventUtils";
 
 interface IntermediateGroup {
     baseEvent: Event;
@@ -24,20 +21,6 @@ interface IntermediateGroup {
     venueNormalized: string;
     sourceEvents: Event[];
 }
-
-// Helper to create safe ISO strings
-export const createIsoDate = (date: string, time: string | null): string => {
-    if (!time) return date;
-
-    // Fix timezone offset if it's missing the minute part (e.g. "+09" -> "+09:00")
-    // This happens with some Postgres versions/configurations and causes "Invalid Date" in JS
-    let properTime = time;
-    if (/[+-]\d{2}$/.test(time)) {
-        properTime = `${time}:00`;
-    }
-
-    return `${date}T${properTime}`;
-};
 
 export function groupEvents(events: Event[]): GroupedEvent[] {
     if (events.length === 0) return [];
@@ -188,105 +171,4 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
             displayDates: filterRedundantDates(Array.from(g.dates)) // Sorted list for display
         };
     }).sort(compareGroupedEvents);
-}
-
-export const getDomain = (url: string): string => {
-    try {
-        return new URL(url).hostname.replace(/^www\./, "");
-    } catch {
-        return "";
-    }
-};
-
-export function compareGroupedEvents(a: GroupedEvent, b: GroupedEvent): number {
-    const dateDiff = new Date(a.date).getTime() - new Date(b.date).getTime();
-    if (dateDiff !== 0) return dateDiff;
-
-    // If dates are equal, sort by time (nulls first)
-    if (!a.time && !b.time) {
-        const eventDiff = a.event.localeCompare(b.event);
-        if (eventDiff !== 0) return eventDiff;
-        const domainA = a.urls.length > 0 ? getDomain(a.urls[0]) : "";
-        const domainB = b.urls.length > 0 ? getDomain(b.urls[0]) : "";
-        return domainA.localeCompare(domainB);
-    }
-    if (!a.time) return -1;
-    if (!b.time) return 1;
-
-    const timeDiff = a.time.localeCompare(b.time);
-    if (timeDiff !== 0) return timeDiff;
-
-    const eventDiff = a.event.localeCompare(b.event);
-    if (eventDiff !== 0) return eventDiff;
-
-    const domainA = a.urls.length > 0 ? getDomain(a.urls[0]) : "";
-    const domainB = b.urls.length > 0 ? getDomain(b.urls[0]) : "";
-    return domainA.localeCompare(domainB);
-}
-
-
-export function mergeEventNames(namesSet: Set<string>): string {
-    const names = resolveCaseVariations(Array.from(namesSet));
-    // Filter out any name that is strictly contained in another name
-    // Example: "A" vs "A / B" -> "A" is in "A / B", so we keep "A / B" and drop "A"
-    const uniqueNames = names.filter(t1 => {
-        // If t1 is contained in any OTHER name t2, drop t1.
-        return !names.some(t2 => t2 !== t1 && t2.includes(t1));
-    });
-
-    return uniqueNames.join(" / ");
-}
-
-function resolveCaseVariations(items: string[]): string[] {
-    const grouped = new Map<string, string[]>();
-    for (const item of items) {
-        if (!item) continue;
-        const key = item.toLowerCase();
-        if (!grouped.has(key)) grouped.set(key, []);
-        grouped.get(key)!.push(item);
-    }
-
-    const result: string[] = [];
-    for (const variations of grouped.values()) {
-        if (variations.length === 1) {
-            result.push(variations[0]);
-            continue;
-        }
-
-        // Find non-all-caps variants
-        // An item is "all caps" if item === item.toUpperCase() AND item !== item.toLowerCase() (to exclude "123")
-        const nonAllCaps = variations.filter(v => v !== v.toUpperCase() || v === v.toLowerCase());
-
-        if (nonAllCaps.length > 0) {
-            // Pick the first non-all-caps variant
-            result.push(nonAllCaps[0]);
-        } else {
-            // All are all-caps, just pick the first one
-            result.push(variations[0]);
-        }
-    }
-    return result;
-}
-
-function filterRedundantDates(dates: string[]): string[] {
-    const datesWithTime = new Set<string>();
-    const datesWithoutTime = new Set<string>();
-
-    dates.forEach(d => {
-        if (d.includes("T")) {
-            datesWithTime.add(d.split("T")[0]);
-        } else {
-            datesWithoutTime.add(d);
-        }
-    });
-
-    return dates.filter(d => {
-        // If it matches YYYY-MM-DD exactly (no time)
-        if (!d.includes("T")) {
-            // Keep it ONLY if there is NO corresponding entry with time
-            return !datesWithTime.has(d);
-        }
-        // Always keep entries with time
-        return true;
-    }).sort();
 }

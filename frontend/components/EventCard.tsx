@@ -310,12 +310,9 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
                 {/* Flex-grow allows this section to take available space. min-h-0 allows valid truncation inside flex item. */}
                 <div className="flex flex-col flex-grow min-h-0 mb-2">
                     <div className="mb-1 shrink-0">
-                        <TruncatedText
-                            as="h3"
-                            text={decodeHtml(event.event)}
-                            className="text-lg font-bold leading-tight"
-                        // Removed maxLines to never truncate title
-                        />
+                        <h3 className="text-lg font-bold leading-tight break-words">
+                            {decodeHtml(event.event)}
+                        </h3>
                     </div>
 
                     {/* Artist/Details takes remaining space */}

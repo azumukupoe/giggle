@@ -20,6 +20,15 @@ export const Feed = () => {
     // UI State
     const [searchQuery, setSearchQuery] = useState("");
     const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+    const [activeFilters, setActiveFilters] = useState<string[]>([]);
+
+    const toggleFilter = (filter: string) => {
+        setActiveFilters(prev =>
+            prev.includes(filter)
+                ? prev.filter(f => f !== filter)
+                : [...prev, filter]
+        );
+    };
 
     // Debounce search query
     useEffect(() => {
@@ -165,12 +174,31 @@ export const Feed = () => {
         // Then filter by search query
         if (!debouncedSearchQuery) return timeFiltered;
         const lowerQ = debouncedSearchQuery.toLowerCase();
-        return timeFiltered.filter(e =>
-            e.event.toLowerCase().includes(lowerQ) ||
-            e.performer.toLowerCase().includes(lowerQ) ||
-            e.venue.toLowerCase().includes(lowerQ) ||
-            e.location.toLowerCase().includes(lowerQ)
-        );
+
+        return timeFiltered.filter(e => {
+            const searchAll = activeFilters.length === 0;
+
+            const matchEvent = (searchAll || activeFilters.includes('event')) &&
+                e.event.toLowerCase().includes(lowerQ);
+
+            const matchPerformer = (searchAll || activeFilters.includes('performer')) &&
+                e.performer.toLowerCase().includes(lowerQ);
+
+            const matchVenue = (searchAll || activeFilters.includes('venue')) &&
+                e.venue.toLowerCase().includes(lowerQ);
+
+            const matchLocation = (searchAll || activeFilters.includes('location')) &&
+                e.location.toLowerCase().includes(lowerQ);
+
+            // Check date if filter is active or searching all
+            // Search against YYYY-MM-DD or display dates strings
+            const matchDate = (searchAll || activeFilters.includes('date')) && (
+                e.date.toLowerCase().includes(lowerQ) ||
+                e.displayDates.some(d => d.toLowerCase().includes(lowerQ))
+            );
+
+            return matchEvent || matchPerformer || matchVenue || matchLocation || matchDate;
+        });
     }, [allEvents, debouncedSearchQuery, now]);
 
     // Paginate filtered events
@@ -224,6 +252,24 @@ export const Feed = () => {
                 <p className="text-right text-xs text-muted-foreground px-1 h-4">
                     {filteredGroupedEvents.length > 0 && t('feed.eventsFound', { count: filteredGroupedEvents.length })}
                 </p>
+                {/* Search Filters */}
+                <div className="max-w-xl mx-auto mb-6 w-full shrink-0 flex flex-col gap-2">
+                    <div className="flex flex-wrap gap-2 justify-center">
+                        <span className="text-sm text-muted-foreground mr-2 self-center">{t('search.filterBy')}</span>
+                        {['event', 'performer', 'venue', 'location', 'date'].map((filter) => (
+                            <button
+                                key={filter}
+                                onClick={() => toggleFilter(filter)}
+                                className={`px-3 py-1 rounded-full text-xs font-medium transition-colors border ${activeFilters.includes(filter)
+                                        ? 'bg-primary text-primary-foreground border-primary'
+                                        : 'bg-background text-muted-foreground border-input hover:bg-accent hover:text-accent-foreground'
+                                    }`}
+                            >
+                                {t(`search.${filter}`)}
+                            </button>
+                        ))}
+                    </div>
+                </div>
             </div>
 
             {/* Grid */}
