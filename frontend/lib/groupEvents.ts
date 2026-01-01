@@ -116,7 +116,13 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
     for (const group of pass1Groups) {
         const sortedDates = Array.from(group.dates).sort();
         const startTime = sortedDates[0];
-        const key = `${group.venueNormalized}__${startTime}`;
+        let key = `${group.venueNormalized}__${startTime}`;
+
+        // If start time is null (meaning it's just a date string grouping), do NOT group in pass 2.
+        // We ensure uniqueness by appending the base event ID to the key.
+        if (!startTime.includes("T")) {
+            key += `__${group.baseEvent.id}`;
+        }
 
         if (pass2Map.has(key)) {
             const existing = pass2Map.get(key)!;
