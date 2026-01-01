@@ -6,7 +6,8 @@ import { Event, GroupedEvent } from "@/types/event";
 import { supabase } from "@/lib/supabase";
 import { useLanguage } from "./LanguageContext";
 import { Search } from "lucide-react";
-import { groupEvents, mergeEventNames, compareGroupedEvents, createIsoDate } from "@/lib/groupEvents";
+import { groupEvents } from "@/lib/groupEvents";
+import { mergeEventNames, compareGroupedEvents, createIsoDate } from "@/lib/eventUtils";
 
 export const Feed = () => {
     const { t } = useLanguage();
@@ -261,8 +262,8 @@ export const Feed = () => {
                                 key={filter}
                                 onClick={() => toggleFilter(filter)}
                                 className={`px-3 py-1 rounded-full text-xs font-medium transition-colors border ${activeFilters.includes(filter)
-                                        ? 'bg-primary text-primary-foreground border-primary'
-                                        : 'bg-background text-muted-foreground border-input hover:bg-accent hover:text-accent-foreground'
+                                    ? 'bg-primary text-primary-foreground border-primary'
+                                    : 'bg-background text-muted-foreground border-input hover:bg-accent hover:text-accent-foreground'
                                     }`}
                             >
                                 {t(`search.${filter}`)}
