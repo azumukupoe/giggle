@@ -59,39 +59,27 @@ const REVERSE_PREFECTURES: Record<string, string> = Object.entries(PREFECTURES).
 export const localizePrefecture = (location: string, language: string): string => {
     if (!location) return "";
 
+    let result = location;
+
     // If target is Japanese
     if (language === 'ja') {
-        // Check if we have English names to replace with Japanese
-        for (const [en, ja] of Object.entries(PREFECTURES)) {
-            // Simple case-insensitive match for the English string
-            const regex = new RegExp(`\\b${en}\\b`, 'gi');
-            if (location.match(regex)) {
-                return location.replace(regex, ja);
-            }
-        }
-        // Also handle cases where "Prefecture" might be appended in English input like "Aichi Prefecture"
-        // Since the key is just "Aichi", the above loop catches it, but we might end up with "愛知県 Prefecture" if we are not careful.
-        // However, the simple replacement is a good start. Refinement:
-        // If we replace "Aichi" with "愛知県", then "Aichi Prefecture" becomes "愛知県 Prefecture".
-        // We might want to remove "Prefecture" word if it follows.
-
-        // Improved loop for En -> Ja
+        // En -> Ja
         for (const [en, ja] of Object.entries(PREFECTURES)) {
             const regex = new RegExp(`\\b${en}(?:\\s+Prefecture)?\\b`, 'gi');
-            if (location.match(regex)) {
-                return location.replace(regex, ja);
+            if (result.match(regex)) {
+                result = result.replace(regex, ja);
             }
         }
     }
     // If target is English
     else {
-        // Check if we have Japanese names to replace with English
+        // Ja -> En
         for (const [ja, en] of Object.entries(REVERSE_PREFECTURES)) {
-            if (location.includes(ja)) {
-                return location.replace(ja, en);
+            if (result.includes(ja)) {
+                result = result.replace(ja, en);
             }
         }
     }
 
-    return location;
+    return result;
 };

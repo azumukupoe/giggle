@@ -129,7 +129,7 @@ class EplusConnector(BaseConnector):
             pref_name = venue_info.get('todofuken_name')
             location = pref_name if pref_name else ""
 
-            uketsuke_list = item.get('uketsuke_list')
+            uketsuke_list = item.get('kanren_uketsuke_koen_list')
             ticket_name = ""
             artist = None
             if uketsuke_list:
