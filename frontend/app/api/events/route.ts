@@ -140,30 +140,42 @@ export async function GET(request: NextRequest) {
                 const searchAll = filters.length === 0;
 
                 const matchEvent = (searchAll || filters.includes('event')) &&
+                    e.event.toLowerCase().includes(searchQuery);
+
+                const matchPerformer = (searchAll || filters.includes('performer')) &&
+                    e.performer.toLowerCase().includes(searchQuery);
+
+                const matchVenue = (searchAll || filters.includes('venue')) &&
+                    e.venue.toLowerCase().includes(searchQuery);
+
+                const matchLocation = (searchAll || filters.includes('location')) &&
+                    e.location.toLowerCase().includes(searchQuery);
+
+                const matchDate = (searchAll || filters.includes('date')) && (
                     e.date.toLowerCase().includes(searchQuery) ||
                     e.displayDates.some(d => d.toLowerCase().includes(searchQuery))
                 );
 
-            return matchEvent || matchPerformer || matchVenue || matchLocation || matchDate;
-        });
-    }
+                return matchEvent || matchPerformer || matchVenue || matchLocation || matchDate;
+            });
+        }
 
         // 4. Pagination
         const total = finalEvents.length;
-    const totalPages = Math.ceil(total / limit);
-    const startIndex = (page - 1) * limit;
-    const paginated = finalEvents.slice(startIndex, startIndex + limit);
+        const totalPages = Math.ceil(total / limit);
+        const startIndex = (page - 1) * limit;
+        const paginated = finalEvents.slice(startIndex, startIndex + limit);
 
-    return NextResponse.json({
-        events: paginated,
-        page,
-        limit,
-        total,
-        totalPages
-    });
+        return NextResponse.json({
+            events: paginated,
+            page,
+            limit,
+            total,
+            totalPages
+        });
 
-} catch (e) {
-    console.error("API Error:", e);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
-}
+    } catch (e) {
+        console.error("API Error:", e);
+        return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    }
 }
