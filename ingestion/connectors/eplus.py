@@ -129,17 +129,18 @@ class EplusConnector(BaseConnector):
             pref_name = venue_info.get('todofuken_name')
             location = pref_name if pref_name else ""
 
-            artist = "" 
-            uketsuke_list = item.get('kanren_uketsuke_koen_list', [])
+            ticket_name = ""
             if uketsuke_list:
-                    first_uketsuke = uketsuke_list[0]
-                    performers = first_uketsuke.get('shutsuensha') 
+                first_uketsuke = uketsuke_list[0]
+                ticket_name = first_uketsuke.get('uketsuke_name_pc') or first_uketsuke.get('uketsuke_name_mobile') or ""
+                
+                performers = first_uketsuke.get('shutsuensha') 
+                if performers:
+                    performers = performers.replace("本公演はスタンプ&ギフト対象公演です。", "")
+                    performers = performers.replace("詳細はこちら /sf/streamingplus/stampgift", "")
+                    performers = performers.strip()
                     if performers:
-                        performers = performers.replace("本公演はスタンプ&ギフト対象公演です。", "")
-                        performers = performers.replace("詳細はこちら /sf/streamingplus/stampgift", "")
-                        performers = performers.strip()
-                        if performers:
-                            artist = performers
+                        artist = performers
 
             if link:
                 return Event(
@@ -149,6 +150,7 @@ class EplusConnector(BaseConnector):
                     date=date_obj.date(),
                     time=date_obj.time() if item.get('kaien_time') and len(item.get('kaien_time')) == 4 else None,
                     location=location,
+                    ticket_name=ticket_name,
                     url=link
                 )
             return None

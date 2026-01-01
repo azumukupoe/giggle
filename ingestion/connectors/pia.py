@@ -142,6 +142,17 @@ class PiaConnector(BaseConnector):
                                     location = raw_venue
                                 # Else: strictly use raw_venue as venue, location empty
 
+                            # Ticket Name Parsing
+                            ticket_name_h4 = sub.select_one('.PC-perfinfo-title')
+                            ticket_name = ""
+                            if ticket_name_h4:
+                                # Remove mark tag content if needed, or just get all text. 
+                                # Based on user snippet, the mark has a span inside.
+                                # Let's try to get text node directly or just strip.
+                                # For now, simple get_text() should work but might include extra chars. 
+                                # Use strip() to clean up.
+                                ticket_name = self._normalize_text(ticket_name_h4.get_text())
+
                             # Create Event
                             event = Event(
                                 title=title,
@@ -150,6 +161,7 @@ class PiaConnector(BaseConnector):
                                 location=location,
                                 date=event_date,
                                 time=None,
+                                ticket_name=ticket_name,
                                 url=url
                             )
                             page_events.append(event)

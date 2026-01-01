@@ -6,6 +6,7 @@ export interface Event {
     location: string
     date: string
     time: string | null
+    ticket_name: string | null
     url: string
 }
 

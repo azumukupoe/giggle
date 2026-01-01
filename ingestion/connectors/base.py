@@ -10,9 +10,10 @@ class Event(BaseModel):
     location: str
     date: date
     time: Optional[time]
+    ticket_name: Optional[str] = None
     url: str
 
-    @field_validator('title', 'artist', 'venue', 'location')
+    @field_validator('title', 'artist', 'venue', 'location', 'ticket_name')
     @classmethod
     def clean_text(cls, v: str) -> str:
         if not v:

@@ -42,6 +42,7 @@ def upsert_events(supabase: Client, events: list):
                 "location": e.location,
                 "date": e.date.isoformat(),
                 "time": e.time.isoformat() if e.time else None,
+                "ticket_name": e.ticket_name,
                 "url": e.url
             }
         

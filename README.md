@@ -1,78 +1,114 @@
-# Giggle 🎸
+# giggle
 
-A free, hybrid-architecture web application (Google for Gigs) that aggregates concert dates for your favorite Spotify artists from Songkick, Ticket Pia, and Eplus.
+Giggle is an event aggregation platform designed to collect and display event information from various sources such as [Pia](https://t.pia.jp/), [Eplus](https://eplus.jp/), and [Songkick](https://www.songkick.com/). It features a modern, responsive web interface built with Next.js and a robust data ingestion pipeline written in Python.
 
-[Japanese README (README_JA.md)](README_JA.md)
+## Features
+- **Event Aggregation**: Automatically scrapes and standardizes event data from supported ticketing platforms.
+- **Unified Display**: Browse events from multiple sources in a single, clean interface.
+- **Search & Filter**: Filter events by date, venue, etc.
+- **Responsive Design**: optimized for both desktop and mobile viewing.
 
----
+## Project Structure
 
-## 🌟 Features
+- **`frontend/`**: The web application built with Next.js (App Router).
+- **`ingestion/`**: Python scripts and modules for scraping and ingesting event data.
 
-*   **Smart Sync**: Log in with Spotify to automatically track your followed artists.
-*   **Unified Feed**: See events from multiple sources (Songkick, Pia, Eplus) in one clean interface with search and pagination.
-*   **Bilingual Support**: Seamlessly switch between English and Japanese.
-*   **Dark Mode**: Beautiful dark and light theme support.
-*   **Advanced Filtering**: Uses Eplus API V3 and strict keyword exclusion to ensure only music concerts (no museum/zoo tickets) are ingested.
-*   **0% Cost**: Designed to run entirely on free tiers (Vercel, GitHub Actions, Supabase).
+## Technologies Used
 
-## 🏗 Architecture
+### Frontend
+- **Framework**: [Next.js 16](https://nextjs.org/) (App Router)
+- **UI Library**: [React 19](https://react.dev/)
+- **Styling**: [Tailwind CSS 4](https://tailwindcss.com/)
+- **Animations**: [Framer Motion](https://www.framer.com/motion/)
+- **Icons**: [Lucide React](https://lucide.dev/)
+- **Database Client**: [Supabase JS](https://supabase.com/docs/reference/javascript/introduction)
 
-*   **Frontend**: Next.js 14, Tailwind CSS, Framer Motion, `next-themes`, `i18next`-style context (Hosted on Vercel).
-*   **Database**: Supabase (PostgreSQL).
-*   **Ingestion**: Python scripts using `uv` scheduled via GitHub Actions (Runs daily).
+### Ingestion (Backend)
+- **Language**: Python 3.13+
+- **Dependency Management**: [uv](https://github.com/astral-sh/uv)
+- **HTTP Clients**: `httpx`, `aiohttp`, `requests`
+- **Parsing**: `BeautifulSoup4`
+- **Database Client**: `supabase-py`
 
-## 🚀 Setup Instructions
+## Setup & Installation
 
-### 1. Database (Supabase)
-1.  Create a free project on [Supabase](https://supabase.com/).
-2.  Use the **SQL Editor** to run the contents of `supabase_schema.sql`.
-3.  Note your `SUPABASE_URL` and `SUPABASE_KEY` (anon public key).
-4.  Get your **Database Connection String** for the Python ingestion scripts.
+### Prerequisites
+- Node.js & npm
+- Python 3.13+
+- `uv` (Python package manager)
+- A Supabase project
 
-### 2. Environment Variables
+### 1. Database Setup
+Run the following SQL commands in your Supabase project's SQL editor to create the necessary tables and policies:
 
-#### Frontend (.env.local)
-See `frontend/.env.example`.
-```bash
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-SPOTIFY_CLIENT_ID=your_spotify_client_id
-SPOTIFY_CLIENT_SECRET=your_spotify_client_secret
-NEXT_PUBLIC_BASE_URL=http://localhost:3000
-NEXTAUTH_SECRET=generate_a_random_string
-NEXTAUTH_URL=http://localhost:3000
+```sql
+-- Create Events Table
+create table public.events (
+  id uuid default gen_random_uuid() primary key,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  title text not null,
+  artist text not null,
+  venue text not null,
+  location text,
+  date date not null,
+  time time without time zone,
+  ticket_name text,
+  url text not null,
+  unique(url)
+);
+
+-- Enable RLS (Row Level Security)
+alter table public.events enable row level security;
+
+-- Policy: Everyone can read events
+create policy "Allow public read access"
+  on public.events
+  for select
+  to public
+  using (true);
+
+-- Policy: Only service_role (backend) can insert/update
+-- (Implicitly true if no other policies exist for Insert/Update, 
+-- but explicit is better or relying on service role key bypasses RLS)
 ```
 
-#### Backend (GitHub Secrets)
-```bash
-SUPABASE_URL=your_supabase_url
-SUPABASE_KEY=your_service_role_key
-```
+### 2. Ingestion Setup
 
-### 3. Local Development
+1. Navigate to the `ingestion` directory:
+   ```bash
+   cd ingestion
+   ```
+2. Create a `.env` file based on `.env.example` and add your Supabase credentials:
+   ```env
+   SUPABASE_URL=your_supabase_url
+   SUPABASE_KEY=your_supabase_service_role_key
+   ```
+3. Install dependencies using `uv`:
+   ```bash
+   uv sync
+   ```
+4. Run the ingestion script:
+   ```bash
+   uv run main.py
+   ```
 
-**Frontend:**
-```bash
-cd frontend
-npm install
-npm run dev
-```
+### 3. Frontend Setup
 
-**Backend (Ingestion):**
-```bash
-cd ingestion
-# Uses 'uv' for high-speed dependency management
-uv sync
-uv run main.py
-```
-
-## 📦 Deployment
-
-### Frontend (Vercel)
-Connect your repo to Vercel and add the environment variables listed above.
-
-### Backend (GitHub Actions)
-Add `SUPABASE_URL` and `SUPABASE_KEY` to **Settings > Secrets and variables > Actions**. The workflow (`.github/workflows/ingest.yml`) is scheduled to run daily at 8:00 AM UTC.
-
-## 🛡️ Note
-This project uses lightweight scraping and API integrations for educational purposes.
+1. Navigate to the `frontend` directory:
+   ```bash
+   cd frontend
+   ```
+2. Create a `.env.local` file based on `.env.example`:
+   ```env
+   NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+   ```
+3. Install dependencies:
+   ```bash
+   npm install
+   ```
+4. Run the development server:
+   ```bash
+   npm run dev
+   ```
+5. Open [http://localhost:3000](http://localhost:3000) to view the application.

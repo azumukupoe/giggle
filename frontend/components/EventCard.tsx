@@ -311,6 +311,7 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
                                     href={sourceEvent.url}
                                     target="_blank"
                                     rel="noopener noreferrer"
+                                    title={sourceEvent.ticket_name || ""}
                                     className="flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-md bg-secondary text-secondary-foreground font-medium text-xs hover:bg-secondary/80 transition-colors whitespace-nowrap w-full"
                                 >
                                     {hostname && (
