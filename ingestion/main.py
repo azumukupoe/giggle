@@ -16,21 +16,14 @@ from dotenv import load_dotenv
 # Load env vars
 load_dotenv()
 
-def main():
-    parser = argparse.ArgumentParser(description="Ingest concert data")
-    args = parser.parse_args()
-
-    all_events: List[Event] = []
-
-    # 1. Songkick (Metro Areas)
+def run_songkick() -> List[Event]:
+    events = []
     sk_connector = SongkickConnector()
     
-
     metros_file = os.path.join(os.path.dirname(__file__), 'japan_metro_ids.json')
     if os.path.exists(metros_file):
         with open(metros_file, 'r', encoding='utf-8') as f:
             sk_metros_data = json.load(f)
-
     else:
         print("  [Songkick] Warning: japan_metro_ids.json not found. using fallback.")
         sk_metros_data = {'30717': {'full_slug': '30717-japan-tokyo', 'name': 'Tokyo'}} # Fallback
@@ -46,26 +39,51 @@ def main():
         for future in concurrent.futures.as_completed(future_to_metro):
             metro_slug = future_to_metro[future]
             try:
-                events = future.result()
-                all_events.extend(events)
+                metro_events = future.result()
+                events.extend(metro_events)
             except Exception as e:
-                print(f"    -> Failed for {metro_slug}: {e}")
+                print(f"    -> [Songkick] Failed for {metro_slug}: {e}")
+    return events
 
-    # 2. eplus (Japan Major Ticket Vendor)
+def run_eplus() -> List[Event]:
     try:
         eplus = EplusConnector()
-        events = eplus.get_events()
-        all_events.extend(events)
+        return eplus.get_events()
     except Exception as e:
         print(f"Eplus scraping failed: {e}")
+        return []
 
-    # 3. Ticket Pia (Japan)
+def run_pia() -> List[Event]:
     try:
         pia = PiaConnector()
-        pia_events = pia.get_events()
-        all_events.extend(pia_events)
+        return pia.get_events()
     except Exception as e:
         print(f"Ticket Pia scraping failed: {e}")
+        return []
+
+def main():
+    parser = argparse.ArgumentParser(description="Ingest concert data")
+    args = parser.parse_args()
+
+    all_events: List[Event] = []
+
+    print("Starting ingestion from all sources in parallel...")
+    
+    with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+        futures = {
+            executor.submit(run_songkick): "Songkick",
+            executor.submit(run_eplus): "Eplus",
+            executor.submit(run_pia): "Pia"
+        }
+
+        for future in concurrent.futures.as_completed(futures):
+            source_name = futures[future]
+            try:
+                events = future.result()
+                print(f"[{source_name}] Finished. Found {len(events)} events.")
+                all_events.extend(events)
+            except Exception as e:
+                print(f"[{source_name}] Execution failed: {e}")
 
     # Save to Supabase
     if all_events:

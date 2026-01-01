@@ -129,7 +129,9 @@ class EplusConnector(BaseConnector):
             pref_name = venue_info.get('todofuken_name')
             location = pref_name if pref_name else ""
 
+            uketsuke_list = item.get('uketsuke_list')
             ticket_name = ""
+            artist = None
             if uketsuke_list:
                 first_uketsuke = uketsuke_list[0]
                 ticket_name = first_uketsuke.get('uketsuke_name_pc') or first_uketsuke.get('uketsuke_name_mobile') or ""
@@ -154,7 +156,8 @@ class EplusConnector(BaseConnector):
                     url=link
                 )
             return None
-        except Exception:
+        except Exception as e:
+            print(f"  [eplus] Error processing item: {e}")
             return None
 
     async def _get_events_async(self, query: str = None, max_pages: int = None):
