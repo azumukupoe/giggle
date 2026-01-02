@@ -128,23 +128,26 @@ export function resolveCaseVariations(items: string[]): string[] {
 
 export function filterRedundantDates(dates: string[]): string[] {
     const datesWithTime = new Set<string>();
-    const datesWithoutTime = new Set<string>();
 
     dates.forEach(d => {
         if (d.includes("T")) {
             datesWithTime.add(d.split("T")[0]);
-        } else {
-            datesWithoutTime.add(d);
         }
     });
 
     return dates.filter(d => {
-        // If it matches YYYY-MM-DD exactly (no time)
-        if (!d.includes("T")) {
-            // Keep it ONLY if there is NO corresponding entry with time
-            return !datesWithTime.has(d);
+        // If it has a time component, always keep it
+        if (d.includes("T")) {
+            return true;
         }
-        // Always keep entries with time
-        return true;
+
+        // For date-only entries (may be single or multi-date like "2026-02-16 2026-02-17")
+        const dateParts = d.split(" ");
+
+        // Check if ALL date parts have a corresponding entry with time
+        const allCovered = dateParts.every(part => datesWithTime.has(part));
+
+        // Keep ONLY if NOT all dates are covered by entries with time
+        return !allCovered;
     }).sort();
 }

@@ -63,15 +63,27 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
 
             if (!venueMatch) continue;
 
-            // 3. Event Name Fuzzy Match
-            const eventMatch = Array.from(group.eventNames).some(n => areStringsSimilar(n, event.event));
+            // 3. Fuzzy Match (Event Name OR Performer)
+            // We check if:
+            // - Event Name matches any Group Event Name
+            // - Event Name matches any Group Performer
+            // - Event Performer matches any Group Event Name
+            // - Event Performer matches any Group Performer
+            const name1 = event.event;
+            const perf1 = event.performer;
+
+            const eventMatch =
+                Array.from(group.eventNames).some(n => areStringsSimilar(n, name1)) ||
+                Array.from(group.performers).some(p => areStringsSimilar(p, name1)) ||
+                (perf1 ? Array.from(group.eventNames).some(n => areStringsSimilar(n, perf1)) : false) ||
+                (perf1 ? Array.from(group.performers).some(p => areStringsSimilar(p, perf1)) : false);
 
             if (!eventMatch) continue;
 
             // All matched -> Merge
             group.urls.add(event.url);
             group.eventNames.add(event.event);
-            group.performers.add(event.performer);
+            if (event.performer) group.performers.add(event.performer);
             group.venues.add(event.venue);
             const dateTimeStr = createIsoDate(event.date, event.time);
             group.dates.add(dateTimeStr);
@@ -98,7 +110,7 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
                 venueNormalized: normalizeVenue(event.venue), // Keep for reference if needed, though unused in logic now
                 urls: new Set([event.url]),
                 eventNames: new Set([event.event]),
-                performers: new Set([event.performer]),
+                performers: new Set(event.performer ? [event.performer] : []),
                 venues: new Set([event.venue]),
                 dates: new Set([dateTimeStr]),
                 sourceEvents: [event],
@@ -142,7 +154,7 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
         return {
             id: g.baseEvent.id,
             event: mergeEventNames(g.eventNames),
-            performer: resolveCaseVariations(Array.from(g.performers)).join("\n\n"),
+            performer: resolveCaseVariations(Array.from(g.performers).filter(Boolean)).join("\n\n"),
             venue: resolveCaseVariations(Array.from(g.venues))[0] || "",
             location: g.baseEvent.location || "",
             date: g.baseEvent.date,

@@ -101,7 +101,7 @@ const getCachedGroupedEvents = unstable_cache(
             return {
                 ...group,
                 event: mergeEventNames(validEventNames),
-                performer: Array.from(validPerformers).join("\n\n"),
+                performer: Array.from(validPerformers).filter(Boolean).join("\n\n"),
                 displayDates: validDates,
                 urls: uniqueUrls,
                 date: newDate,
