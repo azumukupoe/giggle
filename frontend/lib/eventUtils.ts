@@ -13,8 +13,8 @@ export const normalizeEventName = (name: string | null | undefined): string => {
 };
 
 export const stripSymbols = (str: string): string => {
-    // Keep letters, numbers, and spaces. Remove everything else.
-    return (str || "").replace(/[^\p{L}\p{N}\s]/gu, "");
+    // Keep letters, numbers. Remove everything else (including spaces).
+    return (str || "").replace(/[^\p{L}\p{N}]/gu, "");
 };
 
 export const areStringsSimilar = (s1: string | null | undefined, s2: string | null | undefined): boolean => {
