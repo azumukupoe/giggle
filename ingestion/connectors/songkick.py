@@ -1,7 +1,7 @@
 import requests
 from typing import List
 from datetime import datetime, timezone, timedelta
-from .base import BaseConnector, Event
+from .base import BaseConnector, Event, CONSTANTS
 from bs4 import BeautifulSoup
 import urllib.parse
 import json
@@ -13,7 +13,7 @@ class SongkickConnector(BaseConnector):
         super().__init__()
         self.base_url = "https://www.songkick.com"
         self.headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+            "User-Agent": CONSTANTS.USER_AGENT
         }
         
         # Setup retry session
@@ -80,7 +80,7 @@ class SongkickConnector(BaseConnector):
                 
                 # Execute in parallel
                 with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
-                    futures = [executor.submit(self._process_single_item, item, artist_name) for item, artist_name in items_to_process]
+                    futures = [executor.submit(self._parse_json_ld, item, artist_name) for item, artist_name in items_to_process]
                     for future in concurrent.futures.as_completed(futures):
                         try:
                             result = future.result()
@@ -107,45 +107,7 @@ class SongkickConnector(BaseConnector):
         
         return all_events
 
-    def get_artist_events(self, artist_name: str) -> List[Event]:
-        # Step 1: Search
-        search_url = f"{self.base_url}/search?query={urllib.parse.quote(artist_name)}&type=artists"
-        try:
-            s_resp = self.session.get(search_url, headers=self.headers)
-            s_soup = BeautifulSoup(s_resp.content, 'html.parser')
-            
-            # Find first result
-            result_link = s_soup.select_one('.artist-results .artist h4 a')
-            if not result_link:
-                print(f"Artist not found on Songkick: {artist_name}")
-                return []
-            
-            artist_url = f"{self.base_url}{result_link['href']}/calendar"
-            
-            # Step 2: Get Calendar
-            c_resp = self.session.get(artist_url, headers=self.headers)
-            c_soup = BeautifulSoup(c_resp.content, 'html.parser')
-            
-            events = []
 
-            scripts = c_soup.find_all('script', type='application/ld+json')
-            for script in scripts:
-                if 'MusicEvent' in script.text:
-                    try:
-                        data = json.loads(script.text)
-                        items = data if isinstance(data, list) else [data]
-                        for item in items:
-                             if item.get('@type') == 'MusicEvent':
-                                evt = self._parse_json_ld(item, artist_name)
-                                if evt: events.append(evt)
-                    except:
-                        continue
-            
-            return events
-
-        except Exception as e:
-            print(f"Error scraping Songkick: {e}")
-            return []
 
     def _parse_json_ld(self, item, artist_name):
         try:
@@ -251,6 +213,5 @@ class SongkickConnector(BaseConnector):
         except Exception as e:
             return None
 
-    def _process_single_item(self, item, artist_name):
-        return self._parse_json_ld(item, artist_name)
+
 

@@ -1,12 +1,9 @@
 import os
 import argparse
 import json
-from datetime import datetime
-from typing import List
 import concurrent.futures
-from zoneinfo import ZoneInfo
 
-from connectors.base import Event
+from connectors.base import Event, is_future_event
 from connectors.songkick import SongkickConnector
 from connectors.eplus import EplusConnector
 from connectors.pia import PiaConnector
@@ -16,7 +13,7 @@ from dotenv import load_dotenv
 # Load env
 load_dotenv()
 
-def run_songkick() -> List[Event]:
+def run_songkick() -> list[Event]:
     events = []
     sk_connector = SongkickConnector()
     
@@ -45,7 +42,7 @@ def run_songkick() -> List[Event]:
                 print(f"    -> [Songkick] Failed for {metro_slug}: {e}")
     return events
 
-def run_eplus() -> List[Event]:
+def run_eplus() -> list[Event]:
     try:
         eplus = EplusConnector()
         return eplus.get_events()
@@ -53,7 +50,7 @@ def run_eplus() -> List[Event]:
         print(f"Eplus scraping failed: {e}")
         return []
 
-def run_pia() -> List[Event]:
+def run_pia() -> list[Event]:
     try:
         pia = PiaConnector()
         return pia.get_events()
@@ -65,7 +62,7 @@ def main():
     parser = argparse.ArgumentParser(description="Ingest concert data")
     args = parser.parse_args()
 
-    all_events: List[Event] = []
+    all_events: list[Event] = []
 
     print("Starting ingestion from all sources in parallel...")
     
@@ -88,33 +85,12 @@ def main():
     # Save to Supabase
     if all_events:
         # Filter Past Events
-        dt_today = datetime.now(ZoneInfo("Asia/Tokyo")).date()
         future_events = []
         for e in all_events:
-            # Parse raw Pia date
-            if isinstance(e.date, str):
-                import re
-                # Clean date string
-                cleaned = re.sub(r'\([^\)]+\)', '', e.date)
-                if '～' in cleaned:
-                    cleaned = cleaned.split('～')[0]
-                elif '~' in cleaned:
-                    cleaned = cleaned.split('~')[0]
-                
-                try:
-                    parsed_date = datetime.strptime(cleaned.strip(), '%Y/%m/%d').date()
-                    if parsed_date >= dt_today:
-                        future_events.append(e)
-                except ValueError:
-                    # If parsing fails, default to keeping it (or dropping? Better to keep if unsure)
-                    # But if we can't parse, we can't verify it's future. 
-                    # Use current logic: if parse fail, maybe keep? 
-                    # Let's say if it's a string we generally assume it's valid unless obviously past?
-                    # Actually, if parsing fails, it's safer to include it than exclude it.
-                    future_events.append(e)
-            else:
-                if e.date >= dt_today:
-                    future_events.append(e)
+            # Filter Past Events
+            if is_future_event(e):
+                future_events.append(e)
+
         
         all_events = future_events
 

@@ -10,7 +10,8 @@ import {
     resolveCaseVariations,
 
     filterRedundantDates,
-    getStartDate
+    getStartDate,
+    compareEvents
 } from "./eventUtils";
 
 interface IntermediateGroup {
@@ -28,27 +29,8 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
     if (events.length === 0) return [];
 
     // Sort by date then time
-    const sortedEvents = [...events].sort((a, b) => {
-        const dateDiff = getStartDate(a.date).getTime() - getStartDate(b.date).getTime();
-        if (dateDiff !== 0) return dateDiff;
 
-        // Dates equal, sort time (nulls first)
-        if (!a.time && !b.time) {
-            const eventDiff = a.event.localeCompare(b.event);
-            if (eventDiff !== 0) return eventDiff;
-            return getDomain(a.url).localeCompare(getDomain(b.url));
-        }
-        if (!a.time) return -1;
-        if (!b.time) return 1;
-
-        const timeDiff = a.time.localeCompare(b.time);
-        if (timeDiff !== 0) return timeDiff;
-
-        const eventDiff = a.event.localeCompare(b.event);
-        if (eventDiff !== 0) return eventDiff;
-
-        return getDomain(a.url).localeCompare(getDomain(b.url));
-    });
+    const sortedEvents = [...events].sort(compareEvents);
 
     // Pass 1: Group by Event + Venue
     const pass1Groups: IntermediateGroup[] = [];

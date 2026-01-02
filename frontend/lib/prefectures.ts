@@ -83,3 +83,8 @@ export const localizePrefecture = (location: string, language: string): string =
 
     return result;
 };
+
+export const formatLocation = (loc: string, language: string) => {
+    const cleaned = loc.replace(/, Japan$/, "").replace(/Japan$/, "").trim();
+    return localizePrefecture(cleaned, language);
+};

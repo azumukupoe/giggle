@@ -1,21 +1,21 @@
 from typing import List, Optional, Set
 import requests
 from bs4 import BeautifulSoup
-from datetime import datetime, timezone, timedelta, date
-import unicodedata
+from datetime import datetime, timezone, timedelta
+
 import re
 import urllib.parse
 import concurrent.futures
 import time
 import random
-from .base import BaseConnector, Event
+from .base import BaseConnector, Event, CONSTANTS
 
 class PiaConnector(BaseConnector):
     def __init__(self):
         super().__init__()
         self.base_url = "https://t.pia.jp/pia/rlsInfo.do"
         self.headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+            "User-Agent": CONSTANTS.USER_AGENT
         }
 
     def get_events(self, query: str = None) -> List[Event]:
@@ -79,7 +79,7 @@ class PiaConnector(BaseConnector):
                 for bundle in event_bundles:
                     # Title from h3 > a
                     title_tag = bundle.select_one('h3 > a')
-                    title = unicodedata.normalize('NFKC', title_tag.get_text()).strip() if title_tag else "Unknown"
+                    title = title_tag.get_text().strip() if title_tag else "Unknown"
                     if title == "Unknown":
                         continue
 
@@ -115,7 +115,7 @@ class PiaConnector(BaseConnector):
 
                             # Venue Parsing
                             venue_div = sub.select_one('.PC-perfinfo-venue')
-                            raw_venue = unicodedata.normalize('NFKC', venue_div.get_text()).strip() if venue_div else "Unknown"
+                            raw_venue = venue_div.get_text().strip() if venue_div else "Unknown"
                             
                             venue = raw_venue
                             location = "" # Default to empty
@@ -150,7 +150,7 @@ class PiaConnector(BaseConnector):
                                 # Let's try to get text node directly or just strip.
                                 # For now, simple get_text() should work but might include extra chars. 
                                 # Use strip() to clean up.
-                                ticket_name = unicodedata.normalize('NFKC', ticket_name_h4.get_text()).strip()
+                                ticket_name = ticket_name_h4.get_text().strip()
 
                             # Create Event
                             event = Event(
@@ -182,9 +182,7 @@ class PiaConnector(BaseConnector):
         
         return pf_events
 
-    def get_artist_events(self, artist_name: str) -> List[Event]:
-        # Not implementing specific artist search
-        return []
+
 
 
 
@@ -192,6 +190,30 @@ class PiaConnector(BaseConnector):
         if not date_str:
             return None
         
-        # Return cleaned raw string
-        cleaned = date_str.strip()
-        return cleaned if cleaned else None
+        # 1. Remove anything in parentheses (e.g. (月・祝), (土))
+        #    Use regex to remove (...) blocks
+        cleaned_str = re.sub(r'\(.*?\)', '', date_str)
+
+        # 2. Split by range separator
+        #    Pia often uses full-width tilde '～' or half-width '~'
+        parts = re.split(r'[～~]', cleaned_str)
+
+        parsed_dates = []
+        for part in parts:
+            part = part.strip()
+            if not part:
+                continue
+            
+            # 3. Parse generic date "YYYY/M/D" -> "YYYY-MM-DD"
+            try:
+                # Assuming format like 2026/5/4
+                dt = datetime.strptime(part, "%Y/%m/%d")
+                parsed_dates.append(dt.strftime("%Y-%m-%d"))
+            except ValueError:
+                pass
+        
+        if not parsed_dates:
+            return None
+            
+        # 4. Return space-separated
+        return " ".join(parsed_dates)

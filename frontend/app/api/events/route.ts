@@ -116,62 +116,14 @@ const getCachedGroupedEvents = unstable_cache(
 
 export async function GET(request: NextRequest) {
     try {
-        const searchParams = request.nextUrl.searchParams;
-        const page = parseInt(searchParams.get("page") || "1");
-        const limit = parseInt(searchParams.get("limit") || "9");
-        const searchQuery = (searchParams.get("search") || "").toLowerCase();
-        const filters = searchParams.get("filters")?.split(",").filter(Boolean) || [];
-        const returnAll = searchParams.get("all") === "true";
 
         // Get cached result
         const timeFiltered = await getCachedGroupedEvents();
 
-        if (returnAll) {
-            return NextResponse.json({
-                events: timeFiltered,
-                total: timeFiltered.length
-            });
-        }
-
-        // 3. Search / Filter
-        let finalEvents = timeFiltered;
-        if (searchQuery) {
-            finalEvents = finalEvents.filter(e => {
-                const searchAll = filters.length === 0;
-
-                const matchEvent = (searchAll || filters.includes('event')) &&
-                    e.event.toLowerCase().includes(searchQuery);
-
-                const matchPerformer = (searchAll || filters.includes('performer')) &&
-                    e.performer.toLowerCase().includes(searchQuery);
-
-                const matchVenue = (searchAll || filters.includes('venue')) &&
-                    e.venue.toLowerCase().includes(searchQuery);
-
-                const matchLocation = (searchAll || filters.includes('location')) &&
-                    e.location.toLowerCase().includes(searchQuery);
-
-                const matchDate = (searchAll || filters.includes('date')) && (
-                    e.date.toLowerCase().includes(searchQuery) ||
-                    e.displayDates.some(d => d.toLowerCase().includes(searchQuery))
-                );
-
-                return matchEvent || matchPerformer || matchVenue || matchLocation || matchDate;
-            });
-        }
-
-        // 4. Pagination
-        const total = finalEvents.length;
-        const totalPages = Math.ceil(total / limit);
-        const startIndex = (page - 1) * limit;
-        const paginated = finalEvents.slice(startIndex, startIndex + limit);
-
+        // Always return all events (client-side filtering)
         return NextResponse.json({
-            events: paginated,
-            page,
-            limit,
-            total,
-            totalPages
+            events: timeFiltered,
+            total: timeFiltered.length
         });
 
     } catch (e) {

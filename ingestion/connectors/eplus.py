@@ -2,7 +2,7 @@ import asyncio
 import aiohttp
 import time
 from datetime import datetime, timedelta, timezone
-from .base import BaseConnector, Event
+from .base import BaseConnector, Event, CONSTANTS
 import json
 import concurrent.futures
 
@@ -12,7 +12,7 @@ class EplusConnector(BaseConnector):
 
         self.api_url = "https://api.eplus.jp/v3/koen"
         self.headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'User-Agent': CONSTANTS.USER_AGENT,
             'Accept-Language': 'ja-JP,ja;q=0.9,en-US;q=0.8,en;q=0.7',
             'X-APIToken': 'FGXySj3mTd' # Static token
         }
@@ -238,8 +238,7 @@ class EplusConnector(BaseConnector):
         else:
             return asyncio.run(self._get_events_async(query, max_pages))
 
-    def get_artist_events(self, artist_name: str):
-        return []
+
 
 
 

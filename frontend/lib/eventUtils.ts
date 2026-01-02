@@ -41,50 +41,51 @@ export function getStartDate(dateStr: string): Date {
         return d1;
     }
 
-    // Fallback for Pia format
-    // Remove parens
-    let cleaned = dateStr.replace(/\([^\)]+\)/g, "");
-    // Split range
-    if (cleaned.includes("～")) cleaned = cleaned.split("～")[0];
-    else if (cleaned.includes("~")) cleaned = cleaned.split("~")[0];
-
-    cleaned = cleaned.trim();
-
-    // Parse cleaned string
-    // new Date() handles slashes well in most envs.
-    const d2 = new Date(cleaned);
-    if (!isNaN(d2.getTime())) {
-        return d2;
-    }
-
     // Fallback: far future
     return new Date("2999-12-31");
 }
 
-export function compareGroupedEvents(a: GroupedEvent, b: GroupedEvent): number {
-    const dateDiff = getStartDate(a.date).getTime() - getStartDate(b.date).getTime();
+
+// Common comparison logic for Event and GroupedEvent-like structures
+const compareBase = (
+    dateA: string,
+    dateB: string,
+    timeA: string | null,
+    timeB: string | null,
+    eventA: string,
+    eventB: string,
+    urlA: string,
+    urlB: string
+): number => {
+    const dateDiff = getStartDate(dateA).getTime() - getStartDate(dateB).getTime();
     if (dateDiff !== 0) return dateDiff;
 
     // Dates equal, sort time (nulls first)
-    if (!a.time && !b.time) {
-        const eventDiff = a.event.localeCompare(b.event);
+    if (!timeA && !timeB) {
+        const eventDiff = eventA.localeCompare(eventB);
         if (eventDiff !== 0) return eventDiff;
-        const domainA = a.urls.length > 0 ? getDomain(a.urls[0]) : "";
-        const domainB = b.urls.length > 0 ? getDomain(b.urls[0]) : "";
-        return domainA.localeCompare(domainB);
+        return getDomain(urlA).localeCompare(getDomain(urlB));
     }
-    if (!a.time) return -1;
-    if (!b.time) return 1;
+    if (!timeA) return -1;
+    if (!timeB) return 1;
 
-    const timeDiff = a.time.localeCompare(b.time);
+    const timeDiff = timeA.localeCompare(timeB);
     if (timeDiff !== 0) return timeDiff;
 
-    const eventDiff = a.event.localeCompare(b.event);
+    const eventDiff = eventA.localeCompare(eventB);
     if (eventDiff !== 0) return eventDiff;
 
-    const domainA = a.urls.length > 0 ? getDomain(a.urls[0]) : "";
-    const domainB = b.urls.length > 0 ? getDomain(b.urls[0]) : "";
-    return domainA.localeCompare(domainB);
+    return getDomain(urlA).localeCompare(getDomain(urlB));
+};
+
+export function compareGroupedEvents(a: GroupedEvent, b: GroupedEvent): number {
+    const urlA = a.urls.length > 0 ? a.urls[0] : "";
+    const urlB = b.urls.length > 0 ? b.urls[0] : "";
+    return compareBase(a.date, b.date, a.time, b.time, a.event, b.event, urlA, urlB);
+}
+
+export function compareEvents(a: Event, b: Event): number {
+    return compareBase(a.date, b.date, a.time, b.time, a.event, b.event, a.url, b.url);
 }
 
 export function mergeEventNames(namesSet: Set<string>): string {

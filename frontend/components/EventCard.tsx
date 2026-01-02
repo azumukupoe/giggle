@@ -9,20 +9,11 @@ import { ExternalLink, MapPin, Calendar } from "lucide-react";
 import { motion } from "framer-motion";
 import { useLanguage } from "./LanguageContext";
 
-import { localizePrefecture } from "@/lib/prefectures";
-import { getStartDate } from "@/lib/eventUtils";
+import { localizePrefecture, formatLocation } from "@/lib/prefectures";
+import { getStartDate, getDomain } from "@/lib/eventUtils";
+
 
 // Utility functions extracted outside component to avoid recreation on each render
-
-
-const formatVenue = (ven: string) => {
-    return ven;
-};
-
-const formatLocation = (loc: string, language: string) => {
-    const cleaned = loc.replace(/, Japan$/, "").replace(/Japan$/, "").trim();
-    return localizePrefecture(cleaned, language);
-};
 
 
 
@@ -321,22 +312,30 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
     const { language } = useLanguage();
 
 
-    const formattedLocation = [formatVenue(event.venue), formatLocation(event.location, language)]
+    const formattedLocation = [event.venue, formatLocation(event.location, language)]
         .filter(Boolean)
         .join(", ");
 
     // Format dates into a single string for the tooltip/truncation
     const dateString = (event.displayDates && event.displayDates.length > 0 ? event.displayDates : [event.date]).map((d) => {
-        const parsed = parseISO(d);
-        if (!isValid(parsed)) return d; // Raw string (e.g. range)
+        // Handle space-separated range (e.g. "2026-07-25 2026-08-23")
+        const dateParts = d.split(' ');
 
-        const hasTime = d.includes('T');
-        return format(parsed,
-            language === 'ja'
-                ? (hasTime ? "yyyy年M月d日(EEE) HH:mm" : "yyyy年M月d日(EEE)")
-                : (hasTime ? "EEE, MMM d, yyyy, h:mm a" : "EEE, MMM d, yyyy"),
-            { locale: language === 'ja' ? ja : enUS }
-        );
+        const formattedParts = dateParts.map(part => {
+            const parsed = parseISO(part);
+            if (!isValid(parsed)) return part;
+
+            const hasTime = part.includes('T');
+            return format(parsed,
+                language === 'ja'
+                    ? (hasTime ? "yyyy年M月d日(EEE) HH:mm" : "yyyy年M月d日(EEE)")
+                    : (hasTime ? "EEE, MMM d, yyyy, h:mm a" : "EEE, MMM d, yyyy"),
+                { locale: language === 'ja' ? ja : enUS }
+            );
+        });
+
+        const separator = language === 'ja' ? " ～ " : " - ";
+        return formattedParts.join(separator);
     }).join(" / ");
 
 
@@ -405,10 +404,7 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
                             const timeStr = sourceEvent.time ? sourceEvent.time.substring(0, 5) : "";
                             const label = timeStr ? `${month}/${day} ${timeStr}` : `${month}/${day}`;
 
-                            let hostname = "";
-                            try {
-                                hostname = new URL(sourceEvent.url).hostname;
-                            } catch { }
+                            const hostname = getDomain(sourceEvent.url);
 
                             return (
                                 <TooltippedLink

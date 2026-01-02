@@ -90,29 +90,34 @@ export const Feed = () => {
             return allGroupedEvents;
         }
 
-        const lowerQ = normalizeJapanese(debouncedSearchQuery);
+        const tokens = normalizeJapanese(debouncedSearchQuery).split(/\s+/).filter(t => t.length > 0);
 
         return allGroupedEvents.filter(e => {
             const searchAll = activeFilters.length === 0;
 
-            const matchEvent = (searchAll || activeFilters.includes('event')) &&
-                normalizeJapanese(e.event).includes(lowerQ);
+            const matchesToken = (token: string) => {
+                const matchEvent = (searchAll || activeFilters.includes('event')) &&
+                    normalizeJapanese(e.event).includes(token);
 
-            const matchPerformer = (searchAll || activeFilters.includes('performer')) &&
-                normalizeJapanese(e.performer).includes(lowerQ);
+                const matchPerformer = (searchAll || activeFilters.includes('performer')) &&
+                    normalizeJapanese(e.performer).includes(token);
 
-            const matchVenue = (searchAll || activeFilters.includes('venue')) &&
-                normalizeJapanese(e.venue).includes(lowerQ);
+                const matchVenue = (searchAll || activeFilters.includes('venue')) &&
+                    normalizeJapanese(e.venue).includes(token);
 
-            const matchLocation = (searchAll || activeFilters.includes('location')) &&
-                normalizeJapanese(e.location).includes(lowerQ);
+                const matchLocation = (searchAll || activeFilters.includes('location')) &&
+                    normalizeJapanese(e.location).includes(token);
 
-            const matchDate = (searchAll || activeFilters.includes('date')) && (
-                normalizeJapanese(e.date).includes(lowerQ) ||
-                e.displayDates.some(d => normalizeJapanese(d).includes(lowerQ))
-            );
+                const matchDate = (searchAll || activeFilters.includes('date')) && (
+                    normalizeJapanese(e.date).includes(token) ||
+                    e.displayDates.some(d => normalizeJapanese(d).includes(token))
+                );
 
-            return matchEvent || matchPerformer || matchVenue || matchLocation || matchDate;
+                return matchEvent || matchPerformer || matchVenue || matchLocation || matchDate;
+            };
+
+            // Every token must match at least one field (AND logic for tokens)
+            return tokens.every(token => matchesToken(token));
         });
     }, [allGroupedEvents, debouncedSearchQuery, activeFilters]);
 
