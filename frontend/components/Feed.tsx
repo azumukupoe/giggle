@@ -6,6 +6,7 @@ import { EventCard } from "./EventCard";
 import { GroupedEvent } from "@/types/event";
 import { useLanguage } from "./LanguageContext";
 import { Search } from "lucide-react";
+import { normalizeJapanese } from "../lib/stringUtils";
 
 export const Feed = () => {
     const { t } = useLanguage();
@@ -89,26 +90,26 @@ export const Feed = () => {
             return allGroupedEvents;
         }
 
-        const lowerQ = debouncedSearchQuery.toLowerCase();
+        const lowerQ = normalizeJapanese(debouncedSearchQuery);
 
         return allGroupedEvents.filter(e => {
             const searchAll = activeFilters.length === 0;
 
             const matchEvent = (searchAll || activeFilters.includes('event')) &&
-                e.event.toLowerCase().includes(lowerQ);
+                normalizeJapanese(e.event).includes(lowerQ);
 
             const matchPerformer = (searchAll || activeFilters.includes('performer')) &&
-                e.performer.toLowerCase().includes(lowerQ);
+                normalizeJapanese(e.performer).includes(lowerQ);
 
             const matchVenue = (searchAll || activeFilters.includes('venue')) &&
-                e.venue.toLowerCase().includes(lowerQ);
+                normalizeJapanese(e.venue).includes(lowerQ);
 
             const matchLocation = (searchAll || activeFilters.includes('location')) &&
-                e.location.toLowerCase().includes(lowerQ);
+                normalizeJapanese(e.location).includes(lowerQ);
 
             const matchDate = (searchAll || activeFilters.includes('date')) && (
-                e.date.toLowerCase().includes(lowerQ) ||
-                e.displayDates.some(d => d.toLowerCase().includes(lowerQ))
+                normalizeJapanese(e.date).includes(lowerQ) ||
+                e.displayDates.some(d => normalizeJapanese(d).includes(lowerQ))
             );
 
             return matchEvent || matchPerformer || matchVenue || matchLocation || matchDate;
