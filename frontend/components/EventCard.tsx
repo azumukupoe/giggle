@@ -204,6 +204,8 @@ const TruncatedText = ({
     const [showTooltip, setShowTooltip] = useState(false);
     const [tooltipPos, setTooltipPos] = useState<{ top?: number, bottom?: number, left: number, maxHeight?: number }>({ left: 0, bottom: 0 });
 
+    const isTouchRef = useRef(false);
+
     useEffect(() => {
         const checkTruncation = () => {
             if (ref.current) {
@@ -219,6 +221,7 @@ const TruncatedText = ({
     }, [text, maxLines, className, Component]);
 
     const handleMouseEnter = (e: React.MouseEvent) => {
+        if (isTouchRef.current) return;
         if (isTruncated && ref.current) {
             let pos;
             if (followCursor) {
@@ -243,13 +246,28 @@ const TruncatedText = ({
         setShowTooltip(false);
     };
 
+    const handleTouchStart = () => {
+        isTouchRef.current = true;
+    };
+
+    const handleClick = (e: React.MouseEvent) => {
+        if (isTruncated) {
+            // For touch devices (or if we just want to update position on click)
+            // recalculate position based on click coordinates
+            const pos = calculateTooltipPosition(null, e.clientX, e.clientY, true);
+            setTooltipPos(pos);
+            setShowTooltip(!showTooltip);
+        }
+    }
+
     return (
         <div
             className="relative flex min-h-0 min-w-0"
             onMouseLeave={handleMouseLeave}
             onMouseEnter={handleMouseEnter}
             onMouseMove={handleMouseMove}
-            onClick={() => isTruncated && setShowTooltip(!showTooltip)}
+            onTouchStart={handleTouchStart}
+            onClick={handleClick}
         >
             <Component
                 ref={ref}
