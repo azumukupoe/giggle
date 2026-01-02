@@ -31,6 +31,7 @@ const getCachedGroupedEvents = unstable_cache(
                 .gte('date', todayStr)
                 .order('date', { ascending: true })
                 .order('time', { ascending: true, nullsFirst: true })
+                .order('url', { ascending: true })
                 .range(p * pageSize, (p + 1) * pageSize - 1);
 
             if (error) {
@@ -106,8 +107,7 @@ const getCachedGroupedEvents = unstable_cache(
                 date: newDate,
                 time: newTime
             };
-        }).filter(group => group.displayDates.length > 0)
-            .sort(compareGroupedEvents);
+        }).filter(group => group.displayDates.length > 0);
 
         return timeFiltered;
     },

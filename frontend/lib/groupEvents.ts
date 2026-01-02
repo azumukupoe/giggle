@@ -30,7 +30,9 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
 
     // Sort by date then time
 
-    const sortedEvents = [...events].sort(compareEvents);
+    // Input is already sorted from DB
+    // const sortedEvents = [...events].sort(compareEvents);
+    const sortedEvents = events;
 
     // Pass 1: Group by Event + Venue
     const pass1Groups: IntermediateGroup[] = [];
@@ -149,5 +151,5 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
             sourceEvents: g.sourceEvents,
             displayDates: filterRedundantDates(Array.from(g.dates)) // Sorted list for display
         };
-    }).sort(compareGroupedEvents);
+    });
 }
