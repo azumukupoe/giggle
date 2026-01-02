@@ -427,7 +427,7 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
                             const hostname = getDomain(sourceEvent.url);
 
                             const locationPart = sourceEvent.location ? ` @ ${sourceEvent.location}` : "";
-                            label = `[${label}${locationPart}]`;
+                            label = `${label}${locationPart}`;
 
                             return (
                                 <TooltippedLink
