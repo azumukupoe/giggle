@@ -63,10 +63,25 @@ export function getStartDate(dateStr: string): Date {
 
 export function mergeEventNames(namesSet: Set<string>): string {
     const names = resolveCaseVariations(Array.from(namesSet));
-    // Filter contained names
+    // Filter contained or fuzzy-matched names
     const uniqueNames = names.filter(t1 => {
-        // If t1 is contained in any OTHER name t2, drop t1.
-        return !names.some(t2 => t2 !== t1 && t2.includes(t1));
+        // Drop t1 if there is any t2 that is "better"
+        return !names.some(t2 => {
+            if (t1 === t2) return false;
+
+            // Check fuzzy similarity (includes strict substring match logic internally)
+            if (areStringsSimilar(t1, t2)) {
+                // If t2 is longer, it's "better" (has more info) -> drop t1
+                if (t2.length > t1.length) return true;
+                // Tie-breaker: if same length, drop the one that is lexicographically smaller to ensure stability
+                if (t2.length === t1.length && t2 > t1) return true;
+            }
+
+            // Fallback: strict containment even if fuzzy matched failed (unlikely but safe)
+            if (t2.includes(t1)) return true;
+
+            return false;
+        });
     });
 
     return uniqueNames.join(" / ");

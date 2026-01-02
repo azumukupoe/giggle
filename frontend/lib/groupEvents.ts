@@ -44,7 +44,7 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
             if (diff > 1) {
                 // Since events are sorted by date, older groups won't match
                 // We can stop searching
-                break;
+                continue;
             }
 
             // 1. Location Match (strict on normalized)
@@ -81,6 +81,10 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
             if (eventDate > group.latestDate) {
                 group.latestDate = eventDate;
             }
+
+            // Move key optimization: keep "active" groups at the end of the array
+            // so we find them faster in the backwards loop and maintain roughly sorted order
+            groups.push(groups.splice(i, 1)[0]);
 
             matched = true;
             break;
