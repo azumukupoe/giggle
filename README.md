@@ -51,7 +51,7 @@ create table public.events (
   performer text,
   date date not null,
   time time with time zone,
-  venue text not null,
+  venue text,
   location text,
   url text not null,
   unique(url)
