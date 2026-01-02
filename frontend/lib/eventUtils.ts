@@ -52,8 +52,6 @@ const compareBase = (
     dateB: string,
     timeA: string | null,
     timeB: string | null,
-    eventA: string,
-    eventB: string,
     urlA: string,
     urlB: string
 ): number => {
@@ -62,9 +60,7 @@ const compareBase = (
 
     // Dates equal, sort time (nulls first)
     if (!timeA && !timeB) {
-        const eventDiff = eventA.localeCompare(eventB);
-        if (eventDiff !== 0) return eventDiff;
-        return getDomain(urlA).localeCompare(getDomain(urlB));
+        return urlA.localeCompare(urlB);
     }
     if (!timeA) return -1;
     if (!timeB) return 1;
@@ -72,20 +68,17 @@ const compareBase = (
     const timeDiff = timeA.localeCompare(timeB);
     if (timeDiff !== 0) return timeDiff;
 
-    const eventDiff = eventA.localeCompare(eventB);
-    if (eventDiff !== 0) return eventDiff;
-
-    return getDomain(urlA).localeCompare(getDomain(urlB));
+    return urlA.localeCompare(urlB);
 };
 
 export function compareGroupedEvents(a: GroupedEvent, b: GroupedEvent): number {
     const urlA = a.urls.length > 0 ? a.urls[0] : "";
     const urlB = b.urls.length > 0 ? b.urls[0] : "";
-    return compareBase(a.date, b.date, a.time, b.time, a.event, b.event, urlA, urlB);
+    return compareBase(a.date, b.date, a.time, b.time, urlA, urlB);
 }
 
 export function compareEvents(a: Event, b: Event): number {
-    return compareBase(a.date, b.date, a.time, b.time, a.event, b.event, a.url, b.url);
+    return compareBase(a.date, b.date, a.time, b.time, a.url, b.url);
 }
 
 export function mergeEventNames(namesSet: Set<string>): string {
