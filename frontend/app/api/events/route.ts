@@ -77,7 +77,8 @@ const getCachedGroupedEvents = unstable_cache(
             const uniqueUrls = Array.from(new Set(validEvents.map(ev => ev.url)));
 
             // Recalc Metadata
-            const validEventNames = new Set(validEvents.map(ev => ev.event));
+            // Use ALL source events for name resolution to capture case variations
+            const validEventNames = new Set(group.sourceEvents.map(ev => ev.event));
             const validPerformers = new Set(validEvents.map(ev => ev.performer));
 
             // Update sort keys
