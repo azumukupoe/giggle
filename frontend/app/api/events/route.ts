@@ -30,7 +30,7 @@ const getCachedGroupedEvents = unstable_cache(
                 .select('*')
                 .gte('date', todayStr)
                 .order('date', { ascending: true })
-                .order('time', { ascending: true, nullsFirst: true })
+                .order('time', { ascending: true })
                 .order('url', { ascending: true })
                 .range(p * pageSize, (p + 1) * pageSize - 1);
 
