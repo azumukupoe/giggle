@@ -108,8 +108,15 @@ export function resolveCaseVariations(items: string[]): string[] {
             continue;
         }
 
-        // Prioritize: mixed-case > all-lowercase > all-caps
-        // Mixed-case has both upper and lower, excluding all-caps
+        // Prioritize: all-lowercase > mixed-case > all-caps
+        // Lowercase first to respect stylizations (e.g. "oneohtrix point never")
+        const allLowercase = variations.filter(v => v === v.toLowerCase());
+        if (allLowercase.length > 0) {
+            result.push(allLowercase[0]);
+            continue;
+        }
+
+        // Then mixed-case
         const mixedCase = variations.filter(v =>
             v !== v.toUpperCase() && v !== v.toLowerCase()
         );
@@ -118,13 +125,8 @@ export function resolveCaseVariations(items: string[]): string[] {
             continue;
         }
 
-        // Fallback to non-all-caps (includes all-lowercase)
-        const nonAllCaps = variations.filter(v => v !== v.toUpperCase());
-        if (nonAllCaps.length > 0) {
-            result.push(nonAllCaps[0]);
-        } else {
-            result.push(variations[0]);
-        }
+        // Fallback to all-caps
+        result.push(variations[0]);
     }
     return result;
 }
