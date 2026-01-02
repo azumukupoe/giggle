@@ -21,7 +21,7 @@ class PiaConnector(BaseConnector):
     def get_events(self, query: str = None) -> List[Event]:
         all_events = []
         
-        # Concurrent fetching for prefectures 01-47
+        # Concurrent fetch for prefectures
         prefecture_codes = [f"{i:02d}" for i in range(1, 48)]
         
         with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
@@ -46,8 +46,7 @@ class PiaConnector(BaseConnector):
         page = 1
         processed_urls: Set[str] = set()
         
-        # Base query parameters as requested
-        # https://t.pia.jp/pia/rlsInfo.do?pf=13&lg=01&page=1&dispMode=1
+        # Base query parameters
         params = {
             "pf": pf_code,
             "lg": "01",      # Genre: Music
@@ -61,7 +60,7 @@ class PiaConnector(BaseConnector):
             params["page"] = page
 
             try:
-                # Random sleep to be polite
+                # Random sleep
                 time.sleep(random.uniform(1.0, 3.0))
 
                 resp = requests.get(self.base_url, headers=self.headers, params=params, timeout=15)
@@ -73,7 +72,7 @@ class PiaConnector(BaseConnector):
                 event_bundles = soup.select('#contents_html > ul > li')
 
                 if not event_bundles:
-                    # No events found means we reached the end
+                    # No events found
                     break
 
                 page_events = []
@@ -184,27 +183,15 @@ class PiaConnector(BaseConnector):
         return pf_events
 
     def get_artist_events(self, artist_name: str) -> List[Event]:
-        # Not implementing specific artist search for now as the main requirement changed 
-        # to generic list scraping, but keeping interface compliant.
+        # Not implementing specific artist search
         return []
 
 
 
-    def _parse_date(self, date_str: str) -> Optional[date]:
+    def _parse_date(self, date_str: str) -> Optional[str]:
         if not date_str:
             return None
         
-        # Remove day of week (e.g., (土))
-        cleaned_date = re.sub(r'\([^\)]+\)', '', date_str)
-        
-        # Handle ranges: keep start date
-        # "2026/7/25 ～ 2026/8/23" -> "2026/7/25 "
-        if '～' in cleaned_date:
-            cleaned_date = cleaned_date.split('～')[0].strip()
-            
-        try:
-            dt = datetime.strptime(cleaned_date.strip(), '%Y/%m/%d')
-            # Pia usually doesn't give time here, so just return date
-            return dt.date()
-        except ValueError:
-            return None
+        # Return cleaned raw string
+        cleaned = date_str.strip()
+        return cleaned if cleaned else None

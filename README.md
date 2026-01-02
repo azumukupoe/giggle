@@ -49,7 +49,7 @@ create table public.events (
   event text not null,
   ticket text,
   performer text,
-  date date not null,
+  date text not null,
   time time with time zone,
   venue text,
   location text,

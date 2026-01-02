@@ -44,7 +44,7 @@ class EplusConnector(BaseConnector):
 
     async def _get_all_ids_async(self, session, genre_code: str):
         """
-        Async fetches all (kogyo_code, kogyo_sub_code) tuples for a given parent_genre_code.
+        Fetch all ID tuples for genre.
         """
         print(f"  [eplus] Fetching exclusion list for genre {genre_code}...")
         items_per_page = 200
@@ -87,7 +87,7 @@ class EplusConnector(BaseConnector):
         return ids
 
     def _process_item_sync(self, item, dt_now, excluded_ids):
-        """Sync processing helper"""
+        """Sync processing"""
         try:
             k_code = item.get('kogyo_code')
             k_sub = item.get('kogyo_sub_code')
@@ -228,7 +228,7 @@ class EplusConnector(BaseConnector):
 
         
         try:
-            # Check if there is already a running loop (unlikely in this architecture but safely handled)
+            # Check for running loop
             loop = asyncio.get_running_loop()
         except RuntimeError:
             loop = None

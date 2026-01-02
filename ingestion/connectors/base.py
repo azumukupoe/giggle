@@ -9,7 +9,7 @@ class Event(BaseModel):
     event: str
     ticket: Optional[str] = None
     performer: Optional[str] = None
-    date: date
+    date: date | str
     time: Optional[time]
     venue: str
     location: str
@@ -20,8 +20,7 @@ class Event(BaseModel):
     def clean_text(cls, v: Optional[str]) -> Optional[str]:
         if not v:
             return v
-        # NFKC normalizes full-width to half-width (e.g. Ｚｅｐｐ -> Zepp)
-        # Also unescape HTML entities (e.g. &amp; -> &)
+        # Normalize full-width to half-width and unescape HTML
         normalized = unicodedata.normalize('NFKC', v).strip().replace('\xa0', ' ')
         return html.unescape(normalized)
 
@@ -31,10 +30,10 @@ class BaseConnector(ABC):
 
     @abstractmethod
     def get_events(self, query: str = None) -> List[Event]:
-        """Fetch events based on a general query (e.g. location or keyword)"""
+        """Fetch events by query"""
         pass
 
     @abstractmethod
     def get_artist_events(self, artist_name: str) -> List[Event]:
-        """Fetch events for a specific artist"""
+        """Fetch events by artist"""
         pass

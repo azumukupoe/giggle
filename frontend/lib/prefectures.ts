@@ -1,6 +1,6 @@
 
 const PREFECTURES: Record<string, string> = {
-    // English -> Japanese
+    // En -> Ja
     "Hokkaido": "北海道",
     "Aomori": "青森県",
     "Iwate": "岩手県",
@@ -50,7 +50,7 @@ const PREFECTURES: Record<string, string> = {
     "Okinawa": "沖縄県",
 };
 
-// Create reverse mapping (Japanese -> English)
+// Reverse mapping (Ja -> En)
 const REVERSE_PREFECTURES: Record<string, string> = Object.entries(PREFECTURES).reduce((acc, [en, ja]) => {
     acc[ja] = en;
     return acc;
@@ -61,7 +61,7 @@ export const localizePrefecture = (location: string, language: string): string =
 
     let result = location;
 
-    // If target is Japanese
+    // Target Ja
     if (language === 'ja') {
         // En -> Ja
         for (const [en, ja] of Object.entries(PREFECTURES)) {
@@ -71,7 +71,7 @@ export const localizePrefecture = (location: string, language: string): string =
             }
         }
     }
-    // If target is English
+    // Target En
     else {
         // Ja -> En
         for (const [ja, en] of Object.entries(REVERSE_PREFECTURES)) {

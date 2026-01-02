@@ -13,7 +13,7 @@ from connectors.pia import PiaConnector
 from db import get_supabase_client, upsert_events, delete_old_events
 from dotenv import load_dotenv
 
-# Load env vars
+# Load env
 load_dotenv()
 
 def run_songkick() -> List[Event]:
@@ -89,7 +89,33 @@ def main():
     if all_events:
         # Filter Past Events
         dt_today = datetime.now(ZoneInfo("Asia/Tokyo")).date()
-        future_events = [e for e in all_events if e.date >= dt_today]
+        future_events = []
+        for e in all_events:
+            # Parse raw Pia date
+            if isinstance(e.date, str):
+                import re
+                # Clean date string
+                cleaned = re.sub(r'\([^\)]+\)', '', e.date)
+                if '～' in cleaned:
+                    cleaned = cleaned.split('～')[0]
+                elif '~' in cleaned:
+                    cleaned = cleaned.split('~')[0]
+                
+                try:
+                    parsed_date = datetime.strptime(cleaned.strip(), '%Y/%m/%d').date()
+                    if parsed_date >= dt_today:
+                        future_events.append(e)
+                except ValueError:
+                    # If parsing fails, default to keeping it (or dropping? Better to keep if unsure)
+                    # But if we can't parse, we can't verify it's future. 
+                    # Use current logic: if parse fail, maybe keep? 
+                    # Let's say if it's a string we generally assume it's valid unless obviously past?
+                    # Actually, if parsing fails, it's safer to include it than exclude it.
+                    future_events.append(e)
+            else:
+                if e.date >= dt_today:
+                    future_events.append(e)
+        
         all_events = future_events
 
         unique_events_map = {}
@@ -112,7 +138,7 @@ def main():
     print(f"Total events found: {len(all_events)}")
 
 
-    # Cleanup Old Events
+    # Cleanup old
     print("--- Cleaning up old events ---")
     try:
         supabase = get_supabase_client()

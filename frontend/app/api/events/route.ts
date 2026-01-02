@@ -8,16 +8,16 @@ import { unstable_cache } from "next/cache";
 
 export const dynamic = 'force-dynamic';
 
-// Cache the heavy lifting: Fetching, Grouping, and Initial Filtering
+// Cache: Fetch, Group, Filter
 const getCachedGroupedEvents = unstable_cache(
     async () => {
-        // Fetch all future events
+        // Fetch future events
         let allData: Event[] = [];
         let hasMore = true;
         let p = 0;
         const pageSize = 1000;
 
-        // Get "today" in YYYY-MM-DD
+        // Get today
         const now = new Date();
         const year = now.getFullYear();
         const month = String(now.getMonth() + 1).padStart(2, '0');
@@ -50,11 +50,11 @@ const getCachedGroupedEvents = unstable_cache(
             }
         }
 
-        // 1. Group Events
+        // 1. Group
         const grouped = groupEvents(allData);
 
-        // 2. Filter out past occurrences (Time filtering)
-        // We use 'now' from the time of execution.
+        // Filter past
+        // Use 'now'
         const timeFiltered = grouped.map(group => {
             const validDates = group.displayDates.filter(dStr => {
                 // If it has a time, check if it's in the future
@@ -65,7 +65,7 @@ const getCachedGroupedEvents = unstable_cache(
                 return true;
             });
 
-            // Filter URLs based on validDates
+            // Filter URLs
             const validDateSet = new Set(validDates);
             const validEvents = group.sourceEvents
                 .filter(ev => {
@@ -76,11 +76,11 @@ const getCachedGroupedEvents = unstable_cache(
             // Deduplicate URLs
             const uniqueUrls = Array.from(new Set(validEvents.map(ev => ev.url)));
 
-            // Recalculate Event Names and Performers
+            // Recalc Metadata
             const validEventNames = new Set(validEvents.map(ev => ev.event));
             const validPerformers = new Set(validEvents.map(ev => ev.performer));
 
-            // Update date and time for sorting
+            // Update sort keys
             const firstDateStr = validDates[0];
             let newDate = group.date;
             let newTime = group.time;
@@ -133,7 +133,7 @@ export async function GET(request: NextRequest) {
             });
         }
 
-        // 3. Search / Advanced Filters
+        // 3. Search / Filter
         let finalEvents = timeFiltered;
         if (searchQuery) {
             finalEvents = finalEvents.filter(e => {

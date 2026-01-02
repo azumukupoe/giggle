@@ -1,5 +1,6 @@
 import os
 from supabase import create_client, Client
+import unicodedata
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -14,8 +15,7 @@ def get_supabase_client() -> Client:
 
 def upsert_events(supabase: Client, events: list):
     """
-    Upserts a list of Event objects into the 'events' table.
-    Relies on the unique constraint (url).
+    Upsert events (url constrained).
     """
     if not events:
         return
@@ -28,33 +28,51 @@ def upsert_events(supabase: Client, events: list):
             event_dict = e.model_dump()
             # Serialize date and time
             if "date" in event_dict and event_dict["date"]:
-                event_dict["date"] = event_dict["date"].isoformat()
+                if isinstance(event_dict["date"], str):
+                     # keep as is
+                     pass
+                else:
+                    event_dict["date"] = event_dict["date"].isoformat()
             if "time" in event_dict:
                 if event_dict["time"]:
                     event_dict["time"] = event_dict["time"].isoformat()
                 else:
                     event_dict["time"] = None
-            
-            # Convert empty values to None
-            for key in ["ticket", "performer", "venue", "location"]:
-                if key in event_dict and event_dict[key] == "":
-                    event_dict[key] = None
         else:
             event_dict = {
                 "event": e.event,
                 "ticket": e.ticket,
                 "performer": e.performer,
-                "date": e.date.isoformat(),
+                "date": e.date if isinstance(e.date, str) else e.date.isoformat(),
                 "time": e.time.isoformat() if e.time else None,
                 "venue": e.venue,
                 "location": e.location,
                 "url": e.url
             }
 
-            # Convert empty values to None
-            for key in ["ticket", "performer", "venue", "location"]:
-                if key in event_dict and event_dict[key] == "":
-                    event_dict[key] = None
+        # Normalize strings and handle empty
+        for key in ["event", "ticket", "performer", "venue", "location", "date"]:
+            if key in event_dict:
+                val = event_dict[key]
+                if isinstance(val, str):
+                    # Normalize using NFKC (converts full-width alphanumeric to half-width)
+                    val = unicodedata.normalize("NFKC", val).strip()
+                    # Convert empty strings to None (except maybe 'event' if strictly required, but usually title is needed. 
+                    # If empty title, Supabase might reject or store empty. Empty string is cleaner than None for required fields? 
+                    # But previous logic converted specific fields to None. I will keep that logic but applied to all if empty.)
+                    if val == "":
+                        # 'event', 'venue', 'location', 'url' are NOT optional in Event model, but strictly speaking in DB?
+                        # DB schema likely allows nulls or has defaults. 
+                        # Previous code only converted "ticket", "performer", "venue", "location" to None.
+                        # I'll replicate that behavior but ensure normalization first.
+                        pass
+                    
+                    event_dict[key] = val
+
+        # Convert empty fields to None
+        for key in ["ticket", "performer", "venue", "location"]:
+            if key in event_dict and event_dict[key] == "":
+                event_dict[key] = None
 
         data.append(event_dict)
 
@@ -66,7 +84,7 @@ def upsert_events(supabase: Client, events: list):
         raise e
 
 def get_all_artists(supabase: Client) -> list[str]:
-    """Fetch all unique artist names from the 'artists' table."""
+    """Fetch all artist names"""
     try:
         response = supabase.table("artists").select("name").execute()
         return [row['name'] for row in response.data]
@@ -76,7 +94,7 @@ def get_all_artists(supabase: Client) -> list[str]:
 
 def delete_old_events(supabase: Client):
     """
-    Deletes events from the 'events' table that are in the past.
+    Delete past events.
     """
     from datetime import datetime
     from zoneinfo import ZoneInfo

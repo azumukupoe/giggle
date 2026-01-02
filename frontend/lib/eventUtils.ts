@@ -12,12 +12,11 @@ export const normalizeEventName = (name: string | null | undefined): string => {
     return (name || "").toLowerCase().trim();
 };
 
-// Helper to create safe ISO strings
+// Create safe ISO strings
 export const createIsoDate = (date: string, time: string | null): string => {
     if (!time) return date;
 
-    // Fix timezone offset if it's missing the minute part (e.g. "+09" -> "+09:00")
-    // This happens with some Postgres versions/configurations and causes "Invalid Date" in JS
+    // Fix timezone offset
     let properTime = time;
     if (/[+-]\d{2}$/.test(time)) {
         properTime = `${time}:00`;
@@ -34,11 +33,39 @@ export const getDomain = (url: string): string => {
     }
 };
 
+// Extract sortable Date
+export function getStartDate(dateStr: string): Date {
+    // Try generic parse
+    const d1 = parseISO(dateStr);
+    if (!isNaN(d1.getTime())) {
+        return d1;
+    }
+
+    // Fallback for Pia format
+    // Remove parens
+    let cleaned = dateStr.replace(/\([^\)]+\)/g, "");
+    // Split range
+    if (cleaned.includes("～")) cleaned = cleaned.split("～")[0];
+    else if (cleaned.includes("~")) cleaned = cleaned.split("~")[0];
+
+    cleaned = cleaned.trim();
+
+    // Parse cleaned string
+    // new Date() handles slashes well in most envs.
+    const d2 = new Date(cleaned);
+    if (!isNaN(d2.getTime())) {
+        return d2;
+    }
+
+    // Fallback: far future
+    return new Date("2999-12-31");
+}
+
 export function compareGroupedEvents(a: GroupedEvent, b: GroupedEvent): number {
-    const dateDiff = new Date(a.date).getTime() - new Date(b.date).getTime();
+    const dateDiff = getStartDate(a.date).getTime() - getStartDate(b.date).getTime();
     if (dateDiff !== 0) return dateDiff;
 
-    // If dates are equal, sort by time (nulls first)
+    // Dates equal, sort time (nulls first)
     if (!a.time && !b.time) {
         const eventDiff = a.event.localeCompare(b.event);
         if (eventDiff !== 0) return eventDiff;
@@ -62,8 +89,7 @@ export function compareGroupedEvents(a: GroupedEvent, b: GroupedEvent): number {
 
 export function mergeEventNames(namesSet: Set<string>): string {
     const names = resolveCaseVariations(Array.from(namesSet));
-    // Filter out any name that is strictly contained in another name
-    // Example: "A" vs "A / B" -> "A" is in "A / B", so we keep "A / B" and drop "A"
+    // Filter contained names
     const uniqueNames = names.filter(t1 => {
         // If t1 is contained in any OTHER name t2, drop t1.
         return !names.some(t2 => t2 !== t1 && t2.includes(t1));
@@ -89,7 +115,6 @@ export function resolveCaseVariations(items: string[]): string[] {
         }
 
         // Find non-all-caps variants
-        // An item is "all caps" if item === item.toUpperCase() AND item !== item.toLowerCase() (to exclude "123")
         const nonAllCaps = variations.filter(v => v !== v.toUpperCase() || v === v.toLowerCase());
 
         if (nonAllCaps.length > 0) {

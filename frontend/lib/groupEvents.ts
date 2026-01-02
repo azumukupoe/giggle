@@ -8,7 +8,9 @@ import {
     compareGroupedEvents,
     mergeEventNames,
     resolveCaseVariations,
-    filterRedundantDates
+
+    filterRedundantDates,
+    getStartDate
 } from "./eventUtils";
 
 interface IntermediateGroup {
@@ -25,12 +27,12 @@ interface IntermediateGroup {
 export function groupEvents(events: Event[]): GroupedEvent[] {
     if (events.length === 0) return [];
 
-    // Sort by date then time to make consecutive check easier
+    // Sort by date then time
     const sortedEvents = [...events].sort((a, b) => {
-        const dateDiff = new Date(a.date).getTime() - new Date(b.date).getTime();
+        const dateDiff = getStartDate(a.date).getTime() - getStartDate(b.date).getTime();
         if (dateDiff !== 0) return dateDiff;
 
-        // If dates are equal, sort by time (nulls first to match DB query)
+        // Dates equal, sort time (nulls first)
         if (!a.time && !b.time) {
             const eventDiff = a.event.localeCompare(b.event);
             if (eventDiff !== 0) return eventDiff;
@@ -48,7 +50,7 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
         return getDomain(a.url).localeCompare(getDomain(b.url));
     });
 
-    // --- Pass 1: Group by EventName + Venue (detecting consecutive days) ---
+    // Pass 1: Group by Event + Venue
     const pass1Groups: IntermediateGroup[] = [];
     // Key: venueNormalized + "__" + eventNameNormalized
     const activeGroups = new Map<string, IntermediateGroup & { latestDate: Date }>();
@@ -56,7 +58,7 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
     for (const event of sortedEvents) {
         const normVenue = normalizeVenue(event.venue);
         const normEventName = normalizeEventName(event.event);
-        const eventDate = parseISO(event.date);
+        const eventDate = getStartDate(event.date);
 
         const key = `${normVenue}__${normEventName}`;
         let matched = false;
@@ -64,7 +66,7 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
         const candidateGroup = activeGroups.get(key);
 
         if (candidateGroup) {
-            // Check if consecutive to the LATEST date in the group.
+            // Check consecutive
             // Since events are sorted by date, we usually only need to check the last one.
             const diff = Math.abs(differenceInCalendarDays(eventDate, candidateGroup.latestDate));
 
@@ -78,7 +80,7 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
                 candidateGroup.dates.add(dateTimeStr);
                 candidateGroup.sourceEvents.push(event);
 
-                // Update latest date for future consecutive checks
+                // Update latest date
                 // Since input is sorted, eventDate is >= latestDate, so we just update it.
                 candidateGroup.latestDate = eventDate;
 
@@ -106,7 +108,7 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
         }
     }
 
-    // --- Pass 2: Group by Venue + Start Time ---
+    // Pass 2: Group by Venue + Time
     const pass2Map = new Map<string, IntermediateGroup>();
 
     for (const group of pass1Groups) {
@@ -114,8 +116,8 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
         const startTime = sortedDates[0];
         let key = `${group.venueNormalized}__${startTime}`;
 
-        // If start time is null (meaning it's just a date string grouping), do NOT group in pass 2.
-        // We ensure uniqueness by appending the base event ID to the key.
+        // Skip grouping if time is null
+        // Ensure uniqueness via ID
         if (!startTime.includes("T")) {
             key += `__${group.baseEvent.id}`;
         }
@@ -142,8 +144,7 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
         const baseDate = g.baseEvent.date;
 
         for (const dStr of sortedDates) {
-            // We only look for a time on the *same day* as the group starts.
-            // If the group starts on Jan 1 with no time, but has a Jan 1 19:00 entry, use 19:00.
+            // Find time on same day
             // If the group starts on Jan 1 with no time, and next entry is Jan 2 19:00, we stick with null (Jan 1).
             if (!dStr.startsWith(baseDate)) {
                 break;

@@ -16,7 +16,7 @@ class SongkickConnector(BaseConnector):
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
         }
         
-        # Setup session with retry
+        # Setup retry session
         self.session = requests.Session()
         retries = requests.adapters.Retry(total=3, backoff_factor=1, status_forcelist=[500, 502, 503, 504])
         adapter = requests.adapters.HTTPAdapter(max_retries=retries)
@@ -29,7 +29,7 @@ class SongkickConnector(BaseConnector):
 
     def get_metro_events(self, metro_id: str = "30717-japan-tokyo", max_pages: int = None) -> List[Event]:
         """
-        Fetches events for a specific metro area (e.g., Tokyo).
+        Fetch events for metro.
         """
         all_events = []
         base_metro_url = f"{self.base_url}/metro-areas/{metro_id}"
@@ -52,7 +52,7 @@ class SongkickConnector(BaseConnector):
                 
                 soup = BeautifulSoup(resp.content, 'html.parser')
                 
-                # JSON-LD extraction
+                # Extract JSON-LD
                 scripts = soup.find_all('script', type='application/ld+json')
                 page_events = []
                 
@@ -197,7 +197,7 @@ class SongkickConnector(BaseConnector):
             if not tour_name and url:
                  tour_name = self._get_tour_name_from_page(url)
 
-            # Logic for Title vs Artist
+            # Title vs Artist
             if tour_name:
                 title = tour_name
                 artist_final = all_artists_str
@@ -227,8 +227,7 @@ class SongkickConnector(BaseConnector):
 
     def _get_tour_name_from_page(self, url: str) -> str:
         """
-        Fetches the event detail page and looks for 'Tour name' in Additional Details.
-        Returns the tour name string or None.
+        Fetch tour name from details.
         """
         try:
             resp = self.session.get(url, headers=self.headers, timeout=10)

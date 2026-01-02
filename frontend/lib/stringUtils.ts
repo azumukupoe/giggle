@@ -1,7 +1,7 @@
 /**
- * Normalizes Japanese text for search purposes.
- * - Converts Katakana to Hiragana
- * - Converts to lowercase (for English text)
+ * Normalize Japanese text.
+ * - Katakana to Hiragana
+ * - Lowercase
  */
 export const normalizeJapanese = (text: string): string => {
     return text
