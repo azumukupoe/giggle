@@ -14,10 +14,11 @@ export const normalizeEventName = (name: string | null | undefined): string => {
 
 export const stripSymbols = (str: string): string => {
     // Keep letters, numbers, and spaces. Remove everything else.
-    return str.replace(/[^\p{L}\p{N}\s]/gu, "");
+    return (str || "").replace(/[^\p{L}\p{N}\s]/gu, "");
 };
 
-export const areStringsSimilar = (s1: string, s2: string): boolean => {
+export const areStringsSimilar = (s1: string | null | undefined, s2: string | null | undefined): boolean => {
+    if (!s1 || !s2) return false;
     const n1 = stripSymbols(s1.toLowerCase()).trim();
     const n2 = stripSymbols(s2.toLowerCase()).trim();
     if (!n1 || !n2) return false;
