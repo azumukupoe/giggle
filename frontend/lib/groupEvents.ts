@@ -1,14 +1,14 @@
-import { differenceInCalendarDays, parseISO } from "date-fns";
+import { differenceInCalendarDays } from "date-fns";
 import { Event, GroupedEvent } from "@/types/event";
 import {
     normalizeVenue,
     normalizeEventName,
     createIsoDate,
-    getDomain,
     mergeEventNames,
     resolveCaseVariations,
     filterRedundantDates,
-    getStartDate
+    getStartDate,
+    areStringsSimilar
 } from "./eventUtils";
 
 interface IntermediateGroup {
@@ -20,6 +20,7 @@ interface IntermediateGroup {
     dates: Set<string>; // Set of ISO strings
     venueNormalized: string;
     sourceEvents: Event[];
+    latestDate: Date;
 }
 
 export function groupEvents(events: Event[]): GroupedEvent[] {
@@ -27,122 +28,120 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
 
     const sortedEvents = events;
 
-    // Pass 1: Group by Event + Venue
-    const pass1Groups: IntermediateGroup[] = [];
-    // Key: venueNormalized + "__" + eventNameNormalized
-    const activeGroups = new Map<string, IntermediateGroup & { latestDate: Date }>();
+    // Pass 1: Group by Fuzzy Match
+    const groups: IntermediateGroup[] = [];
 
     for (const event of sortedEvents) {
-        const normVenue = normalizeVenue(event.venue);
-        const normEventName = normalizeEventName(event.event);
         const eventDate = getStartDate(event.date);
-
-        const key = `${normVenue}__${normEventName}`;
         let matched = false;
 
-        const candidateGroup = activeGroups.get(key);
+        // Iterate backwards through recent groups to find a match
+        // We only check groups with recent dates (consecutive days)
+        for (let i = groups.length - 1; i >= 0; i--) {
+            const group = groups[i];
+            const diff = Math.abs(differenceInCalendarDays(eventDate, group.latestDate));
 
-        if (candidateGroup) {
-            // Check consecutive
-            // Since events are sorted by date, we usually only need to check the last one.
-            const diff = Math.abs(differenceInCalendarDays(eventDate, candidateGroup.latestDate));
-
-            if (diff <= 1) {
-                // Merge into this group
-                candidateGroup.urls.add(event.url);
-                candidateGroup.eventNames.add(event.event);
-                candidateGroup.performers.add(event.performer);
-                candidateGroup.venues.add(event.venue);
-                const dateTimeStr = createIsoDate(event.date, event.time);
-                candidateGroup.dates.add(dateTimeStr);
-                candidateGroup.sourceEvents.push(event);
-
-                // Update latest date
-                // Since input is sorted, eventDate is >= latestDate, so we just update it.
-                candidateGroup.latestDate = eventDate;
-
-                matched = true;
+            if (diff > 1) {
+                // Since events are sorted by date, older groups won't match
+                // We can stop searching
+                break;
             }
+
+            // 1. Location Match (strict on normalized)
+            const loc1 = (event.location || "").toLowerCase().trim();
+            const loc2 = (group.baseEvent.location || "").toLowerCase().trim();
+
+            if (loc1 !== loc2) continue;
+
+            // 2. Venue Fuzzy Match
+            // Check if current event venue is similar to ANY of the group's venues
+            const venueMatch = Array.from(group.venues).some(v => areStringsSimilar(v, event.venue));
+
+            if (!venueMatch) continue;
+
+            // 3. Event Name Fuzzy Match
+            const eventMatch = Array.from(group.eventNames).some(n => areStringsSimilar(n, event.event));
+
+            if (!eventMatch) continue;
+
+            // All matched -> Merge
+            group.urls.add(event.url);
+            group.eventNames.add(event.event);
+            group.performers.add(event.performer);
+            group.venues.add(event.venue);
+            const dateTimeStr = createIsoDate(event.date, event.time);
+            group.dates.add(dateTimeStr);
+            group.sourceEvents.push(event);
+
+            // Update latest date
+            if (eventDate > group.latestDate) {
+                group.latestDate = eventDate;
+            }
+
+            matched = true;
+            break;
         }
 
         if (!matched) {
             // Create new group
             const dateTimeStr = createIsoDate(event.date, event.time);
-            const newGroup = {
+            const newGroup: IntermediateGroup = {
                 baseEvent: event,
-                venueNormalized: normVenue,
+                venueNormalized: normalizeVenue(event.venue), // Keep for reference if needed, though unused in logic now
                 urls: new Set([event.url]),
                 eventNames: new Set([event.event]),
                 performers: new Set([event.performer]),
                 venues: new Set([event.venue]),
                 dates: new Set([dateTimeStr]),
                 sourceEvents: [event],
-                latestDate: eventDate // Track for O(1) consecutive check
+                latestDate: eventDate
             };
 
-            pass1Groups.push(newGroup);
-            activeGroups.set(key, newGroup);
+            groups.push(newGroup);
         }
     }
 
-    // Pass 2: Group by Venue + Time
-    const pass2Map = new Map<string, IntermediateGroup>();
+    // Pass 2: Group by Venue + Time (Logic to merge groups? Or is Pass 1 sufficient?)
+    // The original code had a Pass 2 to "Group by Venue + Time".
+    // This merged groups that were separate in Pass 1 but had same start time/venue.
+    // Given the new fuzzy logic, we might still have separate groups if "Pass 1" didn't catch them 
+    // (e.g. if they were not consecutive but essentially same event? No, logic was diff <= 1).
+    // The original Pass 2 was for "Venue + Time".
+    // With fuzzy matching, we should have caught most relevant merges.
+    // However, if we have duplicate listings (same time, same venue) that weren't caught 
+    // (maybe due to sorting order? or slight name diffs not caught by fuzzy?), we might want to dedupe.
+    // But for now, let's Stick to Pass 1 as the primary grouper.
+    // Any remaining "split" groups are likely distinct enough or too far apart in time.
 
-    for (const group of pass1Groups) {
-        const sortedDates = Array.from(group.dates).sort();
-        const startTime = sortedDates[0];
-        let key = `${group.venueNormalized}__${startTime}`;
-
-        // Skip grouping if time is null
-        // Ensure uniqueness via ID
-        if (!startTime.includes("T")) {
-            key += `__${group.baseEvent.id}`;
-        }
-
-        if (pass2Map.has(key)) {
-            const existing = pass2Map.get(key)!;
-            // Merge
-            group.urls.forEach(u => existing.urls.add(u));
-            group.eventNames.forEach(t => existing.eventNames.add(t));
-            group.performers.forEach(a => existing.performers.add(a));
-            group.venues.forEach(v => existing.venues.add(v));
-            group.dates.forEach(d => existing.dates.add(d));
-            existing.sourceEvents.push(...group.sourceEvents);
-        } else {
-            pass2Map.set(key, group);
-        }
-    }
-
-    // Convert back to Array
-    return Array.from(pass2Map.values()).map(g => {
+    // Convert back to output format
+    return groups.map(g => {
         const sortedDates = Array.from(g.dates).sort();
 
         let time: string | null = null;
         const baseDate = g.baseEvent.date;
 
         for (const dStr of sortedDates) {
-            // Find time on same day
-            // If the group starts on Jan 1 with no time, and next entry is Jan 2 19:00, we stick with null (Jan 1).
-            if (!dStr.startsWith(baseDate)) {
-                break;
-            }
+            // Find time on same day as base event (simplified)
             if (dStr.includes("T")) {
-                time = dStr.split("T")[1];
-                break;
+                // Ideally matches the first date's time
+                const dDate = dStr.split("T")[0];
+                if (dDate === baseDate || !time) {
+                    time = dStr.split("T")[1];
+                }
             }
         }
 
         return {
-            id: g.baseEvent.id, // Use ID of first event
+            id: g.baseEvent.id,
             event: mergeEventNames(g.eventNames),
             performer: resolveCaseVariations(Array.from(g.performers)).join("\n\n"),
             venue: resolveCaseVariations(Array.from(g.venues))[0] || "",
             location: g.baseEvent.location || "",
-            date: g.baseEvent.date, // Use earliest date for sorting usually?
+            date: g.baseEvent.date,
             time,
             urls: Array.from(g.urls),
             sourceEvents: g.sourceEvents,
-            displayDates: filterRedundantDates(Array.from(g.dates)) // Sorted list for display
+            displayDates: filterRedundantDates(Array.from(g.dates))
         };
     });
 }

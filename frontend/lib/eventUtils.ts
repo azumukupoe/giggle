@@ -12,6 +12,18 @@ export const normalizeEventName = (name: string | null | undefined): string => {
     return (name || "").toLowerCase().trim();
 };
 
+export const stripSymbols = (str: string): string => {
+    // Keep letters, numbers, and spaces. Remove everything else.
+    return str.replace(/[^\p{L}\p{N}\s]/gu, "");
+};
+
+export const areStringsSimilar = (s1: string, s2: string): boolean => {
+    const n1 = stripSymbols(s1.toLowerCase()).trim();
+    const n2 = stripSymbols(s2.toLowerCase()).trim();
+    if (!n1 || !n2) return false;
+    return n1.includes(n2) || n2.includes(n1);
+};
+
 // Create safe ISO strings
 export const createIsoDate = (date: string, time: string | null): string => {
     if (!time) return date;
