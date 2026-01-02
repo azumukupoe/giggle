@@ -108,14 +108,21 @@ export function resolveCaseVariations(items: string[]): string[] {
             continue;
         }
 
-        // Find non-all-caps variants
-        const nonAllCaps = variations.filter(v => v !== v.toUpperCase() || v === v.toLowerCase());
+        // Prioritize: mixed-case > all-lowercase > all-caps
+        // Mixed-case has both upper and lower, excluding all-caps
+        const mixedCase = variations.filter(v =>
+            v !== v.toUpperCase() && v !== v.toLowerCase()
+        );
+        if (mixedCase.length > 0) {
+            result.push(mixedCase[0]);
+            continue;
+        }
 
+        // Fallback to non-all-caps (includes all-lowercase)
+        const nonAllCaps = variations.filter(v => v !== v.toUpperCase());
         if (nonAllCaps.length > 0) {
-            // Pick the first non-all-caps variant
             result.push(nonAllCaps[0]);
         } else {
-            // All are all-caps, just pick the first one
             result.push(variations[0]);
         }
     }

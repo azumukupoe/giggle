@@ -95,7 +95,7 @@ class PiaConnector(BaseConnector):
                             url = link_tag['href']
                             # Ensure absolute URL
                             if url.startswith('/'):
-                                url = f"http://ticket.pia.jp{url}"
+                                url = f"https://ticket.pia.jp{url}"
                             
                             # Only standard ticket info pages
                             if 'ticketInformation.do' not in url:
