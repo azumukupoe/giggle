@@ -50,54 +50,46 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
 
     // --- Pass 1: Group by EventName + Venue (detecting consecutive days) ---
     const pass1Groups: IntermediateGroup[] = [];
+    // Key: venueNormalized + "__" + eventNameNormalized
+    const activeGroups = new Map<string, IntermediateGroup & { latestDate: Date }>();
 
     for (const event of sortedEvents) {
         const normVenue = normalizeVenue(event.venue);
         const normEventName = normalizeEventName(event.event);
         const eventDate = parseISO(event.date);
 
+        const key = `${normVenue}__${normEventName}`;
         let matched = false;
 
-        // Iterate backwards to find the most recent candidate
-        for (let i = pass1Groups.length - 1; i >= 0; i--) {
-            const group = pass1Groups[i];
+        const candidateGroup = activeGroups.get(key);
 
-            if (group.venueNormalized !== normVenue) continue;
+        if (candidateGroup) {
+            // Check if consecutive to the LATEST date in the group.
+            // Since events are sorted by date, we usually only need to check the last one.
+            const diff = Math.abs(differenceInCalendarDays(eventDate, candidateGroup.latestDate));
 
-            const groupEventNameSample = group.baseEvent.event;
-            if (normalizeEventName(groupEventNameSample) !== normEventName) continue;
-
-            let isConsecutiveOrSame = false;
-            for (const dStr of Array.from(group.dates)) {
-                // Handle potential T-separator in dStr if we used createIsoDate
-                // note: dStr might behave differently if it has Time.
-                // parseISO handles ISO strings well.
-                const groupDate = parseISO(dStr);
-                const diff = Math.abs(differenceInCalendarDays(eventDate, groupDate));
-                if (diff <= 1) {
-                    isConsecutiveOrSame = true;
-                    break;
-                }
-            }
-
-            if (isConsecutiveOrSame) {
+            if (diff <= 1) {
                 // Merge into this group
-                group.urls.add(event.url);
-                group.eventNames.add(event.event);
-                group.performers.add(event.performer);
-                group.venues.add(event.venue);
+                candidateGroup.urls.add(event.url);
+                candidateGroup.eventNames.add(event.event);
+                candidateGroup.performers.add(event.performer);
+                candidateGroup.venues.add(event.venue);
                 const dateTimeStr = createIsoDate(event.date, event.time);
-                group.dates.add(dateTimeStr);
-                group.sourceEvents.push(event);
+                candidateGroup.dates.add(dateTimeStr);
+                candidateGroup.sourceEvents.push(event);
+
+                // Update latest date for future consecutive checks
+                // Since input is sorted, eventDate is >= latestDate, so we just update it.
+                candidateGroup.latestDate = eventDate;
+
                 matched = true;
-                break;
             }
         }
 
         if (!matched) {
             // Create new group
             const dateTimeStr = createIsoDate(event.date, event.time);
-            pass1Groups.push({
+            const newGroup = {
                 baseEvent: event,
                 venueNormalized: normVenue,
                 urls: new Set([event.url]),
@@ -105,8 +97,12 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
                 performers: new Set([event.performer]),
                 venues: new Set([event.venue]),
                 dates: new Set([dateTimeStr]),
-                sourceEvents: [event]
-            });
+                sourceEvents: [event],
+                latestDate: eventDate // Track for O(1) consecutive check
+            };
+
+            pass1Groups.push(newGroup);
+            activeGroups.set(key, newGroup);
         }
     }
 
