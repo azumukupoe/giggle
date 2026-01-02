@@ -46,40 +46,7 @@ export function getStartDate(dateStr: string): Date {
 }
 
 
-// Common comparison logic for Event and GroupedEvent-like structures
-const compareBase = (
-    dateA: string,
-    dateB: string,
-    timeA: string | null,
-    timeB: string | null,
-    urlA: string,
-    urlB: string
-): number => {
-    const dateDiff = getStartDate(dateA).getTime() - getStartDate(dateB).getTime();
-    if (dateDiff !== 0) return dateDiff;
 
-    // Dates equal, sort time (nulls first)
-    if (!timeA && !timeB) {
-        return urlA.localeCompare(urlB);
-    }
-    if (!timeA) return -1;
-    if (!timeB) return 1;
-
-    const timeDiff = timeA.localeCompare(timeB);
-    if (timeDiff !== 0) return timeDiff;
-
-    return urlA.localeCompare(urlB);
-};
-
-export function compareGroupedEvents(a: GroupedEvent, b: GroupedEvent): number {
-    const urlA = a.urls.length > 0 ? a.urls[0] : "";
-    const urlB = b.urls.length > 0 ? b.urls[0] : "";
-    return compareBase(a.date, b.date, a.time, b.time, urlA, urlB);
-}
-
-export function compareEvents(a: Event, b: Event): number {
-    return compareBase(a.date, b.date, a.time, b.time, a.url, b.url);
-}
 
 export function mergeEventNames(namesSet: Set<string>): string {
     const names = resolveCaseVariations(Array.from(namesSet));

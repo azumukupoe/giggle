@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { groupEvents } from "@/lib/groupEvents";
-import { createIsoDate, mergeEventNames, compareGroupedEvents } from "@/lib/eventUtils";
+import { createIsoDate, mergeEventNames } from "@/lib/eventUtils";
 import { Event } from "@/types/event";
 import { unstable_cache } from "next/cache";
 

@@ -96,6 +96,8 @@ class PiaConnector(BaseConnector):
                             # Ensure absolute URL
                             if url.startswith('/'):
                                 url = f"https://ticket.pia.jp{url}"
+                            elif url.startswith('http://'):
+                                url = url.replace('http://', 'https://', 1)
                             
                             # Only standard ticket info pages
                             if 'ticketInformation.do' not in url:

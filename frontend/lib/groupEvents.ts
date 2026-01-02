@@ -5,13 +5,10 @@ import {
     normalizeEventName,
     createIsoDate,
     getDomain,
-    compareGroupedEvents,
     mergeEventNames,
     resolveCaseVariations,
-
     filterRedundantDates,
-    getStartDate,
-    compareEvents
+    getStartDate
 } from "./eventUtils";
 
 interface IntermediateGroup {
@@ -28,10 +25,6 @@ interface IntermediateGroup {
 export function groupEvents(events: Event[]): GroupedEvent[] {
     if (events.length === 0) return [];
 
-    // Sort by date then time
-
-    // Input is already sorted from DB
-    // const sortedEvents = [...events].sort(compareEvents);
     const sortedEvents = events;
 
     // Pass 1: Group by Event + Venue
