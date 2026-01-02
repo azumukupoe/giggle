@@ -83,6 +83,7 @@ def main():
                 print(f"[{source_name}] Execution failed: {e}")
 
     # Save to Supabase
+    supabase = None
     if all_events:
         # Filter Past Events
         future_events = []
@@ -117,7 +118,8 @@ def main():
     # Cleanup old
     print("--- Cleaning up old events ---")
     try:
-        supabase = get_supabase_client()
+        if supabase is None:
+            supabase = get_supabase_client()
         delete_old_events(supabase)
     except Exception as e:
          print(f"Skipping cleanup due to error connecting to DB: {e}")

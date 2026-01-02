@@ -37,7 +37,7 @@ def upsert_events(supabase: Client, events: list):
 
     # Perform upsert
     try:
-        response = supabase.table("events").upsert(data, on_conflict="url").execute() 
+        supabase.table("events").upsert(data, on_conflict="url").execute() 
     except Exception as e:
         print(f"Supabase upsert error: {e}")
         raise e

@@ -1,4 +1,4 @@
-import { differenceInCalendarDays, parseISO } from "date-fns";
+import { parseISO } from "date-fns";
 import { Event, GroupedEvent } from "@/types/event";
 
 export const normalizeVenue = (venue: string | null | undefined): string => {

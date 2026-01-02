@@ -227,16 +227,7 @@ class EplusConnector(BaseConnector):
     def get_events(self, query: str = None, max_pages: int = None):
 
         
-        try:
-            # Check for running loop
-            loop = asyncio.get_running_loop()
-        except RuntimeError:
-            loop = None
-
-        if loop and loop.is_running():
-            return asyncio.run(self._get_events_async(query, max_pages))
-        else:
-            return asyncio.run(self._get_events_async(query, max_pages))
+        return asyncio.run(self._get_events_async(query, max_pages))
 
 
 

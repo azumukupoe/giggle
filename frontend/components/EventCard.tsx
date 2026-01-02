@@ -9,7 +9,7 @@ import { ExternalLink, MapPin, Calendar } from "lucide-react";
 import { motion } from "framer-motion";
 import { useLanguage } from "./LanguageContext";
 
-import { localizePrefecture, formatLocation } from "@/lib/prefectures";
+import { formatLocation } from "@/lib/prefectures";
 import { getStartDate, getDomain } from "@/lib/eventUtils";
 
 
@@ -395,14 +395,34 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
                     {/* Ticket Links */}
                     <div className="grid grid-cols-2 gap-2">
                         {event.sourceEvents.map((sourceEvent, index) => {
-                            let date = parseISO(sourceEvent.date);
-                            if (!isValid(date)) {
-                                date = getStartDate(sourceEvent.date);
+                            const dateParts = sourceEvent.date.split(' ');
+                            let label: string;
+
+                            if (dateParts.length >= 2) {
+                                // Date range: show start and end dates
+                                const startDate = parseISO(dateParts[0]);
+                                const endDate = parseISO(dateParts[dateParts.length - 1]);
+                                if (isValid(startDate) && isValid(endDate)) {
+                                    const startLabel = `${startDate.getMonth() + 1}/${startDate.getDate()}`;
+                                    const endLabel = `${endDate.getMonth() + 1}/${endDate.getDate()}`;
+                                    const separator = language === 'ja' ? ' ～ ' : ' - ';
+                                    label = `${startLabel}${separator}${endLabel}`;
+                                } else {
+                                    // Fallback for invalid dates
+                                    const date = getStartDate(sourceEvent.date);
+                                    label = `${date.getMonth() + 1}/${date.getDate()}`;
+                                }
+                            } else {
+                                // Single date
+                                let date = parseISO(sourceEvent.date);
+                                if (!isValid(date)) {
+                                    date = getStartDate(sourceEvent.date);
+                                }
+                                const month = date.getMonth() + 1;
+                                const day = date.getDate();
+                                const timeStr = sourceEvent.time ? sourceEvent.time.substring(0, 5) : "";
+                                label = timeStr ? `${month}/${day} ${timeStr}` : `${month}/${day}`;
                             }
-                            const month = date.getMonth() + 1;
-                            const day = date.getDate();
-                            const timeStr = sourceEvent.time ? sourceEvent.time.substring(0, 5) : "";
-                            const label = timeStr ? `${month}/${day} ${timeStr}` : `${month}/${day}`;
 
                             const hostname = getDomain(sourceEvent.url);
 
