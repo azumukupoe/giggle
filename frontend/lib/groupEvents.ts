@@ -48,10 +48,14 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
             }
 
             // 1. Location Match (strict on normalized)
-            const loc1 = (event.location || "").toLowerCase().trim();
-            const loc2 = (group.baseEvent.location || "").toLowerCase().trim();
+            // Strict location matching is removed because different sources use different formats 
+            // (e.g., "Osaka, Japan" vs "大阪府"). 
+            // Since we match on Date (proximity) AND Venue (fuzzy) AND Event Name (fuzzy),
+            // we have enough signal to group correctly without location strictness.
 
-            if (loc1 !== loc2) continue;
+            // const loc1 = (event.location || "").toLowerCase().trim();
+            // const loc2 = (group.baseEvent.location || "").toLowerCase().trim();
+            // if (loc1 !== loc2) continue;
 
             // 2. Venue Fuzzy Match
             // Check if current event venue is similar to ANY of the group's venues
