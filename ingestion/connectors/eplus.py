@@ -138,8 +138,7 @@ class EplusConnector(BaseConnector):
                 
                 performers = first_uketsuke.get('shutsuensha') 
                 if performers:
-                    performers = performers.replace("本公演はスタンプ&ギフト対象公演です。", "")
-                    performers = performers.replace("詳細はこちら /sf/streamingplus/stampgift", "")
+                    performers = performers.replace("※2枚以上ご購入の方はお申込み前に同行者登録が必要です。同行者登録されていない場合お申込み手続きには進めません。\n同行者登録につきましてはこちら\nhttps://eplus.jp/sf/guide/fellow-ep\nをご確認ください。\nチケットには申込者･同行者共、会員登録の氏名が印字されます。", "")
                     performers = performers.strip()
                     if performers:
                         artist = performers
