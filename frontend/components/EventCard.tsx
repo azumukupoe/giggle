@@ -10,7 +10,7 @@ import { motion } from "framer-motion";
 import { useLanguage } from "./LanguageContext";
 
 import { formatLocation } from "@/lib/prefectures";
-import { getStartDate, getDomain } from "@/lib/eventUtils";
+import { getStartDate, getDomain, normalizeEventName } from "@/lib/eventUtils";
 
 
 // Utility functions extracted outside component to avoid recreation on each render
@@ -431,7 +431,7 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
                             const specificName = sourceEvent.event;
                             let diff = "";
 
-                            if (specificName && commonName && specificName !== commonName) {
+                            if (specificName && commonName && normalizeEventName(specificName) !== normalizeEventName(commonName)) {
                                 // Remove the common part to get the specific part
                                 // We escape special regex characters in commonName just in case, but simple replace works for substrings
                                 diff = specificName.replace(commonName, "").trim();
