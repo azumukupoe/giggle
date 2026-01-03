@@ -221,7 +221,10 @@ export const normalizeVenue = (venue: string | null | undefined): string => {
 };
 
 export const normalizeEventName = (name: string | null | undefined): string => {
-    return (name || "").toLowerCase().trim();
+    return (name || "")
+        .toLowerCase()
+        .replace(/’/g, "'")
+        .trim();
 };
 
 export const normalizeLocation = (loc: string | null | undefined): string => {
