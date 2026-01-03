@@ -1,5 +1,7 @@
-
-const PREFECTURES: Record<string, string> = {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.isJapanesePrefecture = exports.formatLocation = exports.localizePrefecture = void 0;
+const PREFECTURES = {
     // En -> Ja
     "Hokkaido": "北海道",
     "Aomori": "青森県",
@@ -49,18 +51,15 @@ const PREFECTURES: Record<string, string> = {
     "Kagoshima": "鹿児島県",
     "Okinawa": "沖縄県",
 };
-
 // Reverse mapping (Ja -> En)
-const REVERSE_PREFECTURES: Record<string, string> = Object.entries(PREFECTURES).reduce((acc, [en, ja]) => {
+const REVERSE_PREFECTURES = Object.entries(PREFECTURES).reduce((acc, [en, ja]) => {
     acc[ja] = en;
     return acc;
-}, {} as Record<string, string>);
-
-export const localizePrefecture = (location: string, language: string): string => {
-    if (!location) return "";
-
+}, {});
+const localizePrefecture = (location, language) => {
+    if (!location)
+        return "";
     let result = location;
-
     // Target Ja
     if (language === 'ja') {
         // En -> Ja
@@ -80,28 +79,26 @@ export const localizePrefecture = (location: string, language: string): string =
             }
         }
     }
-
     return result;
 };
-
-export const formatLocation = (loc: string, language: string) => {
+exports.localizePrefecture = localizePrefecture;
+const formatLocation = (loc, language) => {
     const cleaned = loc.replace(/, Japan$/, "").replace(/Japan$/, "").trim();
-    return localizePrefecture(cleaned, language);
+    return (0, exports.localizePrefecture)(cleaned, language);
 };
-
-export const isJapanesePrefecture = (location: string): boolean => {
-    if (!location) return false;
+exports.formatLocation = formatLocation;
+const isJapanesePrefecture = (location) => {
+    if (!location)
+        return false;
     const lower = location.toLowerCase();
-
     // Check English names
     if (Object.keys(PREFECTURES).some(en => lower.includes(en.toLowerCase()))) {
         return true;
     }
-
     // Check Japanese names
     if (Object.values(PREFECTURES).some(ja => location.includes(ja))) {
         return true;
     }
-
     return false;
 };
+exports.isJapanesePrefecture = isJapanesePrefecture;

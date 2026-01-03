@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { groupEvents } from "@/lib/groupEvents";
 import { createIsoDate, mergeEventNames } from "@/lib/eventUtils";
+import { getTimezoneOffset } from "@/lib/timezoneUtils";
 import { Event } from "@/types/event";
 import { unstable_cache } from "next/cache";
 
@@ -60,7 +61,29 @@ const getCachedGroupedEvents = unstable_cache(
             const validDates = group.displayDates.filter(dStr => {
                 // If it has a time, check if it's in the future
                 if (dStr.includes("T")) {
-                    const dt = new Date(dStr);
+                    let dateStr = dStr;
+                    // Check if timezone info is missing
+                    if (!/[+-]\d{2}:?\d{2}|Z$/.test(dateStr)) {
+                        // Dynamically determine timezone based on location
+                        // We need the location from the event. But 'group.displayDates' doesn't have it direct mapping easily here?
+                        // 'group' is already grouped.
+                        // Wait, 'validDates' iteration is just string filtering.
+                        // We need to know WHICH event this date belongs to to get the location.
+                        // But we are iterating dates first.
+
+                        // Actually, looking at lines 71-75, we filter events LATER based on these valid dates.
+                        // This structure is: Filter Dates -> Filter Events -> Re-derive metadata.
+
+                        // If we filter dates first without knowing the location, we can't apply the correct timezone.
+                        // We should probably rely on the *Group's* location if reasonable, or checking the source events.
+
+                        // Option: Use group.venue or group.location (baseEvent location) as a proxy.
+                        // Since they are grouped by venue/location match, the group location should be representative.
+
+                        const offset = getTimezoneOffset(dateStr, group.baseEvent.location || "");
+                        dateStr += offset;
+                    }
+                    const dt = new Date(dateStr);
                     return dt > now;
                 }
                 return true;
