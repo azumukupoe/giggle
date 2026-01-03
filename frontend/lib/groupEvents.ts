@@ -33,6 +33,7 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
 
     for (const event of sortedEvents) {
         const eventDate = getStartDate(event.date);
+        const dateTimeStr = createIsoDate(event.date, event.time);
         let matched = false;
 
         // Iterate backwards through recent groups to find a match
@@ -79,14 +80,16 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
                 (perf1 ? Array.from(group.eventNames).some(n => normalizeEventName(n) === p1Norm) : false) ||
                 (perf1 ? Array.from(group.performers).some(p => normalizeEventName(p) === p1Norm) : false);
 
-            if (!eventMatch) continue;
+            const isDateTimeMatch = group.dates.has(dateTimeStr);
+
+            if (!eventMatch && !isDateTimeMatch) continue;
 
             // All matched -> Merge
             group.urls.add(event.url);
             group.eventNames.add(event.event);
             if (event.performer) group.performers.add(event.performer);
             group.venues.add(event.venue);
-            const dateTimeStr = createIsoDate(event.date, event.time);
+
             group.dates.add(dateTimeStr);
             group.sourceEvents.push(event);
 
@@ -105,7 +108,7 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
 
         if (!matched) {
             // Create new group
-            const dateTimeStr = createIsoDate(event.date, event.time);
+
             const newGroup: IntermediateGroup = {
                 baseEvent: event,
                 venueNormalized: normalizeVenue(event.venue), // Keep for reference if needed, though unused in logic now
