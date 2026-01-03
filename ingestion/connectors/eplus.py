@@ -197,7 +197,7 @@ class EplusConnector(BaseConnector):
                     venue=venue_name,
                     location=location,
                     date=event_date,
-                    time=date_obj.timetz() if item.get('kaien_time') and len(item.get('kaien_time')) == 4 else None,
+                    time=None if "～" in koenbi_term else (date_obj.timetz() if item.get('kaien_time') and len(item.get('kaien_time')) == 4 else None),
                     url=link
                 )
             return None
