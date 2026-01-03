@@ -134,34 +134,48 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
     // Any remaining "split" groups are likely distinct enough or too far apart in time.
 
     // Convert back to output format
-    return groups.map(g => {
-        const sortedDates = Array.from(g.dates).sort();
+    return groups
+        .map(g => {
+            const sortedDates = Array.from(g.dates).sort();
 
-        let time: string | null = null;
-        const baseDate = g.baseEvent.date;
+            let time: string | null = null;
+            const baseDate = g.baseEvent.date;
 
-        for (const dStr of sortedDates) {
-            // Find time on same day as base event (simplified)
-            if (dStr.includes("T")) {
-                // Ideally matches the first date's time
-                const dDate = dStr.split("T")[0];
-                if (dDate === baseDate || !time) {
-                    time = dStr.split("T")[1];
+            for (const dStr of sortedDates) {
+                // Find time on same day as base event (simplified)
+                if (dStr.includes("T")) {
+                    // Ideally matches the first date's time
+                    const dDate = dStr.split("T")[0];
+                    if (dDate === baseDate || !time) {
+                        time = dStr.split("T")[1];
+                    }
                 }
             }
-        }
 
-        return {
-            id: g.baseEvent.id,
-            event: mergeEventNames(g.eventNames),
-            performer: resolveCaseVariations(Array.from(g.performers).filter(Boolean)).join("\n\n"),
-            venue: resolveCaseVariations(Array.from(g.venues))[0] || "",
-            location: g.baseEvent.location || "",
-            date: g.baseEvent.date,
-            time,
-            urls: Array.from(g.urls),
-            sourceEvents: g.sourceEvents,
-            displayDates: filterRedundantDates(Array.from(g.dates))
-        };
-    });
+            return {
+                id: g.baseEvent.id,
+                event: mergeEventNames(g.eventNames),
+                performer: resolveCaseVariations(Array.from(g.performers).filter(Boolean)).join("\n\n"),
+                venue: resolveCaseVariations(Array.from(g.venues))[0] || "",
+                location: g.baseEvent.location || "",
+                date: g.baseEvent.date,
+                time,
+                urls: Array.from(g.urls),
+                sourceEvents: g.sourceEvents,
+                displayDates: filterRedundantDates(Array.from(g.dates))
+            };
+        })
+        .sort((a, b) => {
+            const dateDiff = a.date.localeCompare(b.date);
+            if (dateDiff !== 0) return dateDiff;
+
+            const timeA = a.time || "";
+            const timeB = b.time || "";
+            const timeDiff = timeA.localeCompare(timeB);
+            if (timeDiff !== 0) return timeDiff;
+
+            const urlA = a.urls[0] || "";
+            const urlB = b.urls[0] || "";
+            return urlA.localeCompare(urlB);
+        });
 }
