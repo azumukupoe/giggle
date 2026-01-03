@@ -44,7 +44,7 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
             if (diff > 1) {
                 // Since events are sorted by date, older groups won't match
                 // We can stop searching
-                continue;
+                break;
             }
 
             // 1. Location Match (strict on normalized)
