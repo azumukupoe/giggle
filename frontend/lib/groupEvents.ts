@@ -170,10 +170,16 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
             const dateDiff = a.date.localeCompare(b.date);
             if (dateDiff !== 0) return dateDiff;
 
-            const timeA = a.time || "";
-            const timeB = b.time || "";
-            const timeDiff = timeA.localeCompare(timeB);
-            if (timeDiff !== 0) return timeDiff;
+            const timeA = a.time;
+            const timeB = b.time;
+
+            // Sort logic: valid time < null/empty time
+            if (timeA && !timeB) return -1;
+            if (!timeA && timeB) return 1;
+            if (timeA && timeB) {
+                const timeDiff = timeA.localeCompare(timeB);
+                if (timeDiff !== 0) return timeDiff;
+            }
 
             const urlA = a.urls[0] || "";
             const urlB = b.urls[0] || "";

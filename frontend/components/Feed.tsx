@@ -170,9 +170,7 @@ export const Feed = () => {
                         className="w-full pl-10 pr-4 py-3 rounded-xl bg-background/50 border border-input text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring transition-all"
                     />
                 </div>
-                <p className="text-right text-xs text-muted-foreground px-1 h-4">
-                    {filteredEvents.length > 0 && t('feed.eventsFound', { count: filteredEvents.length })}
-                </p>
+
                 {/* Search Filters */}
                 <div className="max-w-xl mx-auto mb-6 w-full shrink-0 flex flex-col gap-2">
                     <div className="flex flex-wrap gap-2 justify-center">
@@ -195,6 +193,13 @@ export const Feed = () => {
 
             {/* Grid */}
             <div ref={scrollContainerRef} className="flex-1 overflow-y-auto min-h-0 overflow-x-hidden px-1">
+                <p className="text-left text-xs text-muted-foreground mb-4">
+                    {filteredEvents.length > 0 && t('feed.showingEvents', {
+                        start: (currentPage - 1) * itemsPerPage + 1,
+                        end: Math.min(currentPage * itemsPerPage, filteredEvents.length),
+                        total: filteredEvents.length
+                    })}
+                </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-4">
                     {displayedEvents.length > 0 ? (
                         displayedEvents.map((event) => (
@@ -210,21 +215,61 @@ export const Feed = () => {
 
             {/* Pagination Controls */}
             {totalPages > 1 && (
-                <div className="flex justify-between items-center mt-4 pt-2 shrink-0">
+                <div className="flex justify-center items-center mt-8 gap-2 shrink-0 select-none">
                     <button
                         onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                         disabled={currentPage === 1}
-                        className="px-4 py-2 rounded-lg bg-secondary text-secondary-foreground disabled:opacity-50 disabled:cursor-not-allowed hover:bg-secondary/80 transition-colors font-medium text-sm"
+                        className="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         Previous
                     </button>
-                    <span className="text-muted-foreground font-medium text-sm">
-                        Page {currentPage} of {totalPages}
-                    </span>
+
+                    <div className="flex items-center gap-1">
+                        {(() => {
+                            const pages = [];
+                            if (totalPages <= 7) {
+                                for (let i = 1; i <= totalPages; i++) pages.push(i);
+                            } else {
+                                if (currentPage <= 4) {
+                                    for (let i = 1; i <= 5; i++) pages.push(i);
+                                    pages.push('...');
+                                    pages.push(totalPages);
+                                } else if (currentPage >= totalPages - 3) {
+                                    pages.push(1);
+                                    pages.push('...');
+                                    for (let i = totalPages - 4; i <= totalPages; i++) pages.push(i);
+                                } else {
+                                    pages.push(1);
+                                    pages.push('...');
+                                    for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
+                                    pages.push('...');
+                                    pages.push(totalPages);
+                                }
+                            }
+
+                            return pages.map((page, idx) => (
+                                page === '...' ? (
+                                    <span key={`ellipsis-${idx}`} className="px-2 text-muted-foreground">...</span>
+                                ) : (
+                                    <button
+                                        key={page}
+                                        onClick={() => setCurrentPage(Number(page))}
+                                        className={`min-w-[32px] h-8 flex items-center justify-center rounded-lg text-sm font-medium transition-colors ${currentPage === page
+                                            ? "bg-primary text-primary-foreground"
+                                            : "hover:bg-accent hover:text-accent-foreground"
+                                            }`}
+                                    >
+                                        {page}
+                                    </button>
+                                )
+                            ));
+                        })()}
+                    </div>
+
                     <button
                         onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                         disabled={currentPage === totalPages}
-                        className="px-4 py-2 rounded-lg bg-secondary text-secondary-foreground disabled:opacity-50 disabled:cursor-not-allowed hover:bg-secondary/80 transition-colors font-medium text-sm"
+                        className="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         Next
                     </button>

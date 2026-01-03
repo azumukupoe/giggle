@@ -25,6 +25,7 @@ const translations = {
         "search.venue": "Venue",
         "search.location": "Location",
         "search.date": "Date",
+        "feed.showingEvents": "Showing {start}-{end} of {total} events",
     },
     ja: {
         "feed.searchPlaceholder": "イベント、出演者、会場、場所、または日程で検索...",
@@ -40,6 +41,7 @@ const translations = {
         "search.venue": "会場",
         "search.location": "場所",
         "search.date": "日程",
+        "feed.showingEvents": "{total} 件中 {start}-{end} 件を表示",
     }
 };
 
