@@ -317,7 +317,7 @@ export function resolveCaseVariations(items: string[]): string[] {
     const grouped = new Map<string, string[]>();
     for (const item of items) {
         if (!item) continue;
-        const key = item.toLowerCase();
+        const key = normalizeEventName(item);
         if (!grouped.has(key)) grouped.set(key, []);
         grouped.get(key)!.push(item);
     }
