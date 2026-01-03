@@ -294,7 +294,7 @@ export function getStartDate(dateStr: string): Date {
 export function mergeEventNames(namesSet: Set<string>): string {
     const uniqueNames = resolveCaseVariations(Array.from(namesSet));
     if (uniqueNames.length === 0) return "";
-    if (uniqueNames.length === 1) return uniqueNames[0];
+    if (uniqueNames.length === 1) return uniqueNames[0].replace(/ \|\| /g, " ");
 
     // Try to find a meaningful common substring
     let common = getCommonSubstring(uniqueNames).trim();

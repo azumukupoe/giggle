@@ -428,13 +428,15 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
 
                             // Calculate diff between specific event name and grouped common name
                             const commonName = event.event;
-                            const specificName = sourceEvent.event;
+                            const specificName = sourceEvent.event || "";
                             let diff = "";
 
-                            if (specificName && commonName && normalizeEventName(specificName) !== normalizeEventName(commonName)) {
+                            const specificDisplay = specificName.replace(/ \|\| /g, " ");
+
+                            if (specificName && commonName && normalizeEventName(specificDisplay) !== normalizeEventName(commonName)) {
                                 // Remove the common part to get the specific part
                                 // We escape special regex characters in commonName just in case, but simple replace works for substrings
-                                diff = specificName.replace(commonName, "").trim();
+                                diff = specificDisplay.replace(commonName, "").trim();
                                 if (diff.startsWith("||")) {
                                     diff = diff.substring(2).trim();
                                 }
