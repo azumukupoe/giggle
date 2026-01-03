@@ -67,7 +67,7 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
             // - Event Name matches any Group Event Name (STRICT)
             // - Event Name matches any Group Performer (STRICT)
             // - Event Performer matches any Group Event Name (STRICT)
-            // - Event Performer matches any Group Performer (FUZZY)
+            // - Event Performer matches any Group Performer (STRICT)
             const name1 = event.event;
             const perf1 = event.performer;
             const n1Norm = normalizeEventName(name1);
@@ -77,7 +77,7 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
                 Array.from(group.eventNames).some(n => normalizeEventName(n) === n1Norm) ||
                 Array.from(group.performers).some(p => normalizeEventName(p) === n1Norm) ||
                 (perf1 ? Array.from(group.eventNames).some(n => normalizeEventName(n) === p1Norm) : false) ||
-                (perf1 ? Array.from(group.performers).some(p => areStringsSimilar(p, perf1)) : false);
+                (perf1 ? Array.from(group.performers).some(p => normalizeEventName(p) === p1Norm) : false);
 
             if (!eventMatch) continue;
 
