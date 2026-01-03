@@ -341,7 +341,17 @@ export function mergePerformers(performers: string[]): string {
     for (const p of unique) {
         const pNorm = normalizeForCheck(p);
         // If this performer string is contained in any already accepted (longer) performer string, skip it
-        const isSubset = result.some(kept => normalizeForCheck(kept).includes(pNorm));
+        const isSubset = result.some(kept => {
+            const keptNorm = normalizeForCheck(kept);
+            const checksOut = keptNorm.includes(pNorm);
+            // Debugging log (temporary)
+            if (process.env.NODE_ENV === 'development') {
+                console.log(`[mergePerformers] Checking sub: "${p.substring(0, 20)}..." in "${kept.substring(0, 20)}..."`);
+                console.log(`[mergePerformers] Norms: "${pNorm.substring(0, 20)}..." in "${keptNorm.substring(0, 20)}..." -> ${checksOut}`);
+            }
+            return checksOut;
+        });
+
         if (!isSubset) {
             result.push(p);
         }
