@@ -231,9 +231,9 @@ export const normalizeEventName = (name: string | null | undefined): string => {
 
 export const getEventBaseName = (name: string | null | undefined): string => {
     if (!name) return "";
-    // Split by separator ' || '
-    if (name.includes(" || ")) {
-        return name.split(" || ")[0].trim();
+    // Split by separator '||'
+    if (name.includes("||")) {
+        return name.split("||")[0].trim();
     }
     return name;
 };
@@ -302,9 +302,23 @@ export function mergeEventNames(namesSet: Set<string>): string {
         .map(n => n.replace(/\s*&\s*/g, " & "))
         .map(n => n.replace(/\s*[×]\s*/g, " / "))
         .map(n => n.replace(/\s*\/\s*/g, " / "))
-        .map(n => n.replace(/\s*\|\|\s*/g, " "));
+        .map(n => {
+            if (n.includes("||")) {
+                const parts = n.split(/\s*\|\|\s*/);
+                if (parts.length > 1) {
+                    const prefix = parts[0].trim();
+                    const rest = parts.slice(1).join(" ").trim();
+                    // If the event name (rest) starts with the artist/group name (prefix),
+                    // remove the redundant prefix.
+                    if (rest.startsWith(prefix)) {
+                        return rest;
+                    }
+                }
+            }
+            return n.replace(/\s*\|\|\s*/g, " ");
+        });
     if (uniqueNames.length === 0) return "";
-    if (uniqueNames.length === 1) return uniqueNames[0].replace(/ \|\| /g, " ");
+    if (uniqueNames.length === 1) return uniqueNames[0].replace(/\|\|/g, " ");
 
     // Try to find a meaningful common substring
     let common = getCommonSubstring(uniqueNames).trim();
@@ -324,10 +338,8 @@ export function mergeEventNames(namesSet: Set<string>): string {
     // Let's enforce a minimum length of 2 to avoid single letter matches.
     if (common.length >= 2) {
         // Strip trailing separator if present
-        if (common.endsWith(" || ")) {
-            common = common.slice(0, -4).trim();
-        } else if (common.endsWith(" ||")) {
-            common = common.slice(0, -3).trim();
+        if (common.endsWith("||")) {
+            common = common.slice(0, -2).trim();
         }
         return common;
     }

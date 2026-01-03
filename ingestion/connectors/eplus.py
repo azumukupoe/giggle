@@ -98,7 +98,7 @@ class EplusConnector(BaseConnector):
             kogyo = item.get('kanren_kogyo_sub', {})
             title_1 = kogyo.get('kogyo_name_1')
             title_2 = kogyo.get('kogyo_name_2')
-            title = f"{title_1} || {title_2}" if title_2 else (title_1 or "Unknown Event")
+            title = f"{title_1}||{title_2}" if title_2 else (title_1 or "Unknown Event")
             
             venue_info = item.get('kanren_venue', {})
             venue_name = venue_info.get('venue_name') or "Unknown Venue"
