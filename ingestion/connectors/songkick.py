@@ -99,15 +99,11 @@ class SongkickConnector(BaseConnector):
                 print(f"    -> Found {len(page_events)} events on page {page}.")
                 all_events.extend(page_events)
 
-
-
             except Exception as e:
                 print(f"Error scraping Songkick metro page {page}: {e}")
                 break
         
         return all_events
-
-
 
     def _parse_json_ld(self, item, artist_name):
         try:

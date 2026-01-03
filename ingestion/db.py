@@ -42,7 +42,6 @@ def upsert_events(supabase: Client, events: list):
         print(f"Supabase upsert error: {e}")
         raise e
 
-
 def delete_old_events(supabase: Client):
     """
     Delete past events.

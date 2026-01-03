@@ -93,7 +93,6 @@ class EplusConnector(BaseConnector):
             k_sub = item.get('kogyo_sub_code')
             if k_code and k_sub:
                 if (str(k_code), str(k_sub)) in excluded_ids:
-                    # print(f"  [eplus] EXCLUDED: {k_code}-{k_sub} {item.get('kanren_kogyo_sub', {}).get('kogyo_name_1')}")
                     return None
 
             kogyo = item.get('kanren_kogyo_sub', {})
@@ -194,8 +193,6 @@ class EplusConnector(BaseConnector):
 
             # Collect tasks
             tasks = []
-            
-
             
             # Helper to extract events from a page response dict
             def extract_from_json(d):

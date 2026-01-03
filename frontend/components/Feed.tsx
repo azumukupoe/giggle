@@ -151,7 +151,7 @@ export const Feed = () => {
             {/* Controls */}
             <div className="mb-8 flex flex-col md:flex-row gap-4 items-center justify-between shrink-0">
                 <div className="text-gray-500 dark:text-gray-400 text-sm">
-                    {/* Removed auth message, just search bar is focus now */}
+
                 </div>
             </div>
 

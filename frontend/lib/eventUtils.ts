@@ -1,5 +1,6 @@
 import { parseISO } from "date-fns";
 import { Event, GroupedEvent } from "@/types/event";
+import { formatLocation } from "./prefectures";
 
 export const normalizeVenue = (venue: string | null | undefined): string => {
     return (venue || "")
@@ -10,6 +11,18 @@ export const normalizeVenue = (venue: string | null | undefined): string => {
 
 export const normalizeEventName = (name: string | null | undefined): string => {
     return (name || "").toLowerCase().trim();
+};
+
+export const normalizeLocation = (loc: string | null | undefined): string => {
+    if (!loc) return "";
+
+    // 1. Unify Japanese -> English using shared logic
+    let s = formatLocation(loc, 'en').toLowerCase().trim();
+
+    // 2. Remove common suffixes in English
+    s = s.replace(/\s+(prefecture|city|ward)$/, "");
+
+    return s;
 };
 
 export const stripSymbols = (str: string): string => {
@@ -57,9 +70,6 @@ export function getStartDate(dateStr: string): Date {
     // Fallback: far future
     return new Date("2999-12-31");
 }
-
-
-
 
 export function mergeEventNames(namesSet: Set<string>): string {
     const names = resolveCaseVariations(Array.from(namesSet));

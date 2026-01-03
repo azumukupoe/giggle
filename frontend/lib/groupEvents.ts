@@ -3,6 +3,7 @@ import { Event, GroupedEvent } from "@/types/event";
 import {
     normalizeVenue,
     normalizeEventName,
+    normalizeLocation,
     createIsoDate,
     mergeEventNames,
     resolveCaseVariations,
@@ -17,6 +18,7 @@ interface IntermediateGroup {
     eventNames: Set<string>;
     performers: Set<string>;
     venues: Set<string>;
+    locations: Set<string>;
     dates: Set<string>; // Set of ISO strings
     venueNormalized: string;
     sourceEvents: Event[];
@@ -49,20 +51,32 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
             }
 
             // 1. Location Match (strict on normalized)
-            // Strict location matching is removed because different sources use different formats 
-            // (e.g., "Osaka, Japan" vs "大阪府"). 
-            // Since we match on Date (proximity) AND Venue (fuzzy) AND Event Name (fuzzy),
-            // we have enough signal to group correctly without location strictness.
-
-            // const loc1 = (event.location || "").toLowerCase().trim();
-            // const loc2 = (group.baseEvent.location || "").toLowerCase().trim();
-            // if (loc1 !== loc2) continue;
+            // Strict location matching is removed because different sources use different formats
+            // (e.g., "Osaka, Japan" vs "大阪府").
 
             // 2. Venue Fuzzy Match
             // Check if current event venue is similar to ANY of the group's venues
             const venueMatch = Array.from(group.venues).some(v => areStringsSimilar(v, event.venue));
 
             if (!venueMatch) continue;
+
+            // 2.5 Location Match (Safety Check)
+            // If venues match, we MUST ensure locations aren't contradictory.
+            // If both have valid locations, they must match (normalized).
+            const loc1 = normalizeLocation(event.location);
+            let locationConflict = false;
+
+            if (loc1) {
+                // Check against existing group locations
+                for (const loc2Raw of Array.from(group.locations)) {
+                    const loc2 = normalizeLocation(loc2Raw);
+                    if (loc2 && loc1 !== loc2) {
+                        locationConflict = true;
+                        break;
+                    }
+                }
+            }
+            if (locationConflict) continue;
 
             // 3. Match (Event Name OR Performer)
             // - Event Name matches any Group Event Name (STRICT)
@@ -89,6 +103,7 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
             group.eventNames.add(event.event);
             if (event.performer) group.performers.add(event.performer);
             group.venues.add(event.venue);
+            if (event.location) group.locations.add(event.location);
 
             group.dates.add(dateTimeStr);
             group.sourceEvents.push(event);
@@ -116,6 +131,7 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
                 eventNames: new Set([event.event]),
                 performers: new Set(event.performer ? [event.performer] : []),
                 venues: new Set([event.venue]),
+                locations: new Set(event.location ? [event.location] : []),
                 dates: new Set([dateTimeStr]),
                 sourceEvents: [event],
                 latestDate: eventDate
@@ -125,17 +141,8 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
         }
     }
 
-    // Pass 2: Group by Venue + Time (Logic to merge groups? Or is Pass 1 sufficient?)
-    // The original code had a Pass 2 to "Group by Venue + Time".
-    // This merged groups that were separate in Pass 1 but had same start time/venue.
-    // Given the new fuzzy logic, we might still have separate groups if "Pass 1" didn't catch them 
-    // (e.g. if they were not consecutive but essentially same event? No, logic was diff <= 1).
-    // The original Pass 2 was for "Venue + Time".
-    // With fuzzy matching, we should have caught most relevant merges.
-    // However, if we have duplicate listings (same time, same venue) that weren't caught 
-    // (maybe due to sorting order? or slight name diffs not caught by fuzzy?), we might want to dedupe.
-    // But for now, let's Stick to Pass 1 as the primary grouper.
-    // Any remaining "split" groups are likely distinct enough or too far apart in time.
+    // Pass 2: Group by Venue + Time
+    // (Skipped: Pass 1 fuzzy matching is sufficient)
 
     // Convert back to output format
     return groups
