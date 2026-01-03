@@ -217,7 +217,7 @@ const TruncatedText = ({
     text: string,
     tooltipText?: string,
     className?: string,
-    as?: any,
+    as?: React.ElementType,
     maxLines?: number,
     followCursor?: boolean
 }) => {

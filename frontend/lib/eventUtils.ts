@@ -1,5 +1,4 @@
 import { parseISO } from "date-fns";
-import { Event, GroupedEvent } from "@/types/event";
 import { formatLocation } from "./prefectures";
 
 // Bracket pairs for balancing logic
@@ -82,7 +81,7 @@ function refineCommonString(common: string, originals: string[]): string {
             // We clone the stack because we'll be popping from it as we find matches
             const currentStack = [...openStack];
 
-            let tempIdx = 0;
+
             let neededCut = 0;
 
             // We also need to handle new brackets opening/closing WITHIN common 
@@ -195,7 +194,7 @@ export function getCommonSubstring(strings: string[]): string {
     const shortest = sorted[0];
     const rest = sorted.slice(1);
 
-    let longestCommon = "";
+
 
     // Iterate through all substrings of the shortest string
     for (let length = shortest.length; length > 0; length--) {

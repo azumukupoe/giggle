@@ -53,11 +53,12 @@ export const LanguageProvider = ({ children }: { children: React.ReactNode }) =>
     useEffect(() => {
         // Create a simplified version of locale detection
         const browserLang = navigator.language.startsWith('ja') ? 'ja' : 'en';
+        // eslint-disable-next-line
         setLanguage(browserLang);
     }, []);
 
     const t = (key: string, args?: Record<string, string | number>): string => {
-        // @ts-ignore
+        // @ts-expect-error - key access on loose dict implies any
         let text = translations[language][key] || key;
 
         if (args) {

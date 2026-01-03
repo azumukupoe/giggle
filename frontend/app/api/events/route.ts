@@ -1,5 +1,5 @@
 
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { groupEvents } from "@/lib/groupEvents";
 import { createIsoDate, mergeEventNames } from "@/lib/eventUtils";
@@ -80,7 +80,7 @@ const getCachedGroupedEvents = unstable_cache(
                         // Option: Use group.venue or group.location (baseEvent location) as a proxy.
                         // Since they are grouped by venue/location match, the group location should be representative.
 
-                        const offset = getTimezoneOffset(dateStr, group.baseEvent.location || "");
+                        const offset = getTimezoneOffset(dateStr, group.location || "");
                         dateStr += offset;
                     }
                     const dt = new Date(dateStr);
@@ -138,7 +138,7 @@ const getCachedGroupedEvents = unstable_cache(
     { revalidate: 60 } // Revalidate every 60 seconds
 );
 
-export async function GET(request: NextRequest) {
+export async function GET() {
     try {
 
         // Get cached result

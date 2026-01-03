@@ -1,5 +1,18 @@
-import cityTimezones from 'city-timezones';
+import { findFromCityStateProvince } from 'city-timezones';
 import { isJapanesePrefecture } from './prefectures';
+
+interface CityData {
+    city: string;
+    city_ascii: string;
+    lat: number;
+    lng: number;
+    pop: number;
+    country: string;
+    iso2: string;
+    iso3: string;
+    province: string;
+    timezone: string;
+}
 
 const COUNTRY_ALIASES: Record<string, string> = {
     'UK': 'GB',
@@ -17,14 +30,14 @@ export function getTimezoneOffset(dateStr: string, location: string): string {
 
     // 2. Search logic
     const parts = location.split(',').map(s => s.trim());
-    const candidates: any[] = [];
+    const candidates: CityData[] = [];
 
     // Gather all candidates from all parts
     for (const part of parts) {
         if (part.length < 2) continue; // Skip single chars
-        const matches = cityTimezones.findFromCityStateProvince(part);
+        const matches = findFromCityStateProvince(part);
         if (matches && matches.length > 0) {
-            candidates.push(...matches);
+            candidates.push(...(matches as unknown as CityData[]));
         }
     }
 
