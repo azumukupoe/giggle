@@ -9,7 +9,7 @@ import {
     resolveCaseVariations,
     filterRedundantDates,
     getStartDate,
-    getStartDate,
+
     areStringsSimilar,
     getEventBaseName
 } from "./eventUtils";
