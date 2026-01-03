@@ -2,6 +2,190 @@ import { parseISO } from "date-fns";
 import { Event, GroupedEvent } from "@/types/event";
 import { formatLocation } from "./prefectures";
 
+// Bracket pairs for balancing logic
+const BRACKETS: Record<string, string> = {
+    '(': ')',
+    '[': ']',
+    '{': '}',
+    '【': '】',
+    '<': '>'
+};
+const REVERSE_BRACKETS: Record<string, string> = Object.entries(BRACKETS).reduce((acc, [k, v]) => {
+    acc[v] = k;
+    return acc;
+}, {} as Record<string, string>);
+
+function getUnbalancedOpens(str: string): string[] {
+    const stack: string[] = [];
+    for (const char of str) {
+        if (BRACKETS[char]) {
+            stack.push(char);
+        } else if (REVERSE_BRACKETS[char]) {
+            const last = stack[stack.length - 1];
+            if (last === REVERSE_BRACKETS[char]) {
+                stack.pop();
+            } else {
+                // Unexpected close - treating strictly or just ignoring?
+                // For "left diff", strictness might be tricky if it started mid-context,
+                // but usually left diff starts from valid start.
+                // If we see ')' without '(', it means an unbalanced close.
+                // For the purpose of "Left Context", we care about OPENS that are NOT CLOSED.
+                // So we can ignore extra closes or treat them as neutral for *open* count.
+                // But conceptually, 'a ) b (' -> stack has '('.
+            }
+        }
+    }
+    return stack;
+}
+
+function getUnbalancedCloses(str: string): string[] {
+    // Reverse logic for checking "Right Diff"
+    // We want to know which Closes are waiting for an Open.
+    // easier to scan backwards
+    const stack: string[] = [];
+    for (let i = str.length - 1; i >= 0; i--) {
+        const char = str[i];
+        if (REVERSE_BRACKETS[char]) { // It's a close char like ')'
+            stack.push(char);
+        } else if (BRACKETS[char]) { // It's an open char like '('
+            const last = stack[stack.length - 1];
+            if (last === BRACKETS[char]) {
+                stack.pop();
+            }
+        }
+    }
+    return stack;
+}
+
+function refineCommonString(common: string, originals: string[]): string {
+    if (!common) return "";
+
+    let trimStart = 0;
+    let trimEnd = 0;
+
+    // 1. Analyze Left Side Requirements
+    for (const original of originals) {
+        // Find where common starts in this original
+        // Note: common might appear multiple times? Assumption: getCommonSubstring usually aligns 
+        // with the "main" structure. We'll search for the first occurrence.
+        const idx = original.indexOf(common);
+        if (idx === -1) continue; // Should not happen based on getCommonSubstring logic
+
+        const left = original.substring(0, idx);
+
+        // Check unbalanced opens in Left
+        const openStack = getUnbalancedOpens(left);
+        if (openStack.length > 0) {
+            // We need to resolve these opens within `common`.
+            // Scan `common` to find where they close.
+
+            // We clone the stack because we'll be popping from it as we find matches
+            const currentStack = [...openStack];
+
+            let tempIdx = 0;
+            let neededCut = 0;
+
+            // We also need to handle new brackets opening/closing WITHIN common 
+            // so we don't match a new ')' to an old '(' if there was an intervening '('.
+            // Actually, a simple stack approach processing `common` works:
+            // Pre-fill stack with `openStack`. Process chars. When stack empties -> we found the point.
+
+            // Internal stack for brackets starting inside common
+            const internalStack: string[] = [];
+
+            for (let i = 0; i < common.length; i++) {
+                const char = common[i];
+
+                if (BRACKETS[char]) {
+                    // New open inside common
+                    internalStack.push(char);
+                } else if (REVERSE_BRACKETS[char]) {
+                    // It's a close
+                    // First try to close internal stack
+                    if (internalStack.length > 0) {
+                        const last = internalStack[internalStack.length - 1];
+                        if (last === REVERSE_BRACKETS[char]) {
+                            internalStack.pop();
+                        }
+                    } else {
+                        // Try to close external stack (from left diff)
+                        if (currentStack.length > 0) {
+                            const last = currentStack[currentStack.length - 1];
+                            if (last === REVERSE_BRACKETS[char]) {
+                                currentStack.pop();
+                                // If this was the last one needed, update neededCut
+                                if (currentStack.length === 0) {
+                                    neededCut = i + 1; // Cut up to and including this char
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (neededCut > trimStart) {
+                trimStart = neededCut;
+            }
+        }
+    }
+
+    // 2. Analyze Right Side Requirements
+    // Similar logic but backwards
+    for (const original of originals) {
+        const idx = original.lastIndexOf(common);
+        if (idx === -1) continue;
+
+        const right = original.substring(idx + common.length);
+        const closeStack = getUnbalancedCloses(right); // Returns stack of CLOSES, e.g. [')', ']']
+
+        if (closeStack.length > 0) {
+            const currentStack = [...closeStack];
+            const internalStack: string[] = []; // Stack for CLOSES found in common (scanning backwards)
+
+            let neededCutFromEnd = 0; // Count of chars to remove from end
+
+            for (let i = common.length - 1; i >= 0; i--) {
+                const char = common[i];
+
+                if (REVERSE_BRACKETS[char]) {
+                    // It's a close inside common
+                    internalStack.push(char);
+                } else if (BRACKETS[char]) {
+                    // It's an open
+                    if (internalStack.length > 0) {
+                        const last = internalStack[internalStack.length - 1];
+                        if (last === BRACKETS[char]) {
+                            internalStack.pop();
+                        }
+                    } else {
+                        if (currentStack.length > 0) {
+                            const last = currentStack[currentStack.length - 1];
+                            if (last === BRACKETS[char]) {
+                                currentStack.pop();
+                                if (currentStack.length === 0) {
+                                    neededCutFromEnd = common.length - i; // Remove from i onwards
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (neededCutFromEnd > trimEnd) {
+                trimEnd = neededCutFromEnd;
+            }
+        }
+    }
+
+    if (trimStart + trimEnd >= common.length) {
+        return ""; // Consumed everything
+    }
+
+    return common.substring(trimStart, common.length - trimEnd);
+}
+
 export function getCommonSubstring(strings: string[]): string {
     if (!strings || strings.length === 0) return "";
     if (strings.length === 1) return strings[0];
@@ -105,7 +289,12 @@ export function mergeEventNames(namesSet: Set<string>): string {
     if (uniqueNames.length === 1) return uniqueNames[0];
 
     // Try to find a meaningful common substring
-    const common = getCommonSubstring(uniqueNames).trim();
+    let common = getCommonSubstring(uniqueNames).trim();
+
+    // Refine common string to avoid splitting brackets
+    if (common) {
+        common = refineCommonString(common, uniqueNames).trim();
+    }
 
     // Use common string if it's substantial enough.
     // "Substantial" is subjective, but let's say it must be at least 3 chars
