@@ -25,11 +25,19 @@ const getCachedGroupedEvents = unstable_cache(
         const day = String(now.getDate()).padStart(2, '0');
         const todayStr = `${year}-${month}-${day}`;
 
+        // Calculate fetch start date (2 months ago to cover long-running events)
+        const fetchStartDate = new Date(now);
+        fetchStartDate.setMonth(fetchStartDate.getMonth() - 2);
+        const fYear = fetchStartDate.getFullYear();
+        const fMonth = String(fetchStartDate.getMonth() + 1).padStart(2, '0');
+        const fDay = String(fetchStartDate.getDate()).padStart(2, '0');
+        const fetchStartStr = `${fYear}-${fMonth}-${fDay}`;
+
         while (hasMore) {
             const { data, error } = await supabase
                 .from('events')
                 .select('*')
-                .gte('date', todayStr)
+                .gte('date', fetchStartStr)
                 .order('date', { ascending: true })
                 .order('time', { ascending: true })
                 .order('url', { ascending: true })
@@ -59,34 +67,31 @@ const getCachedGroupedEvents = unstable_cache(
         // Use 'now'
         const timeFiltered = grouped.map(group => {
             const validDates = group.displayDates.filter(dStr => {
-                // If it has a time, check if it's in the future
-                if (dStr.includes("T")) {
-                    let dateStr = dStr;
+                const isFuture = (str: string) => {
                     // Check if timezone info is missing
-                    if (!/[+-]\d{2}:?\d{2}|Z$/.test(dateStr)) {
-                        // Dynamically determine timezone based on location
-                        // We need the location from the event. But 'group.displayDates' doesn't have it direct mapping easily here?
-                        // 'group' is already grouped.
-                        // Wait, 'validDates' iteration is just string filtering.
-                        // We need to know WHICH event this date belongs to to get the location.
-                        // But we are iterating dates first.
-
-                        // Actually, looking at lines 71-75, we filter events LATER based on these valid dates.
-                        // This structure is: Filter Dates -> Filter Events -> Re-derive metadata.
-
-                        // If we filter dates first without knowing the location, we can't apply the correct timezone.
-                        // We should probably rely on the *Group's* location if reasonable, or checking the source events.
-
-                        // Option: Use group.venue or group.location (baseEvent location) as a proxy.
-                        // Since they are grouped by venue/location match, the group location should be representative.
-
-                        const offset = getTimezoneOffset(dateStr, group.location || "");
-                        dateStr += offset;
+                    if (str.includes("T")) {
+                        let dateStr = str;
+                        if (!/[+-]\d{2}:?\d{2}|Z$/.test(dateStr)) {
+                            // Dynamically determine timezone based on location
+                            const offset = getTimezoneOffset(dateStr, group.location || "");
+                            dateStr += offset;
+                        }
+                        const dt = new Date(dateStr);
+                        return dt > now;
+                    } else {
+                        // Date only: simple string match YYYY-MM-DD
+                        // If date is today or future, it's valid.
+                        return str >= todayStr;
                     }
-                    const dt = new Date(dateStr);
-                    return dt > now;
+                };
+
+                if (dStr.includes(" ")) {
+                    // Range support: if any date in the range/list is future, keep it.
+                    const parts = dStr.split(" ");
+                    return parts.some(p => isFuture(p));
                 }
-                return true;
+
+                return isFuture(dStr);
             });
 
             // Filter URLs

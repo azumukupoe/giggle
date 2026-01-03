@@ -48,15 +48,45 @@ def is_future_event(e: Event) -> bool:
     
     try:
         if isinstance(e.date, str):
-            # Try to parse simple YYYY-MM-DD
-            parsed_date = datetime.strptime(e.date[:10], '%Y-%m-%d').date()
-            return parsed_date >= dt_today
+            # Handle multiple dates separated by space (e.g. ranges "2026-01-04 2026-01-31")
+            parts = e.date.split()
+            if not parts:
+                return True # Empty string? keep safe
+                
+            any_future = False
+            parsed_count = 0
+            
+            for part in parts:
+                # Try to parse simple YYYY-MM-DD
+                try:
+                    parsed_date = datetime.strptime(part[:10], '%Y-%m-%d').date()
+                    parsed_count += 1
+                    if parsed_date >= dt_today:
+                        any_future = True
+                        break
+                except ValueError:
+                    continue
+            
+            # If we found at least one future date, keep it.
+            if any_future:
+                return True
+                
+            # If we parsed dates but none were future, drop it.
+            if parsed_count > 0:
+                return False
+                
+            # If no dates parsed, keep it (safe default)
+            return True
+            
         elif isinstance(e.date, (date, datetime)):
-            return e.date >= dt_today
+            # Normalize to date
+            check_date = e.date
+            if isinstance(check_date, datetime):
+                check_date = check_date.date()
+            return check_date >= dt_today
+            
     except Exception:
-        # If parsing fails or unknown type, keep it to be safe (or drop? Logic says keep in main.py)
-        # implementation_plan said "Refactor ... block ... to use new utility".
-        # main.py logic was "Unknown type, keep it just in case".
+        # If parsing fails or unknown type, keep it to be safe
         return True
     
     return True
