@@ -221,10 +221,16 @@ export const normalizeVenue = (venue: string | null | undefined): string => {
 };
 
 export const normalizeEventName = (name: string | null | undefined): string => {
-    return (name || "")
-        .toLowerCase()
-        .replace(/’/g, "'")
-        .trim();
+    return (name || "").toLowerCase().replace(/’/g, "'").trim();
+};
+
+export const getEventBaseName = (name: string | null | undefined): string => {
+    if (!name) return "";
+    // Split by separator ' || '
+    if (name.includes(" || ")) {
+        return name.split(" || ")[0].trim();
+    }
+    return name;
 };
 
 export const normalizeLocation = (loc: string | null | undefined): string => {
@@ -307,6 +313,12 @@ export function mergeEventNames(namesSet: Set<string>): string {
     // UNLESS it's too short (like just "The " or "2026").
     // Let's enforce a minimum length of 2 to avoid single letter matches.
     if (common.length >= 2) {
+        // Strip trailing separator if present
+        if (common.endsWith(" || ")) {
+            common = common.slice(0, -4).trim();
+        } else if (common.endsWith(" ||")) {
+            common = common.slice(0, -3).trim();
+        }
         return common;
     }
 

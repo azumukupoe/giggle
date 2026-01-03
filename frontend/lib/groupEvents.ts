@@ -9,7 +9,9 @@ import {
     resolveCaseVariations,
     filterRedundantDates,
     getStartDate,
-    areStringsSimilar
+    getStartDate,
+    areStringsSimilar,
+    getEventBaseName
 } from "./eventUtils";
 
 interface IntermediateGroup {
@@ -85,13 +87,16 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
             // - Event Performer matches any Group Performer (STRICT)
             const name1 = event.event;
             const perf1 = event.performer;
-            const n1Norm = normalizeEventName(name1);
+
+            // Use base name for matching (ignoring " || ...")
+            const baseName1 = getEventBaseName(name1);
+            const n1Norm = normalizeEventName(baseName1);
             const p1Norm = perf1 ? normalizeEventName(perf1) : "";
 
             const eventMatch =
-                Array.from(group.eventNames).some(n => normalizeEventName(n) === n1Norm) ||
+                Array.from(group.eventNames).some(n => normalizeEventName(getEventBaseName(n)) === n1Norm) ||
                 Array.from(group.performers).some(p => normalizeEventName(p) === n1Norm) ||
-                (perf1 ? Array.from(group.eventNames).some(n => normalizeEventName(n) === p1Norm) : false) ||
+                (perf1 ? Array.from(group.eventNames).some(n => normalizeEventName(getEventBaseName(n)) === p1Norm) : false) ||
                 (perf1 ? Array.from(group.performers).some(p => normalizeEventName(p) === p1Norm) : false);
 
             const isDateTimeMatch = group.dates.has(dateTimeStr) && dateTimeStr.includes("T");

@@ -435,6 +435,9 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
                                 // Remove the common part to get the specific part
                                 // We escape special regex characters in commonName just in case, but simple replace works for substrings
                                 diff = specificName.replace(commonName, "").trim();
+                                if (diff.startsWith("||")) {
+                                    diff = diff.substring(2).trim();
+                                }
                             }
 
                             const ticketInfo = sourceEvent.ticket || "";

@@ -98,7 +98,7 @@ class EplusConnector(BaseConnector):
             kogyo = item.get('kanren_kogyo_sub', {})
             title_1 = kogyo.get('kogyo_name_1')
             title_2 = kogyo.get('kogyo_name_2')
-            title = f"{title_1} {title_2}" if title_2 else (title_1 or "Unknown Event")
+            title = f"{title_1} || {title_2}" if title_2 else (title_1 or "Unknown Event")
             
             venue_info = item.get('kanren_venue', {})
             venue_name = venue_info.get('venue_name') or "Unknown Venue"
@@ -112,18 +112,61 @@ class EplusConnector(BaseConnector):
             date_obj = dt_now 
             
             if koenbi_term:
-                date_str = koenbi_term[:8]
-                try:
+                # Check for range "YYYYMMDD～YYYYMMDD"
+                if "～" in koenbi_term:
+                    parts = koenbi_term.split("～")
+                    valid_dates = []
                     JST = timezone(timedelta(hours=9))
-                    date_obj = datetime.strptime(date_str, "%Y%m%d").replace(tzinfo=JST)
-                    kaien_time = item.get('kaien_time') 
-                    if kaien_time and len(kaien_time) == 4:
+                    for p in parts:
+                        p = p.strip()
+                        if len(p) >= 8:
+                            try:
+                                d = datetime.strptime(p[:8], "%Y%m%d").replace(tzinfo=JST)
+                                valid_dates.append(d.strftime("%Y-%m-%d"))
+                            except ValueError:
+                                pass
+                    if valid_dates:
+                        # Join with space for base.py to handle
+                        # We don't set time for ranges usually, or just leave it for the first date?
+                        # base.py parses space-separated dates.
+                        # We'll use the FIRST date as the primary 'date_obj' for other logic if needed,
+                        # but Event.date will be the string string.
+                        
+                        # Re-parse first date for time logic if needed
+                        try:
+                            first_p = parts[0].strip()[:8]
+                            date_obj = datetime.strptime(first_p, "%Y%m%d").replace(tzinfo=JST)
+                        except:
+                            pass
+                            
+                        # If we have time, maybe append to first date? 
+                        # But multi-day events usually don't have a single "time" that applies to the range 
+                        # in the same way. 
+                        # Let's keep date_obj as the start date for time calculation.
+                        
+                        # Override the date to be the range string
+                        # We need to assign this to a variable or handle it in Event creation.
+                        # Event.date accepts str.
+                        pass
+                else:
+                    # Single date logic
+                    date_str = koenbi_term[:8]
+                    try:
+                        JST = timezone(timedelta(hours=9))
+                        date_obj = datetime.strptime(date_str, "%Y%m%d").replace(tzinfo=JST)
+                    except ValueError:
+                        pass
+
+                # Apply time to date_obj (start date)
+                kaien_time = item.get('kaien_time') 
+                if kaien_time and len(kaien_time) == 4:
+                    try:
                         date_obj = date_obj.replace(
                             hour=int(kaien_time[:2]),
                             minute=int(kaien_time[2:])
                         )
-                except ValueError:
-                    pass
+                    except ValueError:
+                        pass
             
             pref_name = venue_info.get('todofuken_name')
             location = pref_name if pref_name else ""
@@ -143,13 +186,17 @@ class EplusConnector(BaseConnector):
                         artist = performers
 
             if link:
+                event_date = date_obj.date()
+                if "～" in koenbi_term and 'valid_dates' in locals() and valid_dates:
+                     event_date = " ".join(valid_dates)
+
                 return Event(
                     event=title,
                     performer=artist,
                     ticket=ticket_name,
                     venue=venue_name,
                     location=location,
-                    date=date_obj.date(),
+                    date=event_date,
                     time=date_obj.timetz() if item.get('kaien_time') and len(item.get('kaien_time')) == 4 else None,
                     url=link
                 )
