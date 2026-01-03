@@ -7,7 +7,8 @@ const BRACKETS: Record<string, string> = {
     '[': ']',
     '{': '}',
     '【': '】',
-    '<': '>'
+    '<': '>',
+    '“': '”'
 };
 const REVERSE_BRACKETS: Record<string, string> = Object.entries(BRACKETS).reduce((acc, [k, v]) => {
     acc[v] = k;
@@ -221,7 +222,11 @@ export const normalizeVenue = (venue: string | null | undefined): string => {
 };
 
 export const normalizeEventName = (name: string | null | undefined): string => {
-    return (name || "").toLowerCase().replace(/’/g, "'").trim();
+    return (name || "")
+        .toLowerCase()
+        .replace(/’/g, "'")
+        .replace(/[“”]/g, '"')
+        .trim();
 };
 
 export const getEventBaseName = (name: string | null | undefined): string => {
