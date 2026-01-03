@@ -107,43 +107,39 @@ class SongkickConnector(BaseConnector):
 
     def _parse_json_ld(self, item, artist_name):
         try:
-            # Extract all performers
+            # Organizer Name -> Event
+            organizer = item.get('organizer', {})
+            event_name = organizer.get('name')
+            # Fallback to main item name if organizer name is missing
+            if not event_name:
+                event_name = item.get('name', 'Unknown Event')
+
+            # Performer Names -> Performer
             performers = item.get('performer', [])
             if not isinstance(performers, list):
                 performers = [performers]
             
-            artist_names = [p.get('name') for p in performers if isinstance(p, dict) and p.get('name')]
-            if not artist_names:
-                # Fallback to main item name if no performers listed (unlikely for well-formed JSON-LD)
-                artist_names = [item.get('name', 'Unknown Artist')]
+            performer_names = [p.get('name') for p in performers if isinstance(p, dict) and p.get('name')]
+            performer_str = ", ".join(performer_names)
 
-            all_artists_str = ", ".join(artist_names)
-
+            # StartDate -> Date & Time
             date_str = item.get('startDate')
             if not date_str: return None
             event_date = datetime.fromisoformat(date_str)
             
+            # Location Name -> Venue
             venue = item.get('location', {})
-            venue_name = venue.get('name', 'Unknown')
+            venue_name = venue.get('name', 'Unknown Venue')
             
+            # AddressLocality -> Location
             address = venue.get('address', {})
             if isinstance(address, dict):
-                 loc = f"{address.get('addressLocality')}, {address.get('addressCountry')}"
+                 loc = address.get('addressLocality', '')
             else:
                  loc = str(address)
 
-            title = item.get('name', 'Unknown Event')
-            
-            # 1. Check JSON-LD for tour/superEvent (Fast)
-            tour_info = item.get('tour') or item.get('superEvent')
-            tour_name = None
-            if isinstance(tour_info, dict):
-                tour_name = tour_info.get('name')
-            
-            # 2. If not in JSON, scrape the detail page (Slow but accurate)
+            # URL Handling
             url = item.get('url')
-
-            # Strip UTM parameters
             if url:
                 parsed = urllib.parse.urlparse(url)
                 qs = urllib.parse.parse_qs(parsed.query)
@@ -151,18 +147,6 @@ class SongkickConnector(BaseConnector):
                 qs.pop('utm_source', None)
                 new_query = urllib.parse.urlencode(qs, doseq=True)
                 url = urllib.parse.urlunparse(parsed._replace(query=new_query))
-
-            if not tour_name and url:
-                 tour_name = self._get_tour_name_from_page(url)
-
-            # Title vs Artist
-            if tour_name:
-                title = tour_name
-                artist_final = all_artists_str
-            else:
-                # If no tour name, set Title to Artist Names and leave Artist field empty
-                title = all_artists_str
-                artist_final = ""
             
             # DATE HANDLING: Force JST if naive
             if event_date.tzinfo is None:
@@ -170,43 +154,17 @@ class SongkickConnector(BaseConnector):
                 event_date = event_date.replace(tzinfo=jst)
             
             return Event(
-                event=title, 
-                performer=artist_final,
+                event=event_name, 
+                performer=performer_str,
                 ticket=None,
-                venue=venue_name if venue_name != 'Unknown' else 'Unknown venue',
+                venue=venue_name,
                 location=loc,
                 date=event_date.date(),
-                time=event_date.timetz() if date_str and ('T' in date_str or ' ' in date_str) else None, # Rough check if time existed in input
+                time=event_date.timetz() if date_str and ('T' in date_str or ' ' in date_str) else None,
                 url=url
             )
         except Exception as e:
             print(f"Error parsing JSON-LD item: {e}")
-            return None
-
-    def _get_tour_name_from_page(self, url: str) -> str:
-        """
-        Fetch tour name from details.
-        """
-        try:
-            resp = self.session.get(url, headers=self.headers, timeout=10)
-            if resp.status_code != 200: return None
-            
-            soup = BeautifulSoup(resp.content, 'html.parser')
-            
-            # 1. Direct CSS Selector (Robust)
-            tour_name_tag = soup.select_one('.tour_name')
-            if tour_name_tag:
-                return tour_name_tag.get_text(strip=True)
-
-            # 2. Text-based Fallback
-            target = soup.find(string=lambda t: t and "Tour name:" in t)
-            if target:
-                parent_text = target.parent.get_text(strip=True)
-                if "Tour name:" in parent_text:
-                     return parent_text.split("Tour name:")[-1].strip()
-
-            return None
-        except Exception as e:
             return None
 
 

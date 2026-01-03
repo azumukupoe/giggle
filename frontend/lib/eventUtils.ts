@@ -2,6 +2,34 @@ import { parseISO } from "date-fns";
 import { Event, GroupedEvent } from "@/types/event";
 import { formatLocation } from "./prefectures";
 
+export function getCommonSubstring(strings: string[]): string {
+    if (!strings || strings.length === 0) return "";
+    if (strings.length === 1) return strings[0];
+
+    // sorting by length ascending helps optimization (shortest string limits the common substring)
+    const sorted = [...strings].sort((a, b) => a.length - b.length);
+    const shortest = sorted[0];
+    const rest = sorted.slice(1);
+
+    let longestCommon = "";
+
+    // Iterate through all substrings of the shortest string
+    for (let length = shortest.length; length > 0; length--) {
+        for (let start = 0; start <= shortest.length - length; start++) {
+            const sub = shortest.substring(start, start + length);
+
+            // Check if this substring exists in all other strings
+            // We use includes() which is loose matching.
+            // Requirement implies removing uncommon parts, so strict substring check is appropriate.
+            if (rest.every(str => str.includes(sub))) {
+                return sub;
+            }
+        }
+    }
+
+    return "";
+}
+
 export const normalizeVenue = (venue: string | null | undefined): string => {
     return (venue || "")
         .toLowerCase()
@@ -72,27 +100,24 @@ export function getStartDate(dateStr: string): Date {
 }
 
 export function mergeEventNames(namesSet: Set<string>): string {
-    const names = resolveCaseVariations(Array.from(namesSet));
-    // Filter contained or fuzzy-matched names
-    const uniqueNames = names.filter(t1 => {
-        // Drop t1 if there is any t2 that is "better"
-        return !names.some(t2 => {
-            if (t1 === t2) return false;
+    const uniqueNames = resolveCaseVariations(Array.from(namesSet));
+    if (uniqueNames.length === 0) return "";
+    if (uniqueNames.length === 1) return uniqueNames[0];
 
-            // Check fuzzy similarity (includes strict substring match logic internally)
-            if (areStringsSimilar(t1, t2)) {
-                // If t2 is longer, it's "better" (has more info) -> drop t1
-                if (t2.length > t1.length) return true;
-                // Tie-breaker: if same length, drop the one that is lexicographically smaller to ensure stability
-                if (t2.length === t1.length && t2 > t1) return true;
-            }
+    // Try to find a meaningful common substring
+    const common = getCommonSubstring(uniqueNames).trim();
 
-            // Fallback: strict containment even if fuzzy matched failed (unlikely but safe)
-            if (t2.includes(t1)) return true;
-
-            return false;
-        });
-    });
+    // Use common string if it's substantial enough.
+    // "Substantial" is subjective, but let's say it must be at least 3 chars
+    // and cover a reasonable portion? 
+    // Actually, for "Event A" vs "Event B", common is "Event ". 
+    // The user wants "remove uncommon part and render on tooltips".
+    // So if common string is found and is not empty, we generally prefer it,
+    // UNLESS it's too short (like just "The " or "2026").
+    // Let's enforce a minimum length of 2 to avoid single letter matches.
+    if (common.length >= 2) {
+        return common;
+    }
 
     return uniqueNames.join(" / ");
 }

@@ -426,13 +426,27 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
 
                             const hostname = getDomain(sourceEvent.url);
 
+                            // Calculate diff between specific event name and grouped common name
+                            const commonName = event.event;
+                            const specificName = sourceEvent.event;
+                            let diff = "";
+
+                            if (specificName && commonName && specificName !== commonName) {
+                                // Remove the common part to get the specific part
+                                // We escape special regex characters in commonName just in case, but simple replace works for substrings
+                                diff = specificName.replace(commonName, "").trim();
+                            }
+
+                            const ticketInfo = sourceEvent.ticket || "";
+                            const tooltip = [diff, ticketInfo].filter(Boolean).join(" / ");
+
 
 
                             return (
                                 <TooltippedLink
                                     key={index}
                                     href={sourceEvent.url}
-                                    title={sourceEvent.ticket || ""}
+                                    title={tooltip}
                                     className="flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-md bg-secondary text-secondary-foreground font-medium text-xs hover:bg-secondary/80 transition-colors whitespace-nowrap w-full"
                                 >
                                     {hostname && (
