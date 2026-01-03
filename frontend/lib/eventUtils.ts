@@ -299,7 +299,10 @@ export function getStartDate(dateStr: string): Date {
 export function mergeEventNames(namesSet: Set<string>): string {
     const uniqueNames = resolveCaseVariations(Array.from(namesSet))
         .map(n => n.replace(/’/g, "'").replace(/[“”]/g, '"'))
-        .map(n => n.replace(/\s*&\s*/g, " & "));
+        .map(n => n.replace(/\s*&\s*/g, " & "))
+        .map(n => n.replace(/\s*[×]\s*/g, " / "))
+        .map(n => n.replace(/\s*\/\s*/g, " / "))
+        .map(n => n.replace(/\s*\|\|\s*/g, " "));
     if (uniqueNames.length === 0) return "";
     if (uniqueNames.length === 1) return uniqueNames[0].replace(/ \|\| /g, " ");
 
