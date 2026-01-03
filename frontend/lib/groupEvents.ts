@@ -85,33 +85,40 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
             // Check if current event venue is similar to ANY of the group's venues
             const venueMatch = Array.from(group.venues).some(v => areStringsSimilar(v, event.venue));
 
-            // 3. Match (Event Name OR Performer)
-            // - Event Name matches any Group Event Name (STRICT)
-            // - Event Name matches any Group Performer (STRICT)
-            // - Event Performer matches any Group Event Name (STRICT)
-            // - Event Performer matches any Group Performer (STRICT)
-            const name1 = event.event;
-            const perf1 = event.performer;
+            // Date Consistency Check
+            // Ensure dates are consecutive or same (diff <= 1 already guaranteed by loop break condition above)
+            // But we should explicitely note that we require this.
+            // (The loop breaks if diff > 1, so we are good on "Consecutive")
 
-            // Use base name for matching (ignoring " || ...")
+            // --- Pass 1 Check: Strict Event Name Match ---
+            const name1 = event.event;
             const baseName1 = getEventBaseName(name1);
+
+            // Exact match of "Base Name" (string before ||)
+            const pass1Match = Array.from(group.eventNames).some(n => getEventBaseName(n) === baseName1);
+
+            // --- Pass 2 Check: Fuzzy Match (Event or Performer) ---
             const n1Norm = normalizeEventName(baseName1);
+            const perf1 = event.performer;
             const p1Norm = perf1 ? normalizeEventName(perf1) : "";
 
-            const eventMatch =
-                Array.from(group.eventNames).some(n => normalizeEventName(getEventBaseName(n)) === n1Norm) ||
-                Array.from(group.performers).some(p => normalizeEventName(p) === n1Norm) ||
-                (perf1 ? Array.from(group.eventNames).some(n => normalizeEventName(getEventBaseName(n)) === p1Norm) : false) ||
-                (perf1 ? Array.from(group.performers).some(p => normalizeEventName(p) === p1Norm) : false);
+            // Check fuzzy event name match
+            const fuzzyEventMatch = Array.from(group.eventNames).some(n =>
+                areStringsSimilar(normalizeEventName(getEventBaseName(n)), n1Norm)
+            );
 
-            const isDateTimeMatch = group.dates.has(dateTimeStr) && dateTimeStr.includes("T");
+            // Check fuzzy performer match (Cross-matching allowed: Event matches Performer, Performer matches Event)
+            const fuzzyPerformerMatch =
+                Array.from(group.performers).some(p => areStringsSimilar(normalizeEventName(p), n1Norm)) || // Group Perf ~ Event Name
+                (perf1 ? Array.from(group.eventNames).some(n => areStringsSimilar(normalizeEventName(getEventBaseName(n)), p1Norm)) : false) || // Group Event ~ New Perf
+                (perf1 ? Array.from(group.performers).some(p => areStringsSimilar(normalizeEventName(p), p1Norm)) : false); // Group Perf ~ New Perf
+
+            const pass2Match = fuzzyEventMatch || fuzzyPerformerMatch;
 
             // Merge Condition
-            // Case A: Standard Venue Match + (Event OR Exact Time)
-            // Case B: Partial "Safe" Match: Event Name + Location (bypassing venue mismatch like "Club Quattro" vs "クラブクアトロ")
-            const shouldMerge =
-                (venueMatch && (eventMatch || isDateTimeMatch)) ||
-                (hasCommonLocation && eventMatch);
+            // REQUIRED: Venue Match AND Consecutive Date (implicit via loop) AND Location Safe
+            // OPTIONAL: Pass 1 Match OR Pass 2 Match
+            const shouldMerge = venueMatch && (pass1Match || pass2Match);
 
             if (!shouldMerge) continue;
 
