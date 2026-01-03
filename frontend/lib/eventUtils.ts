@@ -334,9 +334,13 @@ export function mergePerformers(performers: string[]): string {
 
     const result: string[] = [];
 
+    // Helper for fuzzy inclusion check
+    const normalizeForCheck = (s: string) => s.toLowerCase().replace(/\s+/g, "");
+
     for (const p of unique) {
+        const pNorm = normalizeForCheck(p);
         // If this performer string is contained in any already accepted (longer) performer string, skip it
-        const isSubset = result.some(kept => kept.includes(p));
+        const isSubset = result.some(kept => normalizeForCheck(kept).includes(pNorm));
         if (!isSubset) {
             result.push(p);
         }
