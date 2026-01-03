@@ -325,6 +325,26 @@ export function mergeEventNames(namesSet: Set<string>): string {
     return uniqueNames.join(" / ");
 }
 
+export function mergePerformers(performers: string[]): string {
+    const unique = resolveCaseVariations(performers.filter(Boolean));
+    if (unique.length === 0) return "";
+
+    // Sort by length descending
+    unique.sort((a, b) => b.length - a.length);
+
+    const result: string[] = [];
+
+    for (const p of unique) {
+        // If this performer string is contained in any already accepted (longer) performer string, skip it
+        const isSubset = result.some(kept => kept.includes(p));
+        if (!isSubset) {
+            result.push(p);
+        }
+    }
+
+    return result.join("\n\n");
+}
+
 export function resolveCaseVariations(items: string[]): string[] {
     const grouped = new Map<string, string[]>();
     for (const item of items) {

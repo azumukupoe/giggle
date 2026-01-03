@@ -443,7 +443,16 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
                             }
 
                             const ticketInfo = sourceEvent.ticket || "";
-                            const tooltip = [diff, ticketInfo].filter(Boolean).join(" / ");
+
+                            // Prevent duplicate text in tooltip
+                            // If the diff (e.g. "<通し券>") is already contained in ticket info (e.g. "<通し券>一般発売"),
+                            // just show the ticket info.
+                            let tooltipParts = [diff, ticketInfo].filter(Boolean);
+                            if (diff && ticketInfo && ticketInfo.includes(diff)) {
+                                tooltipParts = [ticketInfo];
+                            }
+
+                            const tooltip = tooltipParts.join(" / ");
 
 
 

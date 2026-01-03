@@ -6,6 +6,7 @@ import {
     normalizeLocation,
     createIsoDate,
     mergeEventNames,
+    mergePerformers,
     resolveCaseVariations,
     filterRedundantDates,
     getStartDate,
@@ -56,29 +57,33 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
             // Strict location matching is removed because different sources use different formats
             // (e.g., "Osaka, Japan" vs "大阪府").
 
-            // 2. Venue Fuzzy Match
-            // Check if current event venue is similar to ANY of the group's venues
-            const venueMatch = Array.from(group.venues).some(v => areStringsSimilar(v, event.venue));
-
-            if (!venueMatch) continue;
-
-            // 2.5 Location Match (Safety Check)
-            // If venues match, we MUST ensure locations aren't contradictory.
-            // If both have valid locations, they must match (normalized).
+            // 1. Location Logic
             const loc1 = normalizeLocation(event.location);
             let locationConflict = false;
+            let hasCommonLocation = false;
 
             if (loc1) {
                 // Check against existing group locations
-                for (const loc2Raw of Array.from(group.locations)) {
-                    const loc2 = normalizeLocation(loc2Raw);
-                    if (loc2 && loc1 !== loc2) {
-                        locationConflict = true;
-                        break;
+                if (group.locations.size > 0) {
+                    for (const loc2Raw of Array.from(group.locations)) {
+                        const loc2 = normalizeLocation(loc2Raw);
+                        if (loc2) {
+                            if (loc1 !== loc2) {
+                                locationConflict = true;
+                            } else {
+                                hasCommonLocation = true;
+                            }
+                        }
                     }
                 }
             }
+
+            // If explicit conflict, skip
             if (locationConflict) continue;
+
+            // 2. Venue Fuzzy Match
+            // Check if current event venue is similar to ANY of the group's venues
+            const venueMatch = Array.from(group.venues).some(v => areStringsSimilar(v, event.venue));
 
             // 3. Match (Event Name OR Performer)
             // - Event Name matches any Group Event Name (STRICT)
@@ -101,7 +106,14 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
 
             const isDateTimeMatch = group.dates.has(dateTimeStr) && dateTimeStr.includes("T");
 
-            if (!eventMatch && !isDateTimeMatch) continue;
+            // Merge Condition
+            // Case A: Standard Venue Match + (Event OR Exact Time)
+            // Case B: Partial "Safe" Match: Event Name + Location (bypassing venue mismatch like "Club Quattro" vs "クラブクアトロ")
+            const shouldMerge =
+                (venueMatch && (eventMatch || isDateTimeMatch)) ||
+                (hasCommonLocation && eventMatch);
+
+            if (!shouldMerge) continue;
 
             // All matched -> Merge
             group.urls.add(event.url);
@@ -171,7 +183,7 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
             return {
                 id: g.baseEvent.id,
                 event: mergeEventNames(g.eventNames),
-                performer: resolveCaseVariations(Array.from(g.performers).filter(Boolean)).join("\n\n"),
+                performer: mergePerformers(Array.from(g.performers)),
                 venue: resolveCaseVariations(Array.from(g.venues))[0] || "",
                 location: g.baseEvent.location || "",
                 date: g.baseEvent.date,
