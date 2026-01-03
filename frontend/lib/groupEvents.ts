@@ -12,6 +12,7 @@ import {
     getStartDate,
 
     areStringsSimilar,
+    getCommonSubstring, // Added
     getEventBaseName
 } from "./eventUtils";
 
@@ -83,7 +84,24 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
 
             // 2. Venue Fuzzy Match
             // Check if current event venue is similar to ANY of the group's venues
-            const venueMatch = Array.from(group.venues).some(v => areStringsSimilar(v, event.venue));
+            // 2. Venue Matching
+            // A. Strict Fuzzy Match (Levenshtein/Includes)
+            const strictVenueMatch = Array.from(group.venues).some(v => areStringsSimilar(v, event.venue));
+
+            // B. Partial Venue Match (Common Substring)
+            // Useful for cross-script matches like "Nagoya Club Quattro" vs "名古屋CLUB QUATTRO" (Common: "名古屋")
+            const partialVenueMatch = Array.from(group.venues).some(v => {
+                const norm1 = normalizeVenue(v);
+                const norm2 = normalizeVenue(event.venue);
+                const common = getCommonSubstring([norm1, norm2]);
+
+                // Heuristic: If we share a "significant" part, we allow it.
+                // Non-ASCII (Japanese): >= 2 chars (e.g. "名古屋")
+                // ASCII: >= 5 chars (e.g. "Arena", "Nagoya") - avoids "The ", "Hall"
+                const isNonAscii = /[^\x00-\x7F]/.test(common);
+                if (isNonAscii) return common.length >= 2;
+                return common.length >= 5;
+            });
 
             // Date Consistency Check
             // Ensure dates are consecutive or same (diff <= 1 already guaranteed by loop break condition above)
@@ -118,7 +136,14 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
             // Merge Condition
             // REQUIRED: Venue Match AND Consecutive Date (implicit via loop) AND Location Safe
             // OPTIONAL: Pass 1 Match OR Pass 2 Match
-            const shouldMerge = venueMatch && (pass1Match || pass2Match);
+            // Merge Condition
+            // REQUIRED: Venue Match AND Consecutive Date AND Location Safe
+            // Venue Logic: 
+            // - If Pass 1 (Strict Event Match), allow Partial Venue Match.
+            // - If Pass 2 (Fuzzy Event Match), require Strict Venue Match.
+            const venueOk = (pass1Match && partialVenueMatch) || strictVenueMatch;
+
+            const shouldMerge = venueOk && (pass1Match || pass2Match);
 
             if (!shouldMerge) continue;
 
