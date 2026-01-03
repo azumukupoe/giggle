@@ -335,7 +335,8 @@ export function mergePerformers(performers: string[]): string {
     const result: string[] = [];
 
     // Helper for fuzzy inclusion check
-    const normalizeForCheck = (s: string) => s.toLowerCase().replace(/\s+/g, "");
+    // Use stripSymbols to ignore punctuation and whitespace differences
+    const normalizeForCheck = (s: string) => stripSymbols(s).toLowerCase();
 
     for (const p of unique) {
         const pNorm = normalizeForCheck(p);

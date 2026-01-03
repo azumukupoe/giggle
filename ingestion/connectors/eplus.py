@@ -178,6 +178,11 @@ class EplusConnector(BaseConnector):
                 first_uketsuke = uketsuke_list[0]
                 ticket_name = first_uketsuke.get('uketsuke_name_pc') or first_uketsuke.get('uketsuke_name_mobile') or ""
                 
+                if item.get('koenbi_hyoji_mongon_hyoji_flag') is True:
+                    mongon = item.get('koenbi_hyoji_mongon')
+                    if mongon:
+                        ticket_name = f"{mongon} / {ticket_name}"
+
                 performers = first_uketsuke.get('shutsuensha') 
                 if performers:
                     performers = performers.replace("※2枚以上ご購入の方はお申込み前に同行者登録が必要です。同行者登録されていない場合お申込み手続きには進めません。\n同行者登録につきましてはこちら\nhttps://eplus.jp/sf/guide/fellow-ep\nをご確認ください。\nチケットには申込者･同行者共、会員登録の氏名が印字されます。", "")
