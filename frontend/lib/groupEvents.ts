@@ -63,19 +63,20 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
 
             if (!venueMatch) continue;
 
-            // 3. Fuzzy Match (Event Name OR Performer)
-            // We check if:
-            // - Event Name matches any Group Event Name
-            // - Event Name matches any Group Performer
-            // - Event Performer matches any Group Event Name
-            // - Event Performer matches any Group Performer
+            // 3. Match (Event Name OR Performer)
+            // - Event Name matches any Group Event Name (STRICT)
+            // - Event Name matches any Group Performer (STRICT)
+            // - Event Performer matches any Group Event Name (STRICT)
+            // - Event Performer matches any Group Performer (FUZZY)
             const name1 = event.event;
             const perf1 = event.performer;
+            const n1Norm = normalizeEventName(name1);
+            const p1Norm = perf1 ? normalizeEventName(perf1) : "";
 
             const eventMatch =
-                Array.from(group.eventNames).some(n => areStringsSimilar(n, name1)) ||
-                Array.from(group.performers).some(p => areStringsSimilar(p, name1)) ||
-                (perf1 ? Array.from(group.eventNames).some(n => areStringsSimilar(n, perf1)) : false) ||
+                Array.from(group.eventNames).some(n => normalizeEventName(n) === n1Norm) ||
+                Array.from(group.performers).some(p => normalizeEventName(p) === n1Norm) ||
+                (perf1 ? Array.from(group.eventNames).some(n => normalizeEventName(n) === p1Norm) : false) ||
                 (perf1 ? Array.from(group.performers).some(p => areStringsSimilar(p, perf1)) : false);
 
             if (!eventMatch) continue;
