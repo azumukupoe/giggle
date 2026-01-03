@@ -94,7 +94,7 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
                 (perf1 ? Array.from(group.eventNames).some(n => normalizeEventName(n) === p1Norm) : false) ||
                 (perf1 ? Array.from(group.performers).some(p => normalizeEventName(p) === p1Norm) : false);
 
-            const isDateTimeMatch = group.dates.has(dateTimeStr);
+            const isDateTimeMatch = group.dates.has(dateTimeStr) && dateTimeStr.includes("T");
 
             if (!eventMatch && !isDateTimeMatch) continue;
 
