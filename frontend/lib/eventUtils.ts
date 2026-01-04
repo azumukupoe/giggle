@@ -255,8 +255,10 @@ export const normalizeLocation = (loc: string | null | undefined): string => {
 };
 
 export const stripSymbols = (str: string): string => {
-    // Keep letters, numbers. Remove everything else (including spaces).
-    return (str || "").replace(/[^\p{L}\p{N}]/gu, "");
+    // 1. Normalize unicode (NFKC) to handle full-width chars etc.
+    const normalized = (str || "").normalize("NFKC");
+    // 2. Keep letters, numbers. Remove everything else (including spaces).
+    return normalized.replace(/[^\p{L}\p{N}]/gu, "");
 };
 
 export const areStringsSimilar = (s1: string | null | undefined, s2: string | null | undefined): boolean => {

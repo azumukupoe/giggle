@@ -1,5 +1,6 @@
 import os
 from supabase import create_client, Client
+import html
 
 from dotenv import load_dotenv
 
@@ -17,6 +18,10 @@ def get_supabase_client() -> Client:
 def sanitize_text(text: str) -> str:
     if not text:
         return text
+    
+    # 0. Decode HTML entities (e.g. &nbsp; -> space)
+    text = html.unescape(text)
+
     # 1. Normalize unicode (NFKC)
     import unicodedata
     text = unicodedata.normalize('NFKC', text)
