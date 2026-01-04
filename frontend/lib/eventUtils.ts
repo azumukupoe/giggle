@@ -291,7 +291,6 @@ export function cleanEventName(name: string): string {
         .replace(/’/g, "'")
         .replace(/[“”]/g, '"')
         .replace(/\s*&\s*/g, " & ")
-        .replace(/\s*[×]\s*/g, " / ")
         .replace(/\s*\/\s*/g, " / ");
 
     if (n.includes("||")) {
@@ -322,6 +321,13 @@ export function mergeEventNames(namesSet: Set<string>): string {
     // Refine common string to avoid splitting brackets
     if (common) {
         common = refineCommonString(common, uniqueNames).trim();
+
+        // Check if the common string is a prefix of a collaboration name (e.g. "Artist A" vs "Artist A×Artist B")
+        // If so, prefer the collaboration name as it is more specific and accurate for the group.
+        const collabCandidate = uniqueNames.find(n => n.startsWith(common) && n.substring(common.length).trim().startsWith("×"));
+        if (collabCandidate) {
+            common = collabCandidate;
+        }
     }
 
     // Use common string if it's substantial enough.

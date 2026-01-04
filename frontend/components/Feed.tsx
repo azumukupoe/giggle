@@ -113,7 +113,13 @@ export const Feed = () => {
                     e.displayDates.some(d => normalizeJapanese(d).includes(token))
                 );
 
-                return matchEvent || matchPerformer || matchVenue || matchLocation || matchDate;
+                const matchTooltip = e.sourceEvents.some(sourceEvent => {
+                    const matchSourceEvent = normalizeJapanese(sourceEvent.event || "").includes(token);
+                    const matchTicket = normalizeJapanese(sourceEvent.ticket || "").includes(token);
+                    return matchSourceEvent || matchTicket;
+                });
+
+                return matchEvent || matchPerformer || matchVenue || matchLocation || matchDate || matchTooltip;
             };
 
             // Every token must match at least one field (AND logic for tokens)
