@@ -13,6 +13,25 @@ def get_supabase_client() -> Client:
         raise ValueError("SUPABASE_URL or SUPABASE_KEY not found in environment variables.")
     return create_client(url, key)
 
+
+def sanitize_text(text: str) -> str:
+    if not text:
+        return text
+    # 1. Normalize unicode (NFKC)
+    import unicodedata
+    text = unicodedata.normalize('NFKC', text)
+    
+    # 2. Remove common hidden characters
+    # \u200b: Zero-width space
+    # \ufeff: Byte order mark
+    # \u200e: Left-to-right mark
+    # \u200f: Right-to-left mark
+    hidden_chars = ['\u200b', '\ufeff', '\u200e', '\u200f']
+    for char in hidden_chars:
+        text = text.replace(char, '')
+        
+    return text.strip()
+
 def upsert_events(supabase: Client, events: list):
     """
     Upsert events (url constrained).
@@ -24,6 +43,12 @@ def upsert_events(supabase: Client, events: list):
     data = []
     for e in events:
         event_dict = e.model_dump()
+        
+        # Sanitize string fields
+        for k, v in event_dict.items():
+            if isinstance(v, str):
+                event_dict[k] = sanitize_text(v)
+
         # Serialize date and time
         if "date" in event_dict and event_dict["date"]:
             if not isinstance(event_dict["date"], str):
