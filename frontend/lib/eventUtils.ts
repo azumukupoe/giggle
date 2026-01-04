@@ -26,12 +26,6 @@ function getUnbalancedOpens(str: string): string[] {
                 stack.pop();
             } else {
                 // Unexpected close - treating strictly or just ignoring?
-                // For "left diff", strictness might be tricky if it started mid-context,
-                // but usually left diff starts from valid start.
-                // If we see ')' without '(', it means an unbalanced close.
-                // For the purpose of "Left Context", we care about OPENS that are NOT CLOSED.
-                // So we can ignore extra closes or treat them as neutral for *open* count.
-                // But conceptually, 'a ) b (' -> stack has '('.
             }
         }
     }
@@ -66,8 +60,7 @@ function refineCommonString(common: string, originals: string[]): string {
     // 1. Analyze Left Side Requirements
     for (const original of originals) {
         // Find where common starts in this original
-        // Note: common might appear multiple times? Assumption: getCommonSubstring usually aligns 
-        // with the "main" structure. We'll search for the first occurrence.
+        // Find where common starts in this original
         const idx = original.indexOf(common);
         if (idx === -1) continue; // Should not happen based on getCommonSubstring logic
 
@@ -77,7 +70,6 @@ function refineCommonString(common: string, originals: string[]): string {
         const openStack = getUnbalancedOpens(left);
         if (openStack.length > 0) {
             // We need to resolve these opens within `common`.
-            // Scan `common` to find where they close.
 
             // We clone the stack because we'll be popping from it as we find matches
             const currentStack = [...openStack];
@@ -85,10 +77,7 @@ function refineCommonString(common: string, originals: string[]): string {
 
             let neededCut = 0;
 
-            // We also need to handle new brackets opening/closing WITHIN common 
-            // so we don't match a new ')' to an old '(' if there was an intervening '('.
-            // Actually, a simple stack approach processing `common` works:
-            // Pre-fill stack with `openStack`. Process chars. When stack empties -> we found the point.
+            // We also need to handle new brackets opening/closing WITHIN common
 
             // Internal stack for brackets starting inside common
             const internalStack: string[] = [];
@@ -131,7 +120,7 @@ function refineCommonString(common: string, originals: string[]): string {
     }
 
     // 2. Analyze Right Side Requirements
-    // Similar logic but backwards
+    // 2. Analyze Right Side Requirements
     for (const original of originals) {
         const idx = original.lastIndexOf(common);
         if (idx === -1) continue;
@@ -203,8 +192,7 @@ export function getCommonSubstring(strings: string[]): string {
             const sub = shortest.substring(start, start + length);
 
             // Check if this substring exists in all other strings
-            // We use includes() which is loose matching.
-            // Requirement implies removing uncommon parts, so strict substring check is appropriate.
+            // Check if this substring exists in all other strings
             if (rest.every(str => str.includes(sub))) {
                 return sub;
             }
@@ -296,29 +284,37 @@ export function getStartDate(dateStr: string): Date {
     return new Date("2999-12-31");
 }
 
+export function cleanEventName(name: string): string {
+    if (!name) return "";
+    // Basic cleanup first
+    let n = name
+        .replace(/’/g, "'")
+        .replace(/[“”]/g, '"')
+        .replace(/\s*&\s*/g, " & ")
+        .replace(/\s*[×]\s*/g, " / ")
+        .replace(/\s*\/\s*/g, " / ");
+
+    if (n.includes("||")) {
+        const parts = n.split(/\s*\|\|\s*/);
+        if (parts.length > 1) {
+            const prefix = parts[0].trim();
+            const rest = parts.slice(1).join(" ").trim();
+            // If the event name (rest) starts with the artist/group name (prefix),
+            // remove the redundant prefix.
+            if (rest.startsWith(prefix)) {
+                return rest;
+            }
+        }
+        return n.replace(/\s*\|\|\s*/g, " ");
+    }
+    return n;
+}
+
 export function mergeEventNames(namesSet: Set<string>): string {
     const uniqueNames = resolveCaseVariations(Array.from(namesSet))
-        .map(n => n.replace(/’/g, "'").replace(/[“”]/g, '"'))
-        .map(n => n.replace(/\s*&\s*/g, " & "))
-        .map(n => n.replace(/\s*[×]\s*/g, " / "))
-        .map(n => n.replace(/\s*\/\s*/g, " / "))
-        .map(n => {
-            if (n.includes("||")) {
-                const parts = n.split(/\s*\|\|\s*/);
-                if (parts.length > 1) {
-                    const prefix = parts[0].trim();
-                    const rest = parts.slice(1).join(" ").trim();
-                    // If the event name (rest) starts with the artist/group name (prefix),
-                    // remove the redundant prefix.
-                    if (rest.startsWith(prefix)) {
-                        return rest;
-                    }
-                }
-            }
-            return n.replace(/\s*\|\|\s*/g, " ");
-        });
+        .map(n => cleanEventName(n));
     if (uniqueNames.length === 0) return "";
-    if (uniqueNames.length === 1) return uniqueNames[0].replace(/\|\|/g, " ");
+    if (uniqueNames.length === 1) return uniqueNames[0];
 
     // Try to find a meaningful common substring
     let common = getCommonSubstring(uniqueNames).trim();
@@ -329,12 +325,6 @@ export function mergeEventNames(namesSet: Set<string>): string {
     }
 
     // Use common string if it's substantial enough.
-    // "Substantial" is subjective, but let's say it must be at least 3 chars
-    // and cover a reasonable portion? 
-    // Actually, for "Event A" vs "Event B", common is "Event ". 
-    // The user wants "remove uncommon part and render on tooltips".
-    // So if common string is found and is not empty, we generally prefer it,
-    // UNLESS it's too short (like just "The " or "2026").
     // Let's enforce a minimum length of 2 to avoid single letter matches.
     if (common.length >= 2) {
         // Strip trailing separator if present
@@ -366,11 +356,6 @@ export function mergePerformers(performers: string[]): string {
         const isSubset = result.some(kept => {
             const keptNorm = normalizeForCheck(kept);
             const checksOut = keptNorm.includes(pNorm);
-            // Debugging log (temporary)
-            if (process.env.NODE_ENV === 'development') {
-                console.log(`[mergePerformers] Checking sub: "${p.substring(0, 20)}..." in "${kept.substring(0, 20)}..."`);
-                console.log(`[mergePerformers] Norms: "${pNorm.substring(0, 20)}..." in "${keptNorm.substring(0, 20)}..." -> ${checksOut}`);
-            }
             return checksOut;
         });
 

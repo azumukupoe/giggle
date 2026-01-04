@@ -54,10 +54,6 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
                 break;
             }
 
-            // 1. Location Match (strict on normalized)
-            // Strict location matching is removed because different sources use different formats
-            // (e.g., "Osaka, Japan" vs "大阪府").
-
             // 1. Location Logic
             const loc1 = normalizeLocation(event.location);
             let locationConflict = false;
@@ -82,8 +78,6 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
             // If explicit conflict, skip
             if (locationConflict) continue;
 
-            // 2. Venue Fuzzy Match
-            // Check if current event venue is similar to ANY of the group's venues
             // 2. Venue Matching
             // A. Strict Fuzzy Match (Levenshtein/Includes)
             const strictVenueMatch = Array.from(group.venues).some(v => areStringsSimilar(v, event.venue));
@@ -136,8 +130,6 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
             // Merge Condition
             // REQUIRED: Venue Match AND Consecutive Date (implicit via loop) AND Location Safe
             // OPTIONAL: Pass 1 Match OR Pass 2 Match
-            // Merge Condition
-            // REQUIRED: Venue Match AND Consecutive Date AND Location Safe
             // Venue Logic: 
             // - If Pass 1 (Strict Event Match), allow Partial Venue Match.
             // - If Pass 2 (Fuzzy Event Match), require Strict Venue Match.
@@ -191,7 +183,6 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
     }
 
     // Pass 2: Group by Venue + Time
-    // (Skipped: Pass 1 fuzzy matching is sufficient)
 
     // Convert back to output format
     return groups

@@ -10,7 +10,7 @@ import { motion } from "framer-motion";
 import { useLanguage } from "./LanguageContext";
 
 import { formatLocation } from "@/lib/prefectures";
-import { getStartDate, getDomain, normalizeEventName } from "@/lib/eventUtils";
+import { getStartDate, getDomain, normalizeEventName, cleanEventName } from "@/lib/eventUtils";
 
 
 // Utility functions extracted outside component to avoid recreation on each render
@@ -431,7 +431,7 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
                             const specificName = sourceEvent.event || "";
                             let diff = "";
 
-                            const specificDisplay = specificName.replace(/ \|\| /g, " ");
+                            const specificDisplay = cleanEventName(specificName);
 
                             if (specificName && commonName && normalizeEventName(specificDisplay) !== normalizeEventName(commonName)) {
                                 // Remove the common part to get the specific part

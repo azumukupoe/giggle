@@ -126,27 +126,11 @@ class EplusConnector(BaseConnector):
                             except ValueError:
                                 pass
                     if valid_dates:
-                        # Join with space for base.py to handle
-                        # We don't set time for ranges usually, or just leave it for the first date?
-                        # base.py parses space-separated dates.
-                        # We'll use the FIRST date as the primary 'date_obj' for other logic if needed,
-                        # but Event.date will be the string string.
-                        
-                        # Re-parse first date for time logic if needed
                         try:
                             first_p = parts[0].strip()[:8]
                             date_obj = datetime.strptime(first_p, "%Y%m%d").replace(tzinfo=JST)
                         except:
                             pass
-                            
-                        # If we have time, maybe append to first date? 
-                        # But multi-day events usually don't have a single "time" that applies to the range 
-                        # in the same way. 
-                        # Let's keep date_obj as the start date for time calculation.
-                        
-                        # Override the date to be the range string
-                        # We need to assign this to a variable or handle it in Event creation.
-                        # Event.date accepts str.
                         pass
                 else:
                     # Single date logic
@@ -276,9 +260,3 @@ class EplusConnector(BaseConnector):
 
         
         return asyncio.run(self._get_events_async(query, max_pages))
-
-
-
-
-
-
