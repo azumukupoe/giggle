@@ -292,14 +292,29 @@ export const getDomain = (url: string): string => {
 
 // Extract sortable Date
 export function getStartDate(dateStr: string): Date {
-    // Try generic parse
-    const d1 = parseISO(dateStr);
+    // Handle space-separated range (e.g. "2026-01-03 2026-02-07")
+    const parts = dateStr.trim().split(/\s+/);
+    // Use the first part as start date
+    const d1 = parseISO(parts[0]);
     if (!isNaN(d1.getTime())) {
         return d1;
     }
 
     // Fallback: far future
     return new Date("2999-12-31");
+}
+
+export function getEndDate(dateStr: string): Date {
+    // Handle space-separated range (e.g. "2026-01-03 2026-02-07")
+    const parts = dateStr.trim().split(/\s+/);
+    // Use the last part as end date
+    const d1 = parseISO(parts[parts.length - 1]);
+    if (!isNaN(d1.getTime())) {
+        return d1;
+    }
+
+    // Fallback: far past to ensure no false inclusion
+    return new Date("1970-01-01");
 }
 
 export function cleanEventName(name: string): string {

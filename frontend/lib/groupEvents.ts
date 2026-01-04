@@ -131,7 +131,42 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
             // - If Pass 2 (Fuzzy Event Match), require Strict Venue Match.
             const venueOk = (pass1Match && partialVenueMatch) || strictVenueMatch;
 
-            const shouldMerge = venueOk && (pass1Match || pass2Match);
+
+            let shouldMerge = venueOk && (pass1Match || pass2Match);
+
+            // Special handling for "Pass Tickets" (Date Range Containment)
+            // If the group has a "Bass Event" that is a range, OR the current event is a range
+            // mismatching dates (diff > 1) can be ignored IF:
+            // 1. Strict Name Match (pass1Match)
+            // 2. Strict Venue Match
+            // 3. Date Containment
+            if (!shouldMerge && pass1Match && strictVenueMatch) {
+                // Check if this event falls within the group's range OR vice versa
+                // Actually, since we iterate backwards, we just need to see if ONE of them covers the other.
+                // We rely on "getStartDate" and "getEndDate" logic which we need to import or implement inUtils.
+                // For now, let's assume we can get range from the group dates.
+
+                // Helper to check range coverage
+                const checkCoverage = (rangeDateStr: string, targetDate: Date) => {
+                    const parts = rangeDateStr.split(/\s+/);
+                    if (parts.length >= 2) {
+                        const start = getStartDate(parts[0]);
+                        const end = getStartDate(parts[parts.length - 1]); // Use getStartDate as proxy for parse
+                        return targetDate >= start && targetDate <= end;
+                    }
+                    return false;
+                };
+
+                const isContainedInGroup = Array.from(group.dates).some(d => checkCoverage(d.split('T')[0], eventDate));
+
+                // Also check if the group is contained in THIS event (if this event works as a pass)
+                // const isGroupContainedInEvent = ... (less likely given sort order but possible)
+
+                if (isContainedInGroup) {
+                    shouldMerge = true;
+                }
+            }
+
 
             if (!shouldMerge) continue;
 

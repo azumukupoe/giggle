@@ -197,15 +197,17 @@ export const Feed = () => {
                 </div>
             </div>
 
+            {/* Event Counter - Always visible */}
+            <p className="text-left text-xs text-muted-foreground mb-2 px-1 shrink-0">
+                {filteredEvents.length > 0 && t('feed.showingEvents', {
+                    start: (currentPage - 1) * itemsPerPage + 1,
+                    end: Math.min(currentPage * itemsPerPage, filteredEvents.length),
+                    total: filteredEvents.length
+                })}
+            </p>
+
             {/* Grid */}
             <div ref={scrollContainerRef} className="flex-1 overflow-y-auto min-h-0 overflow-x-hidden px-1">
-                <p className="text-left text-xs text-muted-foreground mb-4">
-                    {filteredEvents.length > 0 && t('feed.showingEvents', {
-                        start: (currentPage - 1) * itemsPerPage + 1,
-                        end: Math.min(currentPage * itemsPerPage, filteredEvents.length),
-                        total: filteredEvents.length
-                    })}
-                </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-4">
                     {displayedEvents.length > 0 ? (
                         displayedEvents.map((event) => (

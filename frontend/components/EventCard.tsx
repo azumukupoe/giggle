@@ -308,9 +308,43 @@ const TruncatedText = ({
     );
 };
 
-export const EventCard = ({ event }: { event: GroupedEvent }) => {
-    const { language } = useLanguage();
+const ModalPortal = ({
+    isOpen,
+    onClose,
+    children
+}: {
+    isOpen: boolean,
+    onClose: () => void,
+    children: React.ReactNode
+}) => {
+    if (!isOpen || typeof document === 'undefined') return null;
 
+    return createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                onClick={onClose}
+            />
+            <motion.div
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.95, opacity: 0 }}
+                className="relative bg-card text-card-foreground p-6 rounded-xl shadow-xl w-full max-w-lg max-h-[85vh] overflow-y-auto border border-border"
+                onClick={(e) => e.stopPropagation()}
+            >
+                {children}
+            </motion.div>
+        </div>,
+        document.body
+    );
+};
+
+export const EventCard = ({ event }: { event: GroupedEvent }) => {
+    const { language, t } = useLanguage();
+    const [isIdsModalOpen, setIsIdsModalOpen] = useState(false);
 
     const formattedLocation = [event.venue, formatLocation(event.location, language)]
         .filter(Boolean)
@@ -338,167 +372,209 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
         return formattedParts.join(separator);
     }).join(" / ");
 
-
-
     const rawPerformer = event.performer;
+
+    // --- Ticket Button Logic ---
+    const MAX_VISIBLE_BUTTONS = 6;
+    const totalButtons = event.sourceEvents.length;
+    const hasMoreButtons = totalButtons > MAX_VISIBLE_BUTTONS;
+
+    // Keep active buttons: all if <= MAX, else MAX-1 + "More"
+    const visibleEvents = hasMoreButtons
+        ? event.sourceEvents.slice(0, MAX_VISIBLE_BUTTONS - 1)
+        : event.sourceEvents;
+
+    const renderTicketButton = (sourceEvent: typeof event.sourceEvents[0], index: number) => {
+        const dateParts = sourceEvent.date.split(' ');
+        let label: string;
+
+        if (dateParts.length >= 2) {
+            // Date range: show start and end dates
+            const startDate = parseISO(dateParts[0]);
+            const endDate = parseISO(dateParts[dateParts.length - 1]);
+            if (isValid(startDate) && isValid(endDate)) {
+                const startLabel = `${startDate.getMonth() + 1}/${startDate.getDate()}`;
+                const endLabel = `${endDate.getMonth() + 1}/${endDate.getDate()}`;
+                const separator = language === 'ja' ? ' ～ ' : ' - ';
+                label = `${startLabel}${separator}${endLabel}`;
+            } else {
+                // Fallback for invalid dates
+                const date = getStartDate(sourceEvent.date);
+                label = `${date.getMonth() + 1}/${date.getDate()}`;
+            }
+        } else {
+            // Single date
+            let date = parseISO(sourceEvent.date);
+            if (!isValid(date)) {
+                date = getStartDate(sourceEvent.date);
+            }
+            const month = date.getMonth() + 1;
+            const day = date.getDate();
+            const timeStr = sourceEvent.time ? sourceEvent.time.substring(0, 5) : "";
+            label = timeStr ? `${month}/${day} ${timeStr}` : `${month}/${day}`;
+        }
+
+        const hostname = getDomain(sourceEvent.url);
+
+        // Calculate diff between specific event name and grouped common name
+        const commonName = event.event;
+        const specificName = sourceEvent.event || "";
+        let diff = "";
+
+        const specificDisplay = cleanEventName(specificName);
+
+        if (specificName && commonName && normalizeEventName(specificDisplay) !== normalizeEventName(commonName)) {
+            // Default subtraction
+            let text = specificDisplay.replace(commonName, "").trim();
+
+            // Special handling for || separated events (Artist || Title)
+            if (specificName.includes("||")) {
+                const parts = specificName.split(/\s*\|\|\s*/);
+                if (parts.length > 1) {
+                    const prefix = parts[0].trim();
+                    const suffix = parts.slice(1).join(" ").trim();
+
+                    // Case 1: Prefix is covered by Common Name -> Show Suffix
+                    if (normalizeEventName(commonName).includes(normalizeEventName(prefix))) {
+                        text = suffix;
+                    }
+                }
+            }
+
+            // Also handle case where Specific is a substring of Common (redundant)
+            if (text === specificDisplay && normalizeEventName(commonName).includes(normalizeEventName(specificDisplay))) {
+                text = "";
+            }
+
+            diff = text;
+
+            if (diff.startsWith("||")) {
+                diff = diff.substring(2).trim();
+            }
+        }
+
+        const ticketInfo = sourceEvent.ticket || "";
+
+        // Prevent duplicate text in tooltip
+        // If the diff (e.g. "<通し券>") is already contained in ticket info (e.g. "<通し券>一般発売"),
+        // just show the ticket info.
+        let tooltipParts = [diff, ticketInfo].filter(Boolean);
+        if (diff && ticketInfo && ticketInfo.includes(diff)) {
+            tooltipParts = [ticketInfo];
+        }
+
+        const tooltip = tooltipParts.join(" / ");
+
+        return (
+            <TooltippedLink
+                key={`${sourceEvent.id || index}`}
+                href={sourceEvent.url}
+                title={tooltip}
+                className="flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-md bg-secondary text-secondary-foreground font-medium text-xs hover:bg-secondary/80 transition-colors whitespace-nowrap w-full"
+            >
+                {hostname && (
+                    <img
+                        src={`https://www.google.com/s2/favicons?domain=${hostname}&sz=64`}
+                        alt={hostname}
+                        className="w-4 h-4 rounded-sm"
+                    />
+                )}
+                <span>{label}</span>
+                <ExternalLink className="w-3 h-3 opacity-50" />
+            </TooltippedLink>
+        );
+    };
+
     return (
-        <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            whileHover={{ scale: 1.01 }}
-            className="group flex flex-col justify-between overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm transition-all hover:shadow-md h-[280px] w-full"
-        >
-            <div className="p-4 flex flex-col h-full">
+        <>
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                whileHover={{ scale: 1.01 }}
+                className="group flex flex-col justify-between overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm transition-all hover:shadow-md h-[280px] w-full"
+            >
+                <div className="p-4 flex flex-col h-full">
 
-                {/* Content: Title & Artist */}
-                {/* Flex-grow allows this section to take available space. min-h-0 allows valid truncation inside flex item. */}
-                <div className="flex flex-col flex-grow min-h-0 mb-2">
-                    <div className="mb-1 shrink-0">
-                        <h3 className="text-lg font-bold leading-tight break-words">
-                            {event.event}
-                        </h3>
-                    </div>
-
-                    {/* Artist/Details takes remaining space */}
-                    <div className="flex-1 min-h-0 overflow-y-auto text-muted-foreground font-medium text-sm whitespace-pre-wrap break-words">
-                        {rawPerformer}
-                    </div>
-                </div>
-
-                {/* Footer: Details & CTA */}
-                <div className="flex flex-col gap-2 shrink-0 border-t pt-2 border-border/50">
-                    <div className="flex flex-col gap-1 text-xs text-muted-foreground">
-                        <div className="flex items-center gap-2">
-                            <Calendar className="w-3.5 h-3.5 shrink-0" />
-                            <div className="min-w-0 flex-1">
-                                <TruncatedText
-                                    text={dateString}
-                                    className="block"
-                                    maxLines={1}
-                                    followCursor={true}
-                                />
-                            </div>
+                    {/* Content: Title & Artist */}
+                    <div className="flex flex-col flex-grow min-h-0 mb-2">
+                        <div className="mb-1 shrink-0">
+                            <h3 className="text-lg font-bold leading-tight break-words">
+                                {event.event}
+                            </h3>
                         </div>
-                        <div className="flex items-center gap-2">
-                            <MapPin className="w-3.5 h-3.5 shrink-0" />
-                            <div className="min-w-0 flex-1">
-                                <TruncatedText
-                                    as="span"
-                                    text={formattedLocation}
-                                    className="line-clamp-1 block"
-                                    maxLines={1}
-                                />
-                            </div>
+
+                        {/* Artist/Details takes remaining space */}
+                        <div className="flex-1 min-h-0 overflow-y-auto text-muted-foreground font-medium text-sm whitespace-pre-wrap break-words">
+                            {rawPerformer}
                         </div>
                     </div>
 
-                    {/* Ticket Links */}
-                    <div className="grid grid-cols-2 gap-2">
-                        {event.sourceEvents.map((sourceEvent, index) => {
-                            const dateParts = sourceEvent.date.split(' ');
-                            let label: string;
+                    {/* Footer: Details & CTA */}
+                    <div className="flex flex-col gap-2 shrink-0 border-t pt-2 border-border/50">
+                        <div className="flex flex-col gap-1 text-xs text-muted-foreground">
+                            <div className="flex items-center gap-2">
+                                <Calendar className="w-3.5 h-3.5 shrink-0" />
+                                <div className="min-w-0 flex-1">
+                                    <TruncatedText
+                                        text={dateString}
+                                        className="block"
+                                        maxLines={1}
+                                        followCursor={true}
+                                    />
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <MapPin className="w-3.5 h-3.5 shrink-0" />
+                                <div className="min-w-0 flex-1">
+                                    <TruncatedText
+                                        as="span"
+                                        text={formattedLocation}
+                                        className="line-clamp-1 block"
+                                        maxLines={1}
+                                    />
+                                </div>
+                            </div>
+                        </div>
 
-                            if (dateParts.length >= 2) {
-                                // Date range: show start and end dates
-                                const startDate = parseISO(dateParts[0]);
-                                const endDate = parseISO(dateParts[dateParts.length - 1]);
-                                if (isValid(startDate) && isValid(endDate)) {
-                                    const startLabel = `${startDate.getMonth() + 1}/${startDate.getDate()}`;
-                                    const endLabel = `${endDate.getMonth() + 1}/${endDate.getDate()}`;
-                                    const separator = language === 'ja' ? ' ～ ' : ' - ';
-                                    label = `${startLabel}${separator}${endLabel}`;
-                                } else {
-                                    // Fallback for invalid dates
-                                    const date = getStartDate(sourceEvent.date);
-                                    label = `${date.getMonth() + 1}/${date.getDate()}`;
-                                }
-                            } else {
-                                // Single date
-                                let date = parseISO(sourceEvent.date);
-                                if (!isValid(date)) {
-                                    date = getStartDate(sourceEvent.date);
-                                }
-                                const month = date.getMonth() + 1;
-                                const day = date.getDate();
-                                const timeStr = sourceEvent.time ? sourceEvent.time.substring(0, 5) : "";
-                                label = timeStr ? `${month}/${day} ${timeStr}` : `${month}/${day}`;
-                            }
+                        {/* Ticket Links Grid */}
+                        <div className="grid grid-cols-2 gap-2">
+                            {visibleEvents.map((ev, i) => renderTicketButton(ev, i))}
 
-                            const hostname = getDomain(sourceEvent.url);
-
-                            // Calculate diff between specific event name and grouped common name
-                            const commonName = event.event;
-                            const specificName = sourceEvent.event || "";
-                            let diff = "";
-
-                            const specificDisplay = cleanEventName(specificName);
-
-                            if (specificName && commonName && normalizeEventName(specificDisplay) !== normalizeEventName(commonName)) {
-                                // Default subtraction
-                                let text = specificDisplay.replace(commonName, "").trim();
-
-                                // Special handling for || separated events (Artist || Title)
-                                if (specificName.includes("||")) {
-                                    const parts = specificName.split(/\s*\|\|\s*/);
-                                    if (parts.length > 1) {
-                                        const prefix = parts[0].trim();
-                                        const suffix = parts.slice(1).join(" ").trim();
-
-                                        // Case 1: Prefix is covered by Common Name -> Show Suffix
-                                        if (normalizeEventName(commonName).includes(normalizeEventName(prefix))) {
-                                            text = suffix;
-                                        }
-                                    }
-                                }
-
-                                // Also handle case where Specific is a substring of Common (redundant)
-                                if (text === specificDisplay && normalizeEventName(commonName).includes(normalizeEventName(specificDisplay))) {
-                                    text = "";
-                                }
-
-                                diff = text;
-
-                                if (diff.startsWith("||")) {
-                                    diff = diff.substring(2).trim();
-                                }
-                            }
-
-                            const ticketInfo = sourceEvent.ticket || "";
-
-                            // Prevent duplicate text in tooltip
-                            // If the diff (e.g. "<通し券>") is already contained in ticket info (e.g. "<通し券>一般発売"),
-                            // just show the ticket info.
-                            let tooltipParts = [diff, ticketInfo].filter(Boolean);
-                            if (diff && ticketInfo && ticketInfo.includes(diff)) {
-                                tooltipParts = [ticketInfo];
-                            }
-
-                            const tooltip = tooltipParts.join(" / ");
-
-
-
-                            return (
-                                <TooltippedLink
-                                    key={index}
-                                    href={sourceEvent.url}
-                                    title={tooltip}
-                                    className="flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-md bg-secondary text-secondary-foreground font-medium text-xs hover:bg-secondary/80 transition-colors whitespace-nowrap w-full"
+                            {hasMoreButtons && (
+                                <button
+                                    onClick={() => setIsIdsModalOpen(true)}
+                                    className="flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-md bg-primary/10 text-primary font-medium text-xs hover:bg-primary/20 transition-colors whitespace-nowrap w-full"
                                 >
-                                    {hostname && (
-                                        <img
-                                            src={`https://www.google.com/s2/favicons?domain=${hostname}&sz=64`}
-                                            alt={hostname}
-                                            className="w-4 h-4 rounded-sm"
-                                        />
-                                    )}
-                                    <span>{label}</span>
-                                    <ExternalLink className="w-3 h-3 opacity-50" />
-                                </TooltippedLink>
-                            );
-                        })}
+                                    <span>{t('eventCard.more', { count: totalButtons - (MAX_VISIBLE_BUTTONS - 1) })}</span>
+                                </button>
+                            )}
+                        </div>
                     </div>
                 </div>
-            </div>
-        </motion.div>
+            </motion.div>
+
+            {/* Full List Modal */}
+            <ModalPortal isOpen={isIdsModalOpen} onClose={() => setIsIdsModalOpen(false)}>
+                <div className="flex flex-col gap-4">
+                    <div className="mb-2">
+                        <h3 className="text-xl font-bold">{event.event}</h3>
+                        <p className="text-sm text-muted-foreground">{dateString}</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {event.sourceEvents.map((ev, i) => renderTicketButton(ev, i))}
+                    </div>
+
+                    <div className="flex justify-end mt-4">
+                        <button
+                            onClick={() => setIsIdsModalOpen(false)}
+                            className="px-4 py-2 bg-secondary text-secondary-foreground rounded-lg text-sm font-medium hover:bg-secondary/80"
+                        >
+                            {t('common.close')}
+                        </button>
+                    </div>
+                </div>
+            </ModalPortal>
+        </>
     );
 };
