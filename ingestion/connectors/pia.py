@@ -1,13 +1,12 @@
 from typing import List, Optional, Set
-import requests
+import httpx
 from bs4 import BeautifulSoup
-from datetime import datetime, timezone, timedelta
-
+from datetime import datetime
 import re
-import urllib.parse
 import concurrent.futures
-import time
 import random
+import time
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 from .base import BaseConnector, Event, CONSTANTS
 
 class PiaConnector(BaseConnector):
@@ -17,6 +16,27 @@ class PiaConnector(BaseConnector):
         self.headers = {
             "User-Agent": CONSTANTS.USER_AGENT
         }
+        # Using a shared client session for reuse locally per thread is tricky with requests,
+        # but with httpx.Client it is safer. However, we are using threads, so we should be careful.
+        # Httpx client is thread safe.
+        self.client = httpx.Client(timeout=15.0, headers=self.headers, http2=True)
+    
+    def __del__(self):
+        try:
+            self.client.close()
+        except:
+            pass
+
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=5),
+        retry=retry_if_exception_type((httpx.RequestError, httpx.HTTPStatusError)),
+        reraise=True
+    )
+    def _fetch(self, params: dict):
+        response = self.client.get(self.base_url, params=params)
+        response.raise_for_status()
+        return response
 
     def get_events(self, query: str = None) -> List[Event]:
         all_events = []
@@ -24,6 +44,8 @@ class PiaConnector(BaseConnector):
         # Concurrent fetch for prefectures
         prefecture_codes = [f"{i:02d}" for i in range(1, 48)]
         
+        # We can still use threads for high-level concurrency, or rewrite to async. 
+        # For minimal change, we stick to threads with httpx sync client.
         with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
             future_to_code = {
                 executor.submit(self._fetch_prefecture_events, pf_code): pf_code 
@@ -63,11 +85,8 @@ class PiaConnector(BaseConnector):
                 # Random sleep
                 time.sleep(random.uniform(1.0, 3.0))
 
-                resp = requests.get(self.base_url, headers=self.headers, params=params, timeout=15)
-                if resp.status_code != 200:
-                    print(f"    [Pia] Prefecture {pf_code} page {page} failed. Status: {resp.status_code}")
-                    break
-
+                resp = self._fetch(params)
+                
                 soup = BeautifulSoup(resp.content, 'html.parser', from_encoding='utf-8')
                 event_bundles = soup.select('#contents_html > ul > li')
 
@@ -178,10 +197,6 @@ class PiaConnector(BaseConnector):
         
         return pf_events
 
-
-
-
-
     def _parse_date(self, date_str: str) -> Optional[str]:
         if not date_str:
             return None
@@ -206,5 +221,4 @@ class PiaConnector(BaseConnector):
         if not parsed_dates:
             return None
             
-
         return " ".join(parsed_dates)

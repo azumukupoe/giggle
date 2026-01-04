@@ -370,19 +370,14 @@ export function mergePerformers(performers: string[]): string {
 
     const result: string[] = [];
 
-    const getNormLines = (s: string) => {
-        return s.split(/[\n\r]+/).map(l => stripSymbols(l).toLowerCase()).filter(Boolean);
-    };
-
     for (const p of unique) {
-        const pLines = getNormLines(p);
+        // Normalization for comparison: remove all non-alphanumeric, lowercase
+        const pNorm = stripSymbols(p).toLowerCase();
+
         // If this performer string is contained in any already accepted (longer) performer string, skip it
         const isSubset = result.some(kept => {
-            const keptLines = getNormLines(kept);
-            // Check if every line of p is contained in some line of kept
-            return pLines.every(pLine => {
-                return keptLines.some(kLine => kLine.includes(pLine));
-            });
+            const keptNorm = stripSymbols(kept).toLowerCase();
+            return keptNorm.includes(pNorm);
         });
 
         if (!isSubset) {

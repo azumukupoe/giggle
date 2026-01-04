@@ -1,12 +1,12 @@
-import requests
-from typing import List
+from typing import List, Optional
+import httpx
 from datetime import datetime, timezone, timedelta
 from .base import BaseConnector, Event, CONSTANTS
 from bs4 import BeautifulSoup
 import urllib.parse
 import json
 import concurrent.futures
-
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 class SongkickConnector(BaseConnector):
     def __init__(self):
@@ -16,12 +16,29 @@ class SongkickConnector(BaseConnector):
             "User-Agent": CONSTANTS.USER_AGENT
         }
         
-        # Setup retry session
-        self.session = requests.Session()
-        retries = requests.adapters.Retry(total=3, backoff_factor=1, status_forcelist=[500, 502, 503, 504])
-        adapter = requests.adapters.HTTPAdapter(max_retries=retries)
-        self.session.mount('http://', adapter)
-        self.session.mount('https://', adapter)
+        self.client = httpx.Client(
+            timeout=30.0, 
+            headers=self.headers,
+            http2=True,
+            limits=httpx.Limits(max_keepalive_connections=20, max_connections=20)
+        )
+    
+    def __del__(self):
+        try:
+            self.client.close()
+        except:
+            pass
+
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        retry=retry_if_exception_type((httpx.RequestError, httpx.HTTPStatusError)),
+        reraise=True
+    )
+    def _fetch(self, url: str):
+        response = self.client.get(url)
+        response.raise_for_status()
+        return response
 
     def get_events(self, query: str = None) -> List[Event]:
         # Required by BaseConnector
@@ -44,11 +61,7 @@ class SongkickConnector(BaseConnector):
             print(f"  [Songkick] Fetching page {page}: {url}")
             
             try:
-                resp = self.session.get(url, headers=self.headers)
-
-                if resp.status_code != 200:
-                    print(f"  [Songkick] Failed to fetch page {page}. Status: {resp.status_code}")
-                    break
+                resp = self._fetch(url)
                 
                 soup = BeautifulSoup(resp.content, 'html.parser')
                 
@@ -70,7 +83,7 @@ class SongkickConnector(BaseConnector):
                         except Exception as e:
                             print(f"    [Songkick] JSON Load Error on page {page}: {e}")
                 
-                # Execute in parallel
+                # Execute parsing in threads (CPU bound-ish), but fetch was sync
                 with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
                     futures = [executor.submit(self._parse_json_ld, item) for item in items_to_process]
                     for future in concurrent.futures.as_completed(futures):
@@ -158,6 +171,3 @@ class SongkickConnector(BaseConnector):
         except Exception as e:
             print(f"Error parsing JSON-LD item: {e}")
             return None
-
-
-

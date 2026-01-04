@@ -1,7 +1,12 @@
 import asyncio
-import aiohttp
-from datetime import datetime, timedelta, timezone
+import httpx
+from datetime import datetime, timedelta, timezone, date
+from typing import List, Optional, Tuple, Set
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type, before_sleep_log
+import logging
 from .base import BaseConnector, Event, CONSTANTS
+
+logger = logging.getLogger(__name__)
 
 class EplusConnector(BaseConnector):
     def __init__(self):
@@ -13,33 +18,23 @@ class EplusConnector(BaseConnector):
             'Accept-Language': 'ja-JP,ja;q=0.9,en-US;q=0.8,en;q=0.7',
             'X-APIToken': 'FGXySj3mTd' # Static token
         }
+        # httpx limits
+        self.limits = httpx.Limits(max_keepalive_connections=40, max_connections=40)
+        self.timeout = httpx.Timeout(30.0)
 
-        self.sem = asyncio.Semaphore(40) 
 
-    async def _fetch(self, session, params):
-        retries = 3
-        base_delay = 1
-        
-        async with self.sem:
-            for attempt in range(retries):
-                try:
-                    async with session.get(self.api_url, headers=self.headers, params=params, timeout=30) as response:
-                        if response.status != 200:
-                            if attempt < retries - 1:
-                                await asyncio.sleep(base_delay * (2 ** attempt))
-                                continue
-                            print(f"  [eplus] Fetch failed after {retries} attempts. Status: {response.status}")
-                            return None
-                        return await response.json()
-                except Exception as e:
-                    if attempt < retries - 1:
-                        await asyncio.sleep(base_delay * (2 ** attempt))
-                        continue
-                    print(f"  [eplus] Fetch failed after {retries} attempts. Exception: {e}")
-                    return None
-        return None
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        retry=retry_if_exception_type((httpx.RequestError, httpx.HTTPStatusError)),
+        reraise=True
+    )
+    async def _fetch(self, client: httpx.AsyncClient, params: dict):
+        response = await client.get(self.api_url, headers=self.headers, params=params)
+        response.raise_for_status()
+        return response.json()
 
-    async def _get_all_ids_async(self, session, genre_code: str):
+    async def _get_all_ids_async(self, client: httpx.AsyncClient, genre_code: str) -> Set[Tuple[str, str]]:
         """
         Fetch all ID tuples for genre.
         """
@@ -52,38 +47,43 @@ class EplusConnector(BaseConnector):
             "streaming_haishin_kubun_list": "0",
             "sort_key": "koenbi,kaien_time,parent_koen_taisho_flag,kogyo_code,kogyo_sub_code"
         }
-        
 
-        data = await self._fetch(session, params)
-        if not data:
+        try:
+            data = await self._fetch(client, params)
+            if not data:
+                return set()
+                
+            total_count = data['data'].get('so_kensu', 0)
+            print(f"  [eplus] Genre {genre_code} has {total_count} items. Fetching all...")
+            
+            ids = set()
+            tasks = []
+            
+            for start_index in range(1, total_count + 1, items_per_page):
+                p = params.copy()
+                p['shutoku_kensu'] = items_per_page
+                p['shutoku_start_ichi'] = start_index
+                tasks.append(self._fetch(client, p))
+                
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            
+            for d in results:
+                if isinstance(d, Exception):
+                    continue
+                if d and d.get('data') and d['data'].get('record_list'):
+                    for item in d['data']['record_list']:
+                        k_code = item.get('kogyo_code')
+                        k_sub = item.get('kogyo_sub_code')
+                        if k_code and k_sub:
+                            ids.add((str(k_code), str(k_sub)))
+                            
+            print(f"  [eplus] Fetched {len(ids)} unique exclusion IDs for genre {genre_code} out of {total_count} total items reported.")
+            return ids
+        except Exception as e:
+            print(f"  [eplus] Error fetching exclusions: {e}")
             return set()
-            
-        total_count = data['data'].get('so_kensu', 0)
-        print(f"  [eplus] Genre {genre_code} has {total_count} items. Fetching all...")
-        
-        ids = set()
-        tasks = []
-        
-        for start_index in range(1, total_count + 1, items_per_page):
-            p = params.copy()
-            p['shutoku_kensu'] = items_per_page
-            p['shutoku_start_ichi'] = start_index
-            tasks.append(self._fetch(session, p))
-            
-        results = await asyncio.gather(*tasks)
-        
-        for d in results:
-            if d and d.get('data') and d['data'].get('record_list'):
-                for item in d['data']['record_list']:
-                    k_code = item.get('kogyo_code')
-                    k_sub = item.get('kogyo_sub_code')
-                    if k_code and k_sub:
-                        ids.add((str(k_code), str(k_sub)))
-                        
-        print(f"  [eplus] Fetched {len(ids)} unique exclusion IDs for genre {genre_code} out of {total_count} total items reported.")
-        return ids
 
-    def _process_item_sync(self, item, dt_now, excluded_ids):
+    def _process_item_sync(self, item: dict, dt_now: datetime, excluded_ids: Set[Tuple[str, str]]) -> Optional[Event]:
         """Sync processing"""
         try:
             k_code = item.get('kogyo_code')
@@ -107,12 +107,12 @@ class EplusConnector(BaseConnector):
 
             koenbi_term = item.get('koenbi_term', '')
             date_obj = dt_now 
-            
+            valid_dates = []
+
             if koenbi_term:
                 # Check for range "YYYYMMDD～YYYYMMDD"
                 if "～" in koenbi_term:
                     parts = koenbi_term.split("～")
-                    valid_dates = []
                     JST = timezone(timedelta(hours=9))
                     for p in parts:
                         p = p.strip()
@@ -124,11 +124,11 @@ class EplusConnector(BaseConnector):
                                 pass
                     if valid_dates:
                         try:
+                            # Use first date as primary object for further parsing
                             first_p = parts[0].strip()[:8]
                             date_obj = datetime.strptime(first_p, "%Y%m%d").replace(tzinfo=JST)
                         except:
                             pass
-                        pass
                 else:
                     # Single date logic
                     date_str = koenbi_term[:8]
@@ -173,7 +173,7 @@ class EplusConnector(BaseConnector):
 
             if link:
                 event_date = date_obj.date()
-                if "～" in koenbi_term and 'valid_dates' in locals() and valid_dates:
+                if "～" in koenbi_term and valid_dates:
                      event_date = " ".join(valid_dates)
 
                 return Event(
@@ -191,17 +191,17 @@ class EplusConnector(BaseConnector):
             print(f"  [eplus] Error processing item: {e}")
             return None
 
-    async def _get_events_async(self, query: str = None, max_pages: int = None):
+    async def _get_events_async(self, query: str = None, max_pages: int = None) -> List[Event]:
         all_events = []
         dt_now = datetime.now()
 
-        async with aiohttp.ClientSession() as session:
+        async with httpx.AsyncClient(limits=self.limits, timeout=self.timeout) as client:
             # 1. Fetch Exclusions concurrently
             excl_tasks = [
-                self._get_all_ids_async(session, "200"),
-                self._get_all_ids_async(session, "700")
+                self._get_all_ids_async(client, "200"),
+                self._get_all_ids_async(client, "700")
             ]
-            excl_results = await asyncio.gather(*excl_tasks)
+            excl_results = await asyncio.gather(*excl_tasks) # type: ignore
             excluded_ids = set().union(*excl_results)
             print(f"  [eplus] Total excluded IDs: {len(excluded_ids)}")
 
@@ -216,9 +216,13 @@ class EplusConnector(BaseConnector):
             }
 
             # Fetch first page to get count
-            first_page = await self._fetch(session, params)
+            try:
+                first_page = await self._fetch(client, params)
+            except Exception as e:
+                print(f"  [eplus] Failed to fetch first page: {e}")
+                return []
+            
             if not first_page:
-                print("  [eplus] Failed to fetch first page.")
                 return []
 
             total_count = first_page['data'].get('so_kensu', 0)
@@ -243,17 +247,23 @@ class EplusConnector(BaseConnector):
             for start_index in range(1 + items_per_page, total_count + 1, items_per_page):
                 p = params.copy()
                 p['shutoku_start_ichi'] = start_index
-                tasks.append(self._fetch(session, p))
+                tasks.append(self._fetch(client, p))
 
             print(f"  [eplus] Fetching {len(tasks)} remaining pages concurrently...")
-            results = await asyncio.gather(*tasks)
+            
+            # Execute with concurrency limit handled by httpx limits, but we await gather here
+            results = await asyncio.gather(*tasks, return_exceptions=True)
             
             for d in results:
+                if isinstance(d, Exception):
+                    # Individual page failure handled by retry, but if it bubbles up to here, log it
+                    print(f"  [eplus] Page fetch failed with error check log: {d}")
+                    continue
+                    
                 all_events.extend(extract_from_json(d))
 
         return all_events
 
-    def get_events(self, query: str = None, max_pages: int = None):
-
-        
-        return asyncio.run(self._get_events_async(query, max_pages))
+    def get_events(self, query: str = None) -> List[Event]:
+        # Required by BaseConnector interface
+        return asyncio.run(self._get_events_async(query))
