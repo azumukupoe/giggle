@@ -68,7 +68,7 @@ class PiaConnector(BaseConnector):
                     print(f"    [Pia] Prefecture {pf_code} page {page} failed. Status: {resp.status_code}")
                     break
 
-                soup = BeautifulSoup(resp.content, 'html.parser')
+                soup = BeautifulSoup(resp.content, 'html.parser', from_encoding='utf-8')
                 event_bundles = soup.select('#contents_html > ul > li')
 
                 if not event_bundles:
