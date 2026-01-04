@@ -10,7 +10,7 @@ export const Navbar = () => {
 
 
 
-    useEffect(() => setMounted(true), []);
+    useEffect(() => { setMounted(true); }, []);
 
     const toggleLanguage = () => {
         setLanguage(language === "en" ? "ja" : "en");
