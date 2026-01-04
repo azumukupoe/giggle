@@ -490,27 +490,23 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                whileHover={{ scale: 1.01 }}
-                className="group flex flex-col justify-between overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm transition-all hover:shadow-md h-[280px] w-full"
+                whileHover={{ scale: 1.02 }}
+                onClick={() => setIsIdsModalOpen(true)}
+                className="group flex flex-col justify-between overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm transition-all hover:shadow-md h-[180px] w-full cursor-pointer hover:border-primary/50"
             >
                 <div className="p-4 flex flex-col h-full">
 
-                    {/* Content: Title & Artist */}
+                    {/* Content: Title */}
                     <div className="flex flex-col flex-grow min-h-0 mb-2">
                         <div className="mb-1 shrink-0">
-                            <h3 className="text-lg font-bold leading-tight break-words">
+                            <h3 className="text-sm font-bold leading-tight line-clamp-3 break-words group-hover:text-primary transition-colors">
                                 {event.event}
                             </h3>
                         </div>
-
-                        {/* Artist/Details takes remaining space */}
-                        <div className="flex-1 min-h-0 overflow-y-auto text-muted-foreground font-medium text-sm whitespace-pre-wrap break-words">
-                            {rawPerformer}
-                        </div>
                     </div>
 
-                    {/* Footer: Details & CTA */}
-                    <div className="flex flex-col gap-2 shrink-0 border-t pt-2 border-border/50">
+                    {/* Footer: Details */}
+                    <div className="flex flex-col gap-1.5 shrink-0 border-t pt-2 border-border/50">
                         <div className="flex flex-col gap-1 text-xs text-muted-foreground">
                             <div className="flex items-center gap-2">
                                 <Calendar className="w-3.5 h-3.5 shrink-0" />
@@ -535,40 +531,52 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
                                 </div>
                             </div>
                         </div>
-
-                        {/* Ticket Links Grid */}
-                        <div className="grid grid-cols-2 gap-2">
-                            {visibleEvents.map((ev, i) => renderTicketButton(ev, i))}
-
-                            {hasMoreButtons && (
-                                <button
-                                    onClick={() => setIsIdsModalOpen(true)}
-                                    className="flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-md bg-primary/10 text-primary font-medium text-xs hover:bg-primary/20 transition-colors whitespace-nowrap w-full"
-                                >
-                                    <span>{t('eventCard.more', { count: totalButtons - (MAX_VISIBLE_BUTTONS - 1) })}</span>
-                                </button>
-                            )}
-                        </div>
                     </div>
                 </div>
             </motion.div>
 
             {/* Full List Modal */}
             <ModalPortal isOpen={isIdsModalOpen} onClose={() => setIsIdsModalOpen(false)}>
-                <div className="flex flex-col gap-4">
-                    <div className="mb-2">
-                        <h3 className="text-xl font-bold">{event.event}</h3>
-                        <p className="text-sm text-muted-foreground">{dateString}</p>
+                <div className="flex flex-col gap-5 max-h-[75vh]">
+                    <div className="shrink-0 space-y-3 border-b pb-4">
+                        <h3 className="text-xl font-bold leading-tight">{event.event}</h3>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-muted-foreground">
+                            <div className="flex items-center gap-2">
+                                <Calendar className="w-4 h-4 text-primary" />
+                                <span>{dateString}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <MapPin className="w-4 h-4 text-primary" />
+                                <span>{formattedLocation}</span>
+                            </div>
+                        </div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                        {event.sourceEvents.map((ev, i) => renderTicketButton(ev, i))}
+                    <div className="flex-1 overflow-y-auto min-h-0 space-y-4">
+                        {/* Performers Section */}
+                        {rawPerformer && (
+                            <div className="bg-muted/30 p-3 rounded-lg">
+                                <h4 className="text-xs font-semibold uppercase text-muted-foreground mb-2 tracking-wider">{t('eventCard.performers') || "Performers"}</h4>
+                                <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                                    {rawPerformer}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Ticket Links Section */}
+                        <div>
+                            <h4 className="text-xs font-semibold uppercase text-muted-foreground mb-2 tracking-wider">{t('eventCard.tickets') || "Tickets"}</h4>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-3">
+                                {event.sourceEvents.map((ev, i) => renderTicketButton(ev, i))}
+                            </div>
+                        </div>
                     </div>
 
-                    <div className="flex justify-end mt-4">
+                    <div className="flex justify-end pt-2 shrink-0 border-t mt-auto">
                         <button
                             onClick={() => setIsIdsModalOpen(false)}
-                            className="px-4 py-2 bg-secondary text-secondary-foreground rounded-lg text-sm font-medium hover:bg-secondary/80"
+                            className="px-5 py-2.5 bg-secondary text-secondary-foreground rounded-lg text-sm font-medium hover:bg-secondary/80 transition-colors"
                         >
                             {t('common.close')}
                         </button>

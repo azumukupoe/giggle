@@ -22,7 +22,7 @@ export const Feed = () => {
     const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
     const [activeFilters, setActiveFilters] = useState<string[]>([]);
     const [currentPage, setCurrentPage] = useState(1);
-    const itemsPerPage = 9;
+    const itemsPerPage = 20;
 
     const toggleFilter = (filter: string) => {
         setActiveFilters(prev => {
@@ -208,7 +208,7 @@ export const Feed = () => {
 
             {/* Grid */}
             <div ref={scrollContainerRef} className="flex-1 overflow-y-auto min-h-0 overflow-x-hidden px-1">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4 pb-4">
                     {displayedEvents.length > 0 ? (
                         displayedEvents.map((event) => (
                             <EventCard key={event.id} event={event} />
