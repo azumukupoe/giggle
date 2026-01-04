@@ -368,17 +368,19 @@ export function mergePerformers(performers: string[]): string {
 
     const result: string[] = [];
 
-    // Helper for fuzzy inclusion check
-    // Use stripSymbols to ignore punctuation and whitespace differences
-    const normalizeForCheck = (s: string) => stripSymbols(s).toLowerCase();
+    const getNormLines = (s: string) => {
+        return s.split(/[\n\r]+/).map(l => stripSymbols(l).toLowerCase()).filter(Boolean);
+    };
 
     for (const p of unique) {
-        const pNorm = normalizeForCheck(p);
+        const pLines = getNormLines(p);
         // If this performer string is contained in any already accepted (longer) performer string, skip it
         const isSubset = result.some(kept => {
-            const keptNorm = normalizeForCheck(kept);
-            const checksOut = keptNorm.includes(pNorm);
-            return checksOut;
+            const keptLines = getNormLines(kept);
+            // Check if every line of p is contained in some line of kept
+            return pLines.every(pLine => {
+                return keptLines.some(kLine => kLine.includes(pLine));
+            });
         });
 
         if (!isSubset) {
