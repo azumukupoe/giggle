@@ -25,9 +25,9 @@ const getCachedGroupedEvents = unstable_cache(
         const day = String(now.getDate()).padStart(2, '0');
         const todayStr = `${year}-${month}-${day}`;
 
-        // Calculate fetch start date (2 months ago to cover long-running events)
+        // Calculate fetch start date (1 month ago to cover long-running events)
         const fetchStartDate = new Date(now);
-        fetchStartDate.setMonth(fetchStartDate.getMonth() - 2);
+        fetchStartDate.setMonth(fetchStartDate.getMonth() - 1);
         const fYear = fetchStartDate.getFullYear();
         const fMonth = String(fetchStartDate.getMonth() + 1).padStart(2, '0');
         const fDay = String(fetchStartDate.getDate()).padStart(2, '0');

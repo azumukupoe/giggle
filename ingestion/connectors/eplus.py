@@ -1,10 +1,7 @@
 import asyncio
 import aiohttp
-import time
 from datetime import datetime, timedelta, timezone
 from .base import BaseConnector, Event, CONSTANTS
-import json
-import concurrent.futures
 
 class EplusConnector(BaseConnector):
     def __init__(self):

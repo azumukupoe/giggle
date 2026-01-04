@@ -12,7 +12,7 @@ import {
     getStartDate,
 
     areStringsSimilar,
-    getCommonSubstring, // Added
+    getCommonSubstring,
     getEventBaseName
 } from "./eventUtils";
 
@@ -24,7 +24,7 @@ interface IntermediateGroup {
     venues: Set<string>;
     locations: Set<string>;
     dates: Set<string>; // Set of ISO strings
-    venueNormalized: string;
+
     sourceEvents: Event[];
     latestDate: Date;
 }
@@ -42,8 +42,7 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
         const dateTimeStr = createIsoDate(event.date, event.time);
         let matched = false;
 
-        // Iterate backwards through recent groups to find a match
-        // We only check groups with recent dates (consecutive days)
+        // Check recent groups (consecutive days) for a match, iterating backwards
         for (let i = groups.length - 1; i >= 0; i--) {
             const group = groups[i];
             const diff = Math.abs(differenceInCalendarDays(eventDate, group.latestDate));
@@ -97,10 +96,7 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
                 return common.length >= 5;
             });
 
-            // Date Consistency Check
-            // Ensure dates are consecutive or same (diff <= 1 already guaranteed by loop break condition above)
-            // But we should explicitely note that we require this.
-            // (The loop breaks if diff > 1, so we are good on "Consecutive")
+
 
             // --- Pass 1 Check: Strict Event Name Match ---
             const name1 = event.event;
@@ -154,8 +150,7 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
                 group.latestDate = eventDate;
             }
 
-            // Move key optimization: keep "active" groups at the end of the array
-            // so we find them faster in the backwards loop and maintain roughly sorted order
+            // Optimization: Keep active groups at the end for faster backwards search
             groups.push(groups.splice(i, 1)[0]);
 
             matched = true;
@@ -167,7 +162,7 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
 
             const newGroup: IntermediateGroup = {
                 baseEvent: event,
-                venueNormalized: normalizeVenue(event.venue), // Keep for reference if needed, though unused in logic now
+
                 urls: new Set([event.url]),
                 eventNames: new Set([event.event]),
                 performers: new Set(event.performer ? [event.performer] : []),

@@ -41,9 +41,7 @@ class CONSTANTS:
     USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
 
 def is_future_event(e: Event) -> bool:
-    """
-    Check if event is in the future.
-    """
+
     dt_today = datetime.now(ZoneInfo("Asia/Tokyo")).date()
     
     try:
@@ -51,7 +49,7 @@ def is_future_event(e: Event) -> bool:
             # Handle multiple dates separated by space (e.g. ranges "2026-01-04 2026-01-31")
             parts = e.date.split()
             if not parts:
-                return True # Empty string? keep safe
+                return True
                 
             any_future = False
             parsed_count = 0
@@ -67,11 +65,9 @@ def is_future_event(e: Event) -> bool:
                 except ValueError:
                     continue
             
-            # If we found at least one future date, keep it.
             if any_future:
                 return True
                 
-            # If we parsed dates but none were future, drop it.
             if parsed_count > 0:
                 return False
                 
@@ -79,7 +75,7 @@ def is_future_event(e: Event) -> bool:
             return True
             
         elif isinstance(e.date, (date, datetime)):
-            # Normalize to date
+
             check_date = e.date
             if isinstance(check_date, datetime):
                 check_date = check_date.date()

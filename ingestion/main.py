@@ -7,7 +7,7 @@ from connectors.base import Event, is_future_event
 from connectors.songkick import SongkickConnector
 from connectors.eplus import EplusConnector
 from connectors.pia import PiaConnector
-from db import get_supabase_client, upsert_events, delete_old_events
+from db import get_supabase_client, upsert_events, delete_missing_events
 from dotenv import load_dotenv
 
 # Load env
@@ -63,6 +63,7 @@ def main():
     args = parser.parse_args()
 
     all_events: list[Event] = []
+    successful_sources: list[str] = []
 
     print("Starting ingestion from all sources in parallel...")
     
@@ -79,6 +80,7 @@ def main():
                 events = future.result()
                 print(f"[{source_name}] Finished. Found {len(events)} events.")
                 all_events.extend(events)
+                successful_sources.append(source_name)
             except Exception as e:
                 print(f"[{source_name}] Execution failed: {e}")
 
@@ -109,20 +111,45 @@ def main():
              print("Success!")
         except Exception as e:
              print(f"Error saving to DB: {e}")
+
+        # Sync Deletion (Delete items not found in THIS run for successful sources)
+        try:
+             if supabase is None:
+                 supabase = get_supabase_client()
+             
+             # Prepare map of source -> urls found
+             # We inferred patterns in db.py, but we need to map here too strictly if we want to be safe,
+             # but actually delete_missing_events does the pattern matching on DB side.
+             # We just need to give it the list of VALID urls found for that source.
+             # We can filter unique_events by pattern again here to split them.
+             
+             source_url_map = {}
+             patterns = {
+                 "Songkick": "songkick.com",
+                 "Eplus": "eplus.jp", 
+                 "Pia": "pia.jp"
+             }
+             
+             for source in successful_sources:
+                 pat = patterns.get(source)
+                 if pat:
+                     # Filter unique_events for this source
+                     found_urls = [e.url for e in unique_events if pat in e.url]
+                     source_url_map[source] = found_urls
+            
+             if source_url_map:
+                delete_missing_events(supabase, source_url_map)
+                
+        except Exception as e:
+            print(f"Error running sync deletion: {e}")
+
     else:
         print("No events found to save.")
 
     print(f"Total events found: {len(all_events)}")
 
 
-    # Cleanup old
-    print("--- Cleaning up old events ---")
-    try:
-        if supabase is None:
-            supabase = get_supabase_client()
-        delete_old_events(supabase)
-    except Exception as e:
-         print(f"Skipping cleanup due to error connecting to DB: {e}")
+
 
 if __name__ == "__main__":
     main()

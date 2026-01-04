@@ -143,15 +143,9 @@ class PiaConnector(BaseConnector):
                                     location = raw_venue
                                 # Else: strictly use raw_venue as venue, location empty
 
-                            # Ticket Name Parsing
                             ticket_name_h4 = sub.select_one('.PC-perfinfo-title')
                             ticket_name = ""
                             if ticket_name_h4:
-                                # Remove mark tag content if needed, or just get all text. 
-                                # Based on user snippet, the mark has a span inside.
-                                # Let's try to get text node directly or just strip.
-                                # For now, simple get_text() should work but might include extra chars. 
-                                # Use strip() to clean up.
                                 ticket_name = ticket_name_h4.get_text().strip()
 
                             # Create Event
@@ -192,12 +186,7 @@ class PiaConnector(BaseConnector):
         if not date_str:
             return None
         
-        # 1. Remove anything in parentheses (e.g. (月・祝), (土))
-        #    Use regex to remove (...) blocks
         cleaned_str = re.sub(r'\(.*?\)', '', date_str)
-
-        # 2. Split by range separator
-        #    Pia often uses full-width tilde '～' or half-width '~'
         parts = re.split(r'[～~]', cleaned_str)
 
         parsed_dates = []
@@ -206,7 +195,7 @@ class PiaConnector(BaseConnector):
             if not part:
                 continue
             
-            # 3. Parse generic date "YYYY/M/D" -> "YYYY-MM-DD"
+            # Parse generic date "YYYY/M/D" -> "YYYY-MM-DD"
             try:
                 # Assuming format like 2026/5/4
                 dt = datetime.strptime(part, "%Y/%m/%d")
@@ -217,5 +206,5 @@ class PiaConnector(BaseConnector):
         if not parsed_dates:
             return None
             
-        # 4. Return space-separated
+
         return " ".join(parsed_dates)

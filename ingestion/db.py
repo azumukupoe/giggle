@@ -1,8 +1,6 @@
 import os
 from supabase import create_client, Client
 
-from datetime import datetime
-from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -42,81 +40,70 @@ def upsert_events(supabase: Client, events: list):
         print(f"Supabase upsert error: {e}")
         raise e
 
-def delete_old_events(supabase: Client):
+
+
+def delete_missing_events(supabase: Client, source_urls: dict[str, list[str]]):
     """
-    Delete past events.
+    Delete events from DB that were NOT found in the current ingestion run,
+    but belong to sources that successfully ran.
+    
+    source_urls: dict where key is source name (e.g. "Songkick") and value is list of found URLs.
     """
-    dt_today = datetime.now(ZoneInfo("Asia/Tokyo")).date()
-    today_iso = dt_today.isoformat()
+    print("--- Deleting missing events (sync) ---")
     
-    print("Deleting old events...")
-    ids_to_delete = []
-    
-    try:
-        # Fetch candidates that look old (lexicographically < today)
-        # This includes valid ranges that started in past but end in future (false positives).
-        # We must verify them in Python.
+    source_patterns = {
+        "Songkick": "songkick.com",
+        "Eplus": "eplus.jp",
+        "Pia": "pia.jp"
+    }
+
+    for source, found_urls in source_urls.items():
+        pattern = source_patterns.get(source)
+        if not pattern:
+            print(f"  [Warn] No URL pattern defined for source '{source}'. Skipping clean up.")
+            continue
+            
+        found_set = set(found_urls)
+        print(f"  [{source}] Checking for missing events... (Found {len(found_set)} in this run)")
         
+        # Fetch all DB URLs for this source
+        db_urls = set()
         page = 0
         page_size = 1000
         has_more = True
         
-        while has_more:
-            # Fetch batch of candidates
-            res = supabase.table("events").select("url, date").lt("date", today_iso).range(page*page_size, (page+1)*page_size - 1).execute()
-            rows = res.data
-            
-            if not rows:
-                break
-            
-            for row in rows:
-                d_str = row.get('date')
-                if not d_str:
-                    continue
+        try:
+            while has_more:
+                res = supabase.table("events").select("url").ilike("url", f"%{pattern}%").range(page*page_size, (page+1)*page_size - 1).execute()
+                rows = res.data
                 
-                # Verify if TRULY past
-                # Handle space-separated ranges like "2026-01-04 2026-01-31"
-                parts = d_str.split()
-                any_future = False
-                parsed_count = 0
+                if not rows:
+                    break
+                    
+                for row in rows:
+                    if row.get('url'):
+                        db_urls.add(row['url'])
                 
-                for part in parts:
+                if len(rows) < page_size:
+                    has_more = False
+                page += 1
+                
+            # Determine what to delete
+            to_delete = list(db_urls - found_set)
+            
+            if to_delete:
+                print(f"    -> Found {len(to_delete)} events in DB that are missing from verify source. Deleting...")
+                # Batch delete
+                chunk_size = 200
+                for i in range(0, len(to_delete), chunk_size):
+                    chunk = to_delete[i:i+chunk_size]
                     try:
-                        # Clean potential whitespace or weirdness
-                        clean_part = part.strip()[:10]
-                        p_date = datetime.strptime(clean_part, '%Y-%m-%d').date()
-                        parsed_count += 1
-                        if p_date >= dt_today:
-                            any_future = True
-                            break
-                    except ValueError:
-                        pass
+                        supabase.table("events").delete().in_("url", chunk).execute()
+                    except Exception as e:
+                        print(f"      Error deleting chunk {i}: {e}")
+                print(f"    -> Cleanup complete for {source}.")
+            else:
+                print(f"    -> Source {source} is in sync.")
                 
-                # If any date in the string is today or future, KEEP IT.
-                if any_future:
-                    continue
-                
-                # If we parsed valid dates and NONE were future, it is safe to delete.
-                if parsed_count > 0:
-                    ids_to_delete.append(row['url'])
-            
-            if len(rows) < page_size:
-                has_more = False
-            page += 1
-            
-        if ids_to_delete:
-            print(f"  -> Found {len(ids_to_delete)} confirmed old events. Deleting...")
-            # Batch delete
-            chunk_size = 200
-            for i in range(0, len(ids_to_delete), chunk_size):
-                chunk = ids_to_delete[i:i+chunk_size]
-                try:
-                    supabase.table("events").delete().in_("url", chunk).execute()
-                except Exception as e:
-                    print(f"    Error deleting chunk {i}: {e}")
-            print("  -> Cleanup complete.")
-        else:
-            print("  -> No old events found to delete.")
-            
-    except Exception as e:
-        print(f"Error deleting old events: {e}")
+        except Exception as e:
+            print(f"  [{source}] Error during cleanup: {e}")

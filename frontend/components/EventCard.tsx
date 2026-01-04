@@ -434,9 +434,30 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
                             const specificDisplay = cleanEventName(specificName);
 
                             if (specificName && commonName && normalizeEventName(specificDisplay) !== normalizeEventName(commonName)) {
-                                // Remove the common part to get the specific part
-                                // We escape special regex characters in commonName just in case, but simple replace works for substrings
-                                diff = specificDisplay.replace(commonName, "").trim();
+                                // Default subtraction
+                                let text = specificDisplay.replace(commonName, "").trim();
+
+                                // Special handling for || separated events (Artist || Title)
+                                if (specificName.includes("||")) {
+                                    const parts = specificName.split(/\s*\|\|\s*/);
+                                    if (parts.length > 1) {
+                                        const prefix = parts[0].trim();
+                                        const suffix = parts.slice(1).join(" ").trim();
+
+                                        // Case 1: Prefix is covered by Common Name -> Show Suffix
+                                        if (normalizeEventName(commonName).includes(normalizeEventName(prefix))) {
+                                            text = suffix;
+                                        }
+                                    }
+                                }
+
+                                // Also handle case where Specific is a substring of Common (redundant)
+                                if (text === specificDisplay && normalizeEventName(commonName).includes(normalizeEventName(specificDisplay))) {
+                                    text = "";
+                                }
+
+                                diff = text;
+
                                 if (diff.startsWith("||")) {
                                     diff = diff.substring(2).trim();
                                 }

@@ -65,22 +65,14 @@ class SongkickConnector(BaseConnector):
                             data = json.loads(script.text)
                             items = data if isinstance(data, list) else [data]
                             for item in items:
-                                # Identify artist
-                                performers = item.get('performer', [])
-                                if isinstance(performers, list) and performers:
-                                    # Use performer name, fallback to event name
-                                    artist_name = performers[0].get('name') or item.get('name', 'Event')
-                                else:
-                                    artist_name = item.get('name', 'Event')
-                                
-                                items_to_process.append((item, artist_name))
+                                items_to_process.append(item)
                                 
                         except Exception as e:
                             print(f"    [Songkick] JSON Load Error on page {page}: {e}")
                 
                 # Execute in parallel
                 with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
-                    futures = [executor.submit(self._parse_json_ld, item, artist_name) for item, artist_name in items_to_process]
+                    futures = [executor.submit(self._parse_json_ld, item) for item in items_to_process]
                     for future in concurrent.futures.as_completed(futures):
                         try:
                             result = future.result()
@@ -105,7 +97,7 @@ class SongkickConnector(BaseConnector):
         
         return all_events
 
-    def _parse_json_ld(self, item, artist_name):
+    def _parse_json_ld(self, item):
         try:
             # Organizer Name -> Event
             organizer = item.get('organizer', {})
