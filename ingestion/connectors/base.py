@@ -14,9 +14,11 @@ class Event(BaseModel):
     time: Optional[time]
     venue: Optional[str] = None
     location: Optional[str] = None
+    image: Optional[str] = None
     url: str
+    metadata: Optional[dict] = None
 
-    @field_validator('event', 'performer', 'venue', 'location', 'ticket', mode='before')
+    @field_validator('event', 'performer', 'venue', 'location', 'ticket', 'image', mode='before')
     @classmethod
     def clean_text(cls, v: Optional[str]) -> Optional[str]:
         if not v:

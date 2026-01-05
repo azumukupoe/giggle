@@ -143,6 +143,26 @@ class SongkickConnector(BaseConnector):
             else:
                  loc = str(address)
 
+            # Image
+            image = item.get('image')
+            image_url = None
+            if image:
+                if isinstance(image, list):
+                    # Filter and extract URLs
+                    urls = []
+                    for img in image:
+                        if isinstance(img, str):
+                            urls.append(img)
+                        elif isinstance(img, dict):
+                            u = img.get('url')
+                            if u: urls.append(u)
+                    if urls:
+                        image_url = ",".join(urls)
+                elif isinstance(image, dict):
+                    image_url = image.get('url')
+                elif isinstance(image, str):
+                    image_url = image
+
             # URL Handling
             url = item.get('url')
             if url:
@@ -166,7 +186,8 @@ class SongkickConnector(BaseConnector):
                 location=loc,
                 date=event_date.date(),
                 time=event_date.timetz() if date_str and ('T' in date_str or ' ' in date_str) else None,
-                url=url
+                url=url,
+                image=image_url
             )
         except Exception as e:
             print(f"Error parsing JSON-LD item: {e}")

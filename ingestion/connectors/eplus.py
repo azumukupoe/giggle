@@ -184,7 +184,8 @@ class EplusConnector(BaseConnector):
                     location=location,
                     date=event_date,
                     time=None if "～" in koenbi_term else (date_obj.timetz() if item.get('kaien_time') and len(item.get('kaien_time')) == 4 else None),
-                    url=link
+                    url=link,
+                    metadata={"k_code": str(k_code), "k_sub": str(k_sub)}
                 )
             return None
         except Exception as e:
@@ -244,7 +245,12 @@ class EplusConnector(BaseConnector):
             all_events.extend(extract_from_json(first_page))
 
             # Remaining pages
+            page_count = 1
             for start_index in range(1 + items_per_page, total_count + 1, items_per_page):
+                if max_pages and page_count >= max_pages:
+                    break
+                page_count += 1
+                
                 p = params.copy()
                 p['shutoku_start_ichi'] = start_index
                 tasks.append(self._fetch(client, p))
@@ -261,9 +267,65 @@ class EplusConnector(BaseConnector):
                     continue
                     
                 all_events.extend(extract_from_json(d))
+        
+            # 3. Populate Images (Guessing)
+            print(f"  [eplus] Guessing images for {len(all_events)} events...")
+            await self._populate_images(client, all_events)
 
         return all_events
+    
+    async def _populate_images(self, client: httpx.AsyncClient, events: List[Event]):
+        # We limit concurrency here to avoid swamping the server
+        semaphore = asyncio.Semaphore(50) 
+        
+        async def check_event(ev: Event):
+            if not ev.metadata: return
+            k_code = ev.metadata.get("k_code")
+            k_sub = ev.metadata.get("k_sub")
+            if not k_code or not k_sub: return
+            
+            # Pad k_code to 6 digits, k_sub to 4 digits just in case
+            k_code = k_code.zfill(6)
+            k_sub = k_sub.zfill(4)
+            
+            base_url = f"https://eplus.jp/s/image/{k_code}/{k_sub}/000/{k_code}{k_sub}"
+            found = []
+            
+            # Try range 1..16 (based on user examples 13, 16)
+            # We'll try a few common ones. 
+            # User said {N} seems random. But 1, 4, 13, 16... 
+            # Let's try 1 to 20 to be safe.
+            
+            check_tasks = []
+            candidates = []
+            
+            for n in range(1, 18): # 1 to 17
+                for ext in ['.jpg', '.png']:
+                    url = f"{base_url}_{n}{ext}"
+                    candidates.append(url)
+                    check_tasks.append(self._check_url(client, url, semaphore))
+            
+            results = await asyncio.gather(*check_tasks)
+            
+            for url, exists in zip(candidates, results):
+                if exists:
+                    found.append(url)
+            
+            if found:
+                ev.image = ",".join(found)
+
+        # process all events
+        await asyncio.gather(*[check_event(e) for e in events])
+
+    async def _check_url(self, client, url, semaphore):
+        async with semaphore:
+            try:
+                resp = await client.head(url)
+                return resp.status_code == 200
+            except:
+                return False
 
     def get_events(self, query: str = None) -> List[Event]:
         # Required by BaseConnector interface
-        return asyncio.run(self._get_events_async(query))
+        # We can default max_pages for testing if needed, but standard run should be all
+        return asyncio.run(self._get_events_async(query, max_pages=None))
