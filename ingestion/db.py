@@ -47,7 +47,9 @@ def upsert_events(supabase: Client, events: list):
     # Convert Event objects to dictionaries
     data = []
     for e in events:
-        event_dict = e.model_dump()
+        # Exclude 'metadata' from DB payload, but allow None for other optional fields if needed
+        # We can explicitly exclude keys we don't want
+        event_dict = e.model_dump(exclude={'metadata'})
         
         # Sanitize string fields
         for k, v in event_dict.items():
