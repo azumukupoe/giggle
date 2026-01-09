@@ -1,5 +1,5 @@
 import { parseISO } from "date-fns";
-import { formatLocation } from "./prefectures";
+
 
 // Bracket pairs for balancing logic
 const BRACKETS: Record<string, string> = {
@@ -245,8 +245,9 @@ export const getEventBaseName = (name: string | null | undefined): string => {
 export const normalizeLocation = (loc: string | null | undefined): string => {
     if (!loc) return "";
 
-    // 1. Unify Japanese -> English using shared logic
-    let s = formatLocation(loc, 'en').toLowerCase().trim();
+    // 1. Basic cleanup (remove Country code if present)
+    // Inline formatLocation logic partially: remove Japan suffix
+    let s = loc.replace(/, Japan$/, "").replace(/Japan$/, "").trim().toLowerCase();
 
     // 2. Remove common suffixes in English
     s = s.replace(/\s+(prefecture|city|ward)$/, "");
@@ -291,7 +292,14 @@ export const getDomain = (url: string): string => {
 };
 
 // Extract sortable Date
-export function getStartDate(dateStr: string): Date {
+export function getStartDate(dateInput: string | string[]): Date {
+    if (Array.isArray(dateInput)) {
+        if (dateInput.length === 0) return new Date("2999-12-31");
+        // Assume sorted or just take first? Better to sort min.
+        const sorted = [...dateInput].sort();
+        return parseISO(sorted[0]);
+    }
+    const dateStr = dateInput;
     // Handle space-separated range (e.g. "2026-01-03 2026-02-07")
     const parts = dateStr.trim().split(/\s+/);
     // Use the first part as start date
@@ -304,7 +312,13 @@ export function getStartDate(dateStr: string): Date {
     return new Date("2999-12-31");
 }
 
-export function getEndDate(dateStr: string): Date {
+export function getEndDate(dateInput: string | string[]): Date {
+    if (Array.isArray(dateInput)) {
+        if (dateInput.length === 0) return new Date("1970-01-01");
+        const sorted = [...dateInput].sort();
+        return parseISO(sorted[sorted.length - 1]);
+    }
+    const dateStr = dateInput;
     // Handle space-separated range (e.g. "2026-01-03 2026-02-07")
     const parts = dateStr.trim().split(/\s+/);
     // Use the last part as end date
@@ -342,11 +356,11 @@ export function cleanEventName(name: string): string {
     return n;
 }
 
-export function mergeEventNames(namesSet: Set<string>): string {
+export function mergeEventNames(namesSet: Set<string>): string[] {
     const uniqueNames = resolveCaseVariations(Array.from(namesSet))
         .map(n => cleanEventName(n));
-    if (uniqueNames.length === 0) return "";
-    if (uniqueNames.length === 1) return uniqueNames[0];
+    if (uniqueNames.length === 0) return [];
+    if (uniqueNames.length === 1) return uniqueNames;
 
     // Try to find a meaningful common substring
     let common = getCommonSubstring(uniqueNames).trim();
@@ -370,15 +384,15 @@ export function mergeEventNames(namesSet: Set<string>): string {
         if (common.endsWith("||")) {
             common = common.slice(0, -2).trim();
         }
-        return common;
+        return [common];
     }
 
-    return uniqueNames.join(" / ");
+    return uniqueNames;
 }
 
-export function mergePerformers(performers: string[]): string {
+export function mergePerformers(performers: string[]): string[] {
     const unique = resolveCaseVariations(performers.filter(Boolean));
-    if (unique.length === 0) return "";
+    if (unique.length === 0) return [];
 
     // Sort by length descending
     unique.sort((a, b) => b.length - a.length);
@@ -400,7 +414,7 @@ export function mergePerformers(performers: string[]): string {
         }
     }
 
-    return result.join("\n\n");
+    return result;
 }
 
 export function resolveCaseVariations(items: string[]): string[] {

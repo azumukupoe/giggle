@@ -1,5 +1,5 @@
-import { Navbar } from "@/components/Navbar";
-import { Feed } from "@/components/Feed";
+import { Navbar } from "@/components/layout/Navbar";
+import { Feed } from "@/components/features/events/Feed";
 
 export default function Home() {
   return (

@@ -4,9 +4,10 @@
 import { useEffect, useState, useRef, useMemo } from "react";
 import { EventCard } from "./EventCard";
 import { GroupedEvent } from "@/types/event";
-import { useLanguage } from "./LanguageContext";
+import { useLanguage } from "../../providers/LanguageContext";
 import { Search } from "lucide-react";
-import { normalizeJapanese } from "../lib/stringUtils";
+import { normalizeJapanese } from "@/utils/stringUtils";
+
 
 export const Feed = () => {
     const { t } = useLanguage();
@@ -97,25 +98,29 @@ export const Feed = () => {
 
             const matchesToken = (token: string) => {
                 const matchEvent = (searchAll || activeFilters.includes('event')) &&
-                    normalizeJapanese(e.event).includes(token);
+                    (e.event || []).some(ev => normalizeJapanese(ev).includes(token));
 
                 const matchPerformer = (searchAll || activeFilters.includes('performer')) &&
-                    normalizeJapanese(e.performer).includes(token);
+                    (e.performer || []).some(perf => normalizeJapanese(perf).includes(token));
 
                 const matchVenue = (searchAll || activeFilters.includes('venue')) &&
-                    normalizeJapanese(e.venue).includes(token);
+                    (normalizeJapanese(e.venue.en || "").includes(token) ||
+                        normalizeJapanese(e.venue.ja || "").includes(token));
 
                 const matchLocation = (searchAll || activeFilters.includes('location')) &&
-                    normalizeJapanese(e.location).includes(token);
+                    (e.location || []).some(loc =>
+                        normalizeJapanese(loc.en || "").includes(token) ||
+                        normalizeJapanese(loc.ja || "").includes(token)
+                    );
 
                 const matchDate = (searchAll || activeFilters.includes('date')) && (
-                    normalizeJapanese(e.date).includes(token) ||
+                    (e.date || []).some(d => normalizeJapanese(d).includes(token)) ||
                     e.displayDates.some(d => normalizeJapanese(d).includes(token))
                 );
 
                 const matchTooltip = e.sourceEvents.some(sourceEvent => {
-                    const matchSourceEvent = normalizeJapanese(sourceEvent.event || "").includes(token);
-                    const matchTicket = normalizeJapanese(sourceEvent.ticket || "").includes(token);
+                    const matchSourceEvent = (sourceEvent.event || []).some(ev => normalizeJapanese(ev).includes(token));
+                    const matchTicket = normalizeJapanese((sourceEvent.ticket || []).join(" ")).includes(token);
                     return matchSourceEvent || matchTicket;
                 });
 
@@ -155,11 +160,7 @@ export const Feed = () => {
     return (
         <div className="max-w-7xl mx-auto p-6 h-full flex flex-col">
             {/* Controls */}
-            <div className="mb-8 flex flex-col md:flex-row gap-4 items-center justify-between shrink-0">
-                <div className="text-gray-500 dark:text-gray-400 text-sm">
-
-                </div>
-            </div>
+            <div className="mb-0"></div>
 
             {/* Search Bar */}
             <div className="max-w-xl mx-auto mb-8 w-full shrink-0 flex flex-col gap-2">

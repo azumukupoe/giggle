@@ -1,7 +1,7 @@
 "use client";
 
-import { ThemeToggle } from "./ThemeToggle";
-import { useLanguage } from "./LanguageContext";
+import { ThemeToggle } from "../ui/ThemeToggle";
+import { useLanguage } from "../providers/LanguageContext";
 import { useEffect, useState } from "react";
 
 export const Navbar = () => {

@@ -7,19 +7,19 @@ import concurrent.futures
 import random
 import time
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
-from .base import BaseConnector, Event, CONSTANTS
+from .base import BaseConnector, Event
+from .registry import register_connector
 
+@register_connector
 class PiaConnector(BaseConnector):
+    @property
+    def source_name(self) -> str:
+        return "Pia"
+
     def __init__(self):
         super().__init__()
         self.base_url = "https://t.pia.jp/pia/rlsInfo.do"
-        self.headers = {
-            "User-Agent": CONSTANTS.USER_AGENT
-        }
-        # Using a shared client session for reuse locally per thread is tricky with requests,
-        # but with httpx.Client it is safer. However, we are using threads, so we should be careful.
-        # Httpx client is thread safe.
-        self.client = httpx.Client(timeout=15.0, headers=self.headers, http2=True)
+        self.client = httpx.Client(timeout=15.0, http2=True)
     
     def __del__(self):
         try:
@@ -68,8 +68,8 @@ class PiaConnector(BaseConnector):
         page = 1
         processed_urls: Set[str] = set()
         
-        # Base query parameters
         params = {
+
             "pf": pf_code,
             "lg": "01",      # Genre: Music
             "dispMode": "1", # Required for the new format
@@ -91,58 +91,58 @@ class PiaConnector(BaseConnector):
                 event_bundles = soup.select('#contents_html > ul > li')
 
                 if not event_bundles:
-                    # No events found
+
                     break
 
                 page_events = []
                 for bundle in event_bundles:
                     # Title from h3 > a
                     title_tag = bundle.select_one('h3 > a')
-                    title = title_tag.get_text().strip() if title_tag else "Unknown"
-                    if title == "Unknown":
+                    title = title_tag.get_text().strip() if title_tag else None
+                    if not title:
                         continue
 
-                    # Sub-events in the bundle
                     sub_items = bundle.select('ul > li')
+
                     for sub in sub_items:
                         try:
-                            # URL Extraction & Validation
                             link_tag = sub.select_one('.PC-detaillink-button a')
+
                             if not link_tag or 'href' not in link_tag.attrs:
                                 continue
                             
                             url = link_tag['href']
-                            # Ensure absolute URL
                             if url.startswith('/'):
+
                                 url = f"https://ticket.pia.jp{url}"
                             elif url.startswith('http://'):
                                 url = url.replace('http://', 'https://', 1)
                             
-                            # Only standard ticket info pages
                             if 'ticketInformation.do' not in url:
+
                                 continue
 
-                            # Deduplication
                             if url in processed_urls:
+
                                 continue
                             processed_urls.add(url)
 
-                            # Date Parsing
                             period_div = sub.select_one('.PC-perfinfo-period')
+
                             date_str = period_div.get_text() if period_div else ""
                             event_date = self._parse_date(date_str)
                             if not event_date:
                                 continue
 
-                            # Venue Parsing
                             venue_div = sub.select_one('.PC-perfinfo-venue')
-                            raw_venue = venue_div.get_text().strip() if venue_div else "Unknown"
+
+                            raw_venue = venue_div.get_text().strip() if venue_div else None
                             
                             venue = raw_venue
-                            location = "" # Default to empty
+                            location = None # Default to empty
                             
                             # 1. Check for (Location) pattern at the end
-                            loc_match = re.search(r'\(([^)]+)\)$', raw_venue)
+                            loc_match = re.search(r'\(([^)]+)\)$', raw_venue) if raw_venue else None
                             if loc_match:
                                 location = loc_match.group(1)
                                 venue = raw_venue[:loc_match.start()].strip()
@@ -158,19 +158,19 @@ class PiaConnector(BaseConnector):
                                 )
                                 
                                 if is_location_list:
-                                    venue = ""
+                                    venue = None
                                     location = raw_venue
                                 # Else: strictly use raw_venue as venue, location empty
 
                             ticket_name_h4 = sub.select_one('.PC-perfinfo-title')
-                            ticket_name = ""
+                            ticket_name = None
                             if ticket_name_h4:
                                 ticket_name = ticket_name_h4.get_text().strip()
 
                             # Create Event
                             event = Event(
                                 event=title,
-                                performer="",  # Explicitly blank
+                                performer=None,  # Explicitly blank
                                 ticket=ticket_name,
                                 venue=venue,
                                 location=location,
@@ -197,11 +197,12 @@ class PiaConnector(BaseConnector):
         
         return pf_events
 
-    def _parse_date(self, date_str: str) -> Optional[str]:
+    def _parse_date(self, date_str: str) -> Optional[List[str]]:
         if not date_str:
             return None
         
         cleaned_str = re.sub(r'\(.*?\)', '', date_str)
+        # Handle ranges '～' or just multiple dates if any separator
         parts = re.split(r'[～~]', cleaned_str)
 
         parsed_dates = []
@@ -221,4 +222,4 @@ class PiaConnector(BaseConnector):
         if not parsed_dates:
             return None
             
-        return " ".join(parsed_dates)
+        return parsed_dates

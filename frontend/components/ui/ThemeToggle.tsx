@@ -5,7 +5,7 @@ import { Moon, Sun, Laptop } from "lucide-react"
 import { useTheme } from "next-themes"
 import { motion, AnimatePresence } from "framer-motion"
 
-import { useLanguage } from "./LanguageContext"
+import { useLanguage } from "../providers/LanguageContext"
 
 export function ThemeToggle() {
     const { setTheme, theme } = useTheme()

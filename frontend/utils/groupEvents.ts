@@ -1,5 +1,5 @@
 import { differenceInCalendarDays } from "date-fns";
-import { Event, GroupedEvent } from "@/types/event";
+import { Event, GroupedEvent, LocalizedText } from "@/types/event";
 import {
     normalizeVenue,
     normalizeEventName,
@@ -22,8 +22,8 @@ interface IntermediateGroup {
     urls: Set<string>;
     eventNames: Set<string>;
     performers: Set<string>;
-    venues: Set<string>;
-    locations: Set<string>;
+    venues: Set<string>; // Set of JSON-stringified LocalizedText
+    locations: Set<string>; // Set of JSON-stringified LocalizedText
     dates: Set<string>; // Set of ISO strings
 
     sourceEvents: Event[];
@@ -44,7 +44,7 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
     for (const event of sortedEvents) {
         const eventDate = getStartDate(event.date);
         const eventEndDate = getEndDate(event.date);
-        const dateTimeStr = createIsoDate(event.date, event.time);
+        const dateTimeStrs = event.date.map(d => createIsoDate(d, event.time));
 
         // Determine if current event is a range
         const isEventRange = differenceInCalendarDays(eventEndDate, eventDate) > 0;
@@ -54,34 +54,46 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
         // Helper to perform matching logic
         const checkMatch = (group: IntermediateGroup): boolean => {
             // 1. Location Logic
-            const loc1 = normalizeLocation(event.location);
             let locationConflict = false;
             let hasCommonLocation = false;
 
-            if (loc1) {
-                // Check against existing group locations
-                if (group.locations.size > 0) {
-                    for (const loc2Raw of Array.from(group.locations)) {
-                        const loc2 = normalizeLocation(loc2Raw);
-                        if (loc2) {
-                            if (loc1 !== loc2) {
-                                locationConflict = true;
-                            } else {
-                                hasCommonLocation = true;
-                            }
-                        }
+            if (event.location && event.location.length > 0) {
+                const locs1 = event.location.map(l => normalizeLocation(l.ja || l.en)).filter(Boolean);
+
+                if (locs1.length > 0 && group.locations.size > 0) {
+                    const groupLocs = Array.from(group.locations).map(lStr => {
+                        const l = JSON.parse(lStr);
+                        return normalizeLocation(l.ja || l.en);
+                    }).filter(Boolean);
+
+                    const hasOverlap = locs1.some(l1 => groupLocs.includes(l1));
+
+                    if (!hasOverlap) {
+                        locationConflict = true;
+                    } else {
+                        hasCommonLocation = true;
                     }
                 }
             }
 
+
             if (locationConflict) return false;
 
             // 2. Venue Matching
-            const strictVenueMatch = Array.from(group.venues).some(v => areStringsSimilar(v, event.venue));
+            const eventVenueStr = event.venue?.ja || event.venue?.en || "";
 
-            const partialVenueMatch = Array.from(group.venues).some(v => {
-                const norm1 = normalizeVenue(v);
-                const norm2 = normalizeVenue(event.venue);
+            const strictVenueMatch = Array.from(group.venues).some(vStr => {
+                const v = JSON.parse(vStr);
+                const s = v.ja || v.en || "";
+                return areStringsSimilar(s, eventVenueStr);
+            });
+
+            const partialVenueMatch = Array.from(group.venues).some(vStr => {
+                const vStrObj = JSON.parse(vStr);
+                const s = vStrObj.ja || vStrObj.en || "";
+
+                const norm1 = normalizeVenue(s);
+                const norm2 = normalizeVenue(eventVenueStr);
                 const common = getCommonSubstring([norm1, norm2]);
                 const isNonAscii = /[^\x00-\x7F]/.test(common);
                 if (isNonAscii) return common.length >= 2;
@@ -89,23 +101,35 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
             });
 
             // --- Pass 1 Check: Strict Event Name Match ---
-            const name1 = event.event;
-            const baseName1 = getEventBaseName(name1);
-            const pass1Match = Array.from(group.eventNames).some(n => getEventBaseName(n) === baseName1);
+            const name1List = event.event || [];
+            const pass1Match = name1List.some(n1 => {
+                const base1 = getEventBaseName(n1);
+                return Array.from(group.eventNames).some(n2 => getEventBaseName(n2) === base1);
+            });
 
             // --- Pass 2 Check: Fuzzy Match (Event or Performer) ---
-            const n1Norm = normalizeEventName(baseName1);
-            const perf1 = event.performer;
-            const p1Norm = perf1 ? normalizeEventName(perf1) : "";
+            const perf1List = event.performer || [];
 
-            const fuzzyEventMatch = Array.from(group.eventNames).some(n =>
-                areStringsSimilar(normalizeEventName(getEventBaseName(n)), n1Norm)
-            );
+            const fuzzyEventMatch = name1List.some(n1 => {
+                const n1Norm = normalizeEventName(getEventBaseName(n1));
+                return Array.from(group.eventNames).some(n =>
+                    areStringsSimilar(normalizeEventName(getEventBaseName(n)), n1Norm)
+                );
+            });
 
             const fuzzyPerformerMatch =
-                Array.from(group.performers).some(p => areStringsSimilar(normalizeEventName(p), n1Norm)) ||
-                (perf1 ? Array.from(group.eventNames).some(n => areStringsSimilar(normalizeEventName(getEventBaseName(n)), p1Norm)) : false) ||
-                (perf1 ? Array.from(group.performers).some(p => areStringsSimilar(normalizeEventName(p), p1Norm)) : false);
+                // Group performers vs Event Name Match
+                Array.from(group.performers).some(p =>
+                    name1List.some(n1 => areStringsSimilar(normalizeEventName(p), normalizeEventName(getEventBaseName(n1))))
+                ) ||
+                // Group Names vs Event Perf Match
+                (perf1List.length > 0 && Array.from(group.eventNames).some(n =>
+                    perf1List.some(p1 => areStringsSimilar(normalizeEventName(getEventBaseName(n)), normalizeEventName(p1)))
+                )) ||
+                // Group Perf vs Event Perf Match
+                (perf1List.length > 0 && Array.from(group.performers).some(p =>
+                    perf1List.some(p1 => areStringsSimilar(normalizeEventName(p), normalizeEventName(p1)))
+                ));
 
             const pass2Match = fuzzyEventMatch || fuzzyPerformerMatch;
 
@@ -127,16 +151,9 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
                 // Does group contain this event?
                 const isContainedInGroup = Array.from(group.dates).some(d => checkCoverage(d.split('T')[0], eventDate));
 
-                // Does this event contain the group? (Using group's latest date as proxy, or scan all? Scan all for safety)
-                // Actually if THIS event is a range, we check if it covers ANY of the group's dates?
-                // For simplicity, checking if it covers the `latestDate` of the group is usually enough for sorted events.
-                // But let's check basic range overlap: StartA <= EndB && StartB <= EndA
-                // We have `group.latestDate`... we'd ideally want group's full range.
-                // But `checkCoverage` logic above handles "Group is Range, Event is Point".
-
+                // Does this event contain the group?
                 let isGroupContainedInEvent = false;
                 if (isEventRange) {
-                    // Check if event range covers group.latestDate
                     isGroupContainedInEvent = eventDate <= group.latestDate && eventEndDate >= group.latestDate;
                 }
 
@@ -161,11 +178,11 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
             if (checkMatch(group)) {
                 // Merge Logic
                 group.urls.add(event.url);
-                group.eventNames.add(event.event);
-                if (event.performer) group.performers.add(event.performer);
-                group.venues.add(event.venue);
-                if (event.location) group.locations.add(event.location);
-                group.dates.add(dateTimeStr);
+                (event.event || []).forEach(n => group.eventNames.add(n));
+                if (event.performer) event.performer.forEach(p => group.performers.add(p));
+                if (event.venue) group.venues.add(JSON.stringify(event.venue));
+                if (event.location) event.location.forEach(l => group.locations.add(JSON.stringify(l)));
+                dateTimeStrs.forEach(d => group.dates.add(d));
                 group.sourceEvents.push(event);
 
                 if (eventDate > group.latestDate) {
@@ -184,31 +201,19 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
             }
         }
 
-        // Pass 2: If not matched, check known "Range Groups" (that might be older than 1 day)
+        // Pass 2: If not matched, check known "Range Groups"
         if (!matched) {
             for (const group of rangeGroups) {
-                // Skip if we already checked it in the loop above?
-                // The loop above only checks things with diff <= 1. 
-                // If a range group is recent, it was checked.
-                // If it's old (diff > 1), it wasn't checked. 
-                // So valid to check here.
-                // But we should check diff to avoid checking it twice? 
-                // Or just check match. `checkMatch` is cheap enough?
-                // Let's rely on calculating diff again to skip if <= 1 (already checked)
                 const diff = Math.abs(differenceInCalendarDays(eventDate, group.latestDate));
                 if (diff <= 1) continue; // Already checked in main loop
 
-                // Also optimization: If eventDate is WAY past the group's possible range?
-                // But we don't track group's max date easily here without inspecting all dates.
-                // Assuming `rangeGroups` is not huge, just check.
-
                 if (checkMatch(group)) {
                     group.urls.add(event.url);
-                    group.eventNames.add(event.event);
-                    if (event.performer) group.performers.add(event.performer);
-                    group.venues.add(event.venue);
-                    if (event.location) group.locations.add(event.location);
-                    group.dates.add(dateTimeStr);
+                    if (event.event) event.event.forEach(n => group.eventNames.add(n));
+                    if (event.performer) event.performer.forEach(p => group.performers.add(p));
+                    if (event.venue) group.venues.add(JSON.stringify(event.venue));
+                    if (event.location) event.location.forEach(l => group.locations.add(JSON.stringify(l)));
+                    dateTimeStrs.forEach(d => group.dates.add(d));
                     group.sourceEvents.push(event);
 
                     if (eventDate > group.latestDate) {
@@ -231,11 +236,11 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
             const newGroup: IntermediateGroup = {
                 baseEvent: event,
                 urls: new Set([event.url]),
-                eventNames: new Set([event.event]),
-                performers: new Set(event.performer ? [event.performer] : []),
-                venues: new Set([event.venue]),
-                locations: new Set(event.location ? [event.location] : []),
-                dates: new Set([dateTimeStr]),
+                eventNames: new Set(event.event || []),
+                performers: new Set(event.performer || []),
+                venues: new Set([JSON.stringify(event.venue)]),
+                locations: new Set((event.location || []).map(l => JSON.stringify(l))),
+                dates: new Set(dateTimeStrs),
                 sourceEvents: [event],
                 latestDate: eventDate
             };
@@ -247,34 +252,34 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
         }
     }
 
-    // Pass 2: Group by Venue + Time (Existing Logic preserved? Or is it redundant?)
-    // The original code had a comment "// Pass 2: Group by Venue + Time" but no code.
-    // It just returned the map. So we proceed to mapping.
-
     return groups
         .map(g => {
             const sortedDates = Array.from(g.dates).sort();
 
             let time: string | null = null;
-            const baseDate = g.baseEvent.date;
+            const baseDates = g.baseEvent.date; // array
 
             for (const dStr of sortedDates) {
-                // Find time on same day as base event (simplified)
                 if (dStr.includes("T")) {
                     // Ideally matches the first date's time
                     const dDate = dStr.split("T")[0];
-                    if (dDate === baseDate || !time) {
+                    if (baseDates.includes(dDate) || !time) {
                         time = dStr.split("T")[1];
                     }
                 }
             }
 
+            // Resolve Venue
+            const venueObjects = Array.from(g.venues).map(s => JSON.parse(s));
+            // Prefer one with most info? For now just take first.
+            const resolvedVenue = venueObjects[0] || { en: "", ja: "" };
+
             return {
                 id: g.baseEvent.id,
                 event: mergeEventNames(g.eventNames),
                 performer: mergePerformers(Array.from(g.performers)),
-                venue: resolveCaseVariations(Array.from(g.venues))[0] || "",
-                location: g.baseEvent.location || "",
+                venue: resolvedVenue,
+                location: Array.from(g.locations).map(s => JSON.parse(s)), // Return array of objects
                 date: g.baseEvent.date,
                 time,
                 urls: Array.from(g.urls),
@@ -283,7 +288,9 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
             };
         })
         .sort((a, b) => {
-            const dateDiff = a.date.localeCompare(b.date);
+            const dA = getStartDate(a.date).toISOString();
+            const dB = getStartDate(b.date).toISOString();
+            const dateDiff = dA.localeCompare(dB);
             if (dateDiff !== 0) return dateDiff;
 
             const timeA = a.time;

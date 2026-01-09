@@ -1,6 +1,6 @@
 import os
 from supabase import create_client, Client
-import html
+from datetime import date, datetime, time
 
 from dotenv import load_dotenv
 
@@ -15,27 +15,6 @@ def get_supabase_client() -> Client:
     return create_client(url, key)
 
 
-def sanitize_text(text: str) -> str:
-    if not text:
-        return text
-    
-    # 0. Decode HTML entities (e.g. &nbsp; -> space)
-    text = html.unescape(text)
-
-    # 1. Normalize unicode (NFKC)
-    import unicodedata
-    text = unicodedata.normalize('NFKC', text)
-    
-    # 2. Remove common hidden characters
-    # \u200b: Zero-width space
-    # \ufeff: Byte order mark
-    # \u200e: Left-to-right mark
-    # \u200f: Right-to-left mark
-    hidden_chars = ['\u200b', '\ufeff', '\u200e', '\u200f']
-    for char in hidden_chars:
-        text = text.replace(char, '')
-        
-    return text.strip()
 
 def upsert_events(supabase: Client, events: list):
     """
@@ -50,29 +29,34 @@ def upsert_events(supabase: Client, events: list):
         # Exclude 'metadata' from DB payload, but allow None for other optional fields if needed
         # We can explicitly exclude keys we don't want
         event_dict = e.model_dump(exclude={'metadata'})
-        
-        # Sanitize string fields
-        for k, v in event_dict.items():
-            if isinstance(v, str):
-                event_dict[k] = sanitize_text(v)
+        # event_dict is already sanitized by Event validator
 
-        # Serialize date and time
-        if "date" in event_dict and event_dict["date"]:
-            if not isinstance(event_dict["date"], str):
-                event_dict["date"] = event_dict["date"].isoformat()
+        for field in ['ticket', 'date', 'location', 'image', 'event', 'performer']:
+            if event_dict.get(field) is not None and not isinstance(event_dict[field], list):
+                event_dict[field] = [event_dict[field]]
+
+
+        if event_dict.get("date"):
+
+            new_dates = []
+            for d in event_dict["date"]:
+                if isinstance(d, (date, datetime)):
+                    new_dates.append(d.isoformat())
+                else:
+                    new_dates.append(str(d))
+            event_dict["date"] = new_dates
+
         if "time" in event_dict and event_dict["time"]:
              event_dict["time"] = event_dict["time"].isoformat()
 
         data.append(event_dict)
 
-    # Perform upsert
     try:
         supabase.table("events").upsert(data, on_conflict="url").execute() 
+
     except Exception as e:
         print(f"Supabase upsert error: {e}")
         raise e
-
-
 
 def delete_missing_events(supabase: Client, source_urls: dict[str, list[str]]):
     """
@@ -98,8 +82,8 @@ def delete_missing_events(supabase: Client, source_urls: dict[str, list[str]]):
         found_set = set(found_urls)
         print(f"  [{source}] Checking for missing events... (Found {len(found_set)} in this run)")
         
-        # Fetch all DB URLs for this source
         db_urls = set()
+
         page = 0
         page_size = 1000
         has_more = True
@@ -120,13 +104,13 @@ def delete_missing_events(supabase: Client, source_urls: dict[str, list[str]]):
                     has_more = False
                 page += 1
                 
-            # Determine what to delete
             to_delete = list(db_urls - found_set)
+
             
             if to_delete:
                 print(f"    -> Found {len(to_delete)} events in DB that are missing from verify source. Deleting...")
-                # Batch delete
                 chunk_size = 200
+
                 for i in range(0, len(to_delete), chunk_size):
                     chunk = to_delete[i:i+chunk_size]
                     try:

@@ -1,154 +1,140 @@
-import os
 import argparse
-import json
 import concurrent.futures
+from typing import List, Tuple
+from zoneinfo import ZoneInfo
+import pytz
 
-from connectors.base import Event, is_future_event
-from connectors.songkick import SongkickConnector
-from connectors.eplus import EplusConnector
-from connectors.pia import PiaConnector
-from db import get_supabase_client, upsert_events, delete_missing_events
-from dotenv import load_dotenv
+from ingestion.utils.config import load_dotenv
+from ingestion.services.importer import Importer
+from ingestion.utils.db import get_supabase_client
 
-# Load env
 load_dotenv()
-
-def run_songkick() -> list[Event]:
-    events = []
-    sk_connector = SongkickConnector()
-    
-    metros_file = os.path.join(os.path.dirname(__file__), 'japan_metro_ids.json')
-    if os.path.exists(metros_file):
-        with open(metros_file, 'r', encoding='utf-8') as f:
-            sk_metros_data = json.load(f)
-    else:
-        print("  [Songkick] Warning: japan_metro_ids.json not found. using fallback.")
-        sk_metros_data = {'30717': {'full_slug': '30717-japan-tokyo', 'name': 'Tokyo'}} # Fallback
-
-    print(f"  [Songkick] Fetching {len(sk_metros_data)} metros in parallel...")
-    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-        future_to_metro = {}
-        for mid, data in sk_metros_data.items():
-            metro_slug = data.get('full_slug')
-            future = executor.submit(sk_connector.get_metro_events, metro_id=metro_slug)
-            future_to_metro[future] = metro_slug
-        
-        for future in concurrent.futures.as_completed(future_to_metro):
-            metro_slug = future_to_metro[future]
-            try:
-                metro_events = future.result()
-                events.extend(metro_events)
-            except Exception as e:
-                print(f"    -> [Songkick] Failed for {metro_slug}: {e}")
-    return events
-
-def run_eplus() -> list[Event]:
-    try:
-        eplus = EplusConnector()
-        return eplus.get_events()
-    except Exception as e:
-        print(f"Eplus scraping failed: {e}")
-        return []
-
-def run_pia() -> list[Event]:
-    try:
-        pia = PiaConnector()
-        return pia.get_events()
-    except Exception as e:
-        print(f"Ticket Pia scraping failed: {e}")
-        return []
 
 def main():
     parser = argparse.ArgumentParser(description="Ingest concert data")
+    parser.add_argument("--source", type=str, help="Specific source to run (case-insensitive substring match)")
+    parser.add_argument("--dry-run", action="store_true", help="Run without changes to DB")
     args = parser.parse_args()
 
-    all_events: list[Event] = []
-    successful_sources: list[str] = []
+    # Lazy imports for speed
+    from ingestion.models import Event
+    from ingestion.connectors.registry import get_connectors
+    # Ensure all connectors are registered
+    import ingestion.connectors.songkick
+    import ingestion.connectors.eplus
+    import ingestion.connectors.pia
 
-    print("Starting ingestion from all sources in parallel...")
+    def run_connector(connector_cls, std) -> Tuple[str, List[Event]]:
+        """Instantiate and run a connector, returning (name, events)."""
+        connector_name = "Unknown"
+        try:
+            connector = connector_cls()
+            connector_name = connector.source_name
+            print(f"[{connector_name}] Starting...")
+            events = connector.get_events()
+            
+            # Standardize immediately while in parallel thread
+            if std and events:
+                match_lang = 'en' if connector_name == 'Songkick' else 'ja'
+
+                for e in events:
+                     raw_loc = e.location
+                     e.location = std.get_location_codes(raw_loc, match_lang=match_lang)
+                     e.venue = std.get_venue_code(e.venue, context_location=raw_loc)
+
+                     # Timezone Resolution
+                     if e.time and e.time.tzinfo is None:
+                        # 1. Try to get timezone from Location DB (Applies to all connectors)
+                        loc_tz_str = std.get_location_timezone(e.location)
+                        resolved_tz = None
+                        
+                        if loc_tz_str:
+                             try:
+                                 resolved_tz = ZoneInfo(loc_tz_str)
+                             except Exception:
+                                 pass
+                        
+                        # 2. Fallback to Country Metadata (Songkick Specific as requested, or others if they lack location match)
+                        if not resolved_tz and connector_name == 'Songkick':
+                            country = e.metadata.get('country') if e.metadata else None
+                            if country:
+                                # Map full name to code if needed
+                                if country.lower() == 'japan':
+                                    country = 'JP'
+                                
+                                # Use pytz to look up timezone
+                                try:
+                                    country_tzs = pytz.country_timezones.get(country)
+                                    if country_tzs:
+                                        # Use the first one (e.g., 'Asia/Tokyo' for JP)
+                                        resolved_tz = ZoneInfo(country_tzs[0])
+                                except Exception as e:
+                                    print(f"Error resolving timezone for country {country}: {e}")
+                        
+                        if resolved_tz:
+                             e.time = e.time.replace(tzinfo=resolved_tz)
+            
+            return connector_name, events
+        except Exception as e:
+            print(f"[{connector_name}] Failed: {e}")
+            return connector_name, []
+
+    all_events: List[Event] = []
+
+    successful_sources: List[str] = []
+
+    print("Starting ingestion from all registered sources in parallel...")
     
-    with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+    connectors = get_connectors()
+    if args.source:
+        filtered_connectors = []
+        for cls in connectors:
+            try:
+                # Instantiate briefly to check source_name
+                if args.source.lower() in cls().source_name.lower():
+                    filtered_connectors.append(cls)
+            except Exception:
+                pass
+        connectors = filtered_connectors
+        if not connectors:
+            print(f"No connectors matched source '{args.source}'")
+            return
+
+    if not connectors:
+        print("No connectors found in registry!")
+        return
+
+    # Init Standardizer and Supabase
+    supabase = get_supabase_client()
+    try:
+        from ingestion.services.standardizer import Standardizer
+        std = Standardizer(supabase)
+    except Exception as e:
+        print(f"Failed to init standardizer: {e}")
+        std = None
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=len(connectors)) as executor:
         futures = {
-            executor.submit(run_songkick): "Songkick",
-            executor.submit(run_eplus): "Eplus",
-            executor.submit(run_pia): "Pia"
+            executor.submit(run_connector, cls, std): cls 
+            for cls in connectors
         }
 
         for future in concurrent.futures.as_completed(futures):
-            source_name = futures[future]
             try:
-                events = future.result()
-                print(f"[{source_name}] Finished. Found {len(events)} events.")
-                all_events.extend(events)
-                successful_sources.append(source_name)
+                source_name, events = future.result()
+                if events:
+                    print(f"[{source_name}] Finished. Found {len(events)} events.")
+                    all_events.extend(events)
+                    successful_sources.append(source_name)
+                else:
+                     print(f"[{source_name}] Finished with 0 events.")
             except Exception as e:
-                print(f"[{source_name}] Execution failed: {e}")
+                # Should be caught inside run_connector but just in case
+                cls = futures[future]
+                print(f"[{cls}] Critical failure: {e}")
 
-    # Save to Supabase
-    supabase = None
-    if all_events:
-        # Filter Past Events
-        future_events = []
-        for e in all_events:
-            # Filter Past Events
-            if is_future_event(e):
-                future_events.append(e)
-
-        
-        all_events = future_events
-
-        unique_events_map = {}
-        for event in all_events:
-            if event.url not in unique_events_map:
-                unique_events_map[event.url] = event
-        
-        unique_events = list(unique_events_map.values())
-        print(f"Saving {len(unique_events)} distinct events to Supabase...")
-
-        try:
-             supabase = get_supabase_client()
-             upsert_events(supabase, unique_events)
-             print("Success!")
-        except Exception as e:
-             print(f"Error saving to DB: {e}")
-
-        # Sync Deletion (Delete items not found in THIS run for successful sources)
-        try:
-             if supabase is None:
-                 supabase = get_supabase_client()
-             
-             # Prepare map of source -> urls found
-             # We inferred patterns in db.py, but we need to map here too strictly if we want to be safe,
-             # but actually delete_missing_events does the pattern matching on DB side.
-             # We just need to give it the list of VALID urls found for that source.
-             # We can filter unique_events by pattern again here to split them.
-             
-             source_url_map = {}
-             patterns = {
-                 "Songkick": "songkick.com",
-                 "Eplus": "eplus.jp", 
-                 "Pia": "pia.jp"
-             }
-             
-             for source in successful_sources:
-                 pat = patterns.get(source)
-                 if pat:
-                     # Filter unique_events for this source
-                     found_urls = [e.url for e in unique_events if pat in e.url]
-                     source_url_map[source] = found_urls
-            
-             if source_url_map:
-                delete_missing_events(supabase, source_url_map)
-                
-        except Exception as e:
-            print(f"Error running sync deletion: {e}")
-
-    else:
-        print("No events found to save.")
-
-    print(f"Total events found: {len(all_events)}")
-
-
+    importer = Importer(supabase)
+    importer.save_results(all_events, successful_sources, std, dry_run=args.dry_run)
 
 
 if __name__ == "__main__":

@@ -4,8 +4,18 @@ __pycache__/
 *$py.class
 .venv/
 .env
-uv.lock
+
 *.log
+
+# Testing & Build
+.mypy_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+dist/
+build/
+*.spec
+
 
 # Node
 node_modules/

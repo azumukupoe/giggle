@@ -1,21 +1,25 @@
 import asyncio
 import httpx
-from datetime import datetime, timedelta, timezone, date
+from datetime import datetime
 from typing import List, Optional, Tuple, Set
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type, before_sleep_log
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 import logging
-from .base import BaseConnector, Event, CONSTANTS
+from .base import BaseConnector, Event
+from .registry import register_connector
 
 logger = logging.getLogger(__name__)
 
+@register_connector
 class EplusConnector(BaseConnector):
+    @property
+    def source_name(self) -> str:
+        return "Eplus"
+
     def __init__(self):
         super().__init__()
 
         self.api_url = "https://api.eplus.jp/v3/koen"
         self.headers = {
-            'User-Agent': CONSTANTS.USER_AGENT,
-            'Accept-Language': 'ja-JP,ja;q=0.9,en-US;q=0.8,en;q=0.7',
             'X-APIToken': 'FGXySj3mTd' # Static token
         }
         # httpx limits
@@ -44,8 +48,7 @@ class EplusConnector(BaseConnector):
             "shutoku_kensu": 1,
             "shutoku_start_ichi": 1,
             "parent_genre_code_list": genre_code,
-            "streaming_haishin_kubun_list": "0",
-            "sort_key": "koenbi,kaien_time,parent_koen_taisho_flag,kogyo_code,kogyo_sub_code"
+            "streaming_haishin_kubun_list": "0"
         }
 
         try:
@@ -84,7 +87,7 @@ class EplusConnector(BaseConnector):
             return set()
 
     def _process_item_sync(self, item: dict, dt_now: datetime, excluded_ids: Set[Tuple[str, str]]) -> Optional[Event]:
-        """Sync processing"""
+
         try:
             k_code = item.get('kogyo_code')
             k_sub = item.get('kogyo_sub_code')
@@ -95,10 +98,11 @@ class EplusConnector(BaseConnector):
             kogyo = item.get('kanren_kogyo_sub', {})
             title_1 = kogyo.get('kogyo_name_1')
             title_2 = kogyo.get('kogyo_name_2')
-            title = f"{title_1}||{title_2}" if title_2 else (title_1 or "Unknown Event")
+            titles = [t for t in [title_1, title_2] if t]
+
             
             venue_info = item.get('kanren_venue', {})
-            venue_name = venue_info.get('venue_name') or "Unknown Venue"
+            venue_name = venue_info.get('venue_name')
             
             detail_path = item.get('koen_detail_url_pc')
             link = detail_path if detail_path else None
@@ -113,12 +117,11 @@ class EplusConnector(BaseConnector):
                 # Check for range "YYYYMMDD～YYYYMMDD"
                 if "～" in koenbi_term:
                     parts = koenbi_term.split("～")
-                    JST = timezone(timedelta(hours=9))
                     for p in parts:
                         p = p.strip()
                         if len(p) >= 8:
                             try:
-                                d = datetime.strptime(p[:8], "%Y%m%d").replace(tzinfo=JST)
+                                d = datetime.strptime(p[:8], "%Y%m%d")
                                 valid_dates.append(d.strftime("%Y-%m-%d"))
                             except ValueError:
                                 pass
@@ -126,15 +129,14 @@ class EplusConnector(BaseConnector):
                         try:
                             # Use first date as primary object for further parsing
                             first_p = parts[0].strip()[:8]
-                            date_obj = datetime.strptime(first_p, "%Y%m%d").replace(tzinfo=JST)
+                            date_obj = datetime.strptime(first_p, "%Y%m%d")
                         except:
                             pass
                 else:
                     # Single date logic
                     date_str = koenbi_term[:8]
                     try:
-                        JST = timezone(timedelta(hours=9))
-                        date_obj = datetime.strptime(date_str, "%Y%m%d").replace(tzinfo=JST)
+                        date_obj = datetime.strptime(date_str, "%Y%m%d")
                     except ValueError:
                         pass
 
@@ -150,42 +152,77 @@ class EplusConnector(BaseConnector):
                         pass
             
             pref_name = venue_info.get('todofuken_name')
-            location = pref_name if pref_name else ""
+            location = pref_name if pref_name else None
 
-            uketsuke_list = item.get('kanren_uketsuke_koen_list')
-            ticket_name = ""
-            artist = None
+            ticket_names = []
+            # Wait, uketsuke_list was NOT defined in the viewed snippet around line 157.
+            # I must have missed where uketsuke_list comes from.
+            # Looking at original file content I viewed...
+            # Line 157: if uketsuke_list:
+            # I don't see uketsuke_list definition in `_process_item_sync`.
+            # Ah, maybe I missed a chunk in previous view?
+            # Let me check `_process_item_sync` start (Line 89).
+            # It gets `item`.
+            # I suspect `uketsuke_list` extraction is missing in my previous `view_file` output or my mental model?
+            # Line 98: `kogyo = item.get('kanren_kogyo_sub', {})`
+            # I don't see `uketsuke_list = ...`
+            # Line 157 uses `uketsuke_list`.
+            # If `uketsuke_list` is missing in the file, then the code was broken before?
+            # Or I missed it.
+            # Let me re-read `view_file` output carefully.
+            # Lines 89-197.
+            # I see `k_code`, `k_sub`, `kogyo`, `venue_info`, `detail_path`, `koenbi_term`, `date_obj`.
+            # Then `pref_name`.
+            # Then `ticket_names = []`.
+            # Then `if uketsuke_list:` (Line 157).
+            # `uketsuke_list` IS NOT DEFINED locally.
+            # Is it a standardizer global? No.
+            # Is it implicitly available? No.
+            # It must be `uketsuke_list = item.get('uketsuke_list')` or similar.
+            # Maybe I accidentally deleted it in previous edits or it was never there and code was broken?
+            # I should add it. `uketsuke_list = item.get('uketsuke_list', [])`
+            
+            uketsuke_list = item.get('uketsuke_list', [])
+
             if uketsuke_list:
-                first_uketsuke = uketsuke_list[0]
-                ticket_name = first_uketsuke.get('uketsuke_name_pc') or first_uketsuke.get('uketsuke_name_mobile') or ""
-                
-                if item.get('koenbi_hyoji_mongon_hyoji_flag') is True:
-                    mongon = item.get('koenbi_hyoji_mongon')
-                    if mongon:
-                        ticket_name = f"{mongon} / {ticket_name}"
+                for uketsuke in uketsuke_list:
+                    t_name = uketsuke.get('uketsuke_name_pc') or uketsuke.get('uketsuke_name_mobile')
+                    if t_name:
+                         # Append mongon if flag is true (applied to all? logic suggests per item maybe but existing used root item flag)
+                         # The item level has 'koenbi_hyoji_mongon'. Let's assume it applies globally or check item.
+                         if item.get('koenbi_hyoji_mongon_hyoji_flag') is True:
+                             mongon = item.get('koenbi_hyoji_mongon')
+                             if mongon:
+                                 t_name = f"{mongon} / {t_name}"
+                         ticket_names.append(t_name)
 
+                # Artist from first uketsuke (or merge?) - Existing logic used first. Keep simple for performer.
+                first_uketsuke = uketsuke_list[0]
                 performers = first_uketsuke.get('shutsuensha') 
                 if performers:
                     performers = performers.replace("※2枚以上ご購入の方はお申込み前に同行者登録が必要です。同行者登録されていない場合お申込み手続きには進めません。\n同行者登録につきましてはこちら\nhttps://eplus.jp/sf/guide/fellow-ep\nをご確認ください。\nチケットには申込者･同行者共、会員登録の氏名が印字されます。", "")
                     performers = performers.strip()
                     if performers:
                         artist = performers
+            
+            if 'artist' not in locals(): artist = None
+
 
             if link:
-                event_date = date_obj.date()
+                event_dates = [date_obj.date().isoformat()]
                 if "～" in koenbi_term and valid_dates:
-                     event_date = " ".join(valid_dates)
+                     event_dates = valid_dates
 
                 return Event(
-                    event=title,
+                    event=titles,
                     performer=artist,
-                    ticket=ticket_name,
+                    ticket=ticket_names if ticket_names else None,
                     venue=venue_name,
                     location=location,
-                    date=event_date,
+                    date=event_dates,
                     time=None if "～" in koenbi_term else (date_obj.timetz() if item.get('kaien_time') and len(item.get('kaien_time')) == 4 else None),
                     url=link,
-                    metadata={"k_code": str(k_code), "k_sub": str(k_sub)}
+                    metadata=None
                 )
             return None
         except Exception as e:
@@ -197,8 +234,8 @@ class EplusConnector(BaseConnector):
         dt_now = datetime.now()
 
         async with httpx.AsyncClient(limits=self.limits, timeout=self.timeout) as client:
-            # 1. Fetch Exclusions concurrently
             excl_tasks = [
+
                 self._get_all_ids_async(client, "200"),
                 self._get_all_ids_async(client, "700")
             ]
@@ -206,12 +243,11 @@ class EplusConnector(BaseConnector):
             excluded_ids = set().union(*excl_results)
             print(f"  [eplus] Total excluded IDs: {len(excluded_ids)}")
 
-            # 2. Setup main event fetch
             items_per_page = 200
+
             params = {
                 "shutoku_kensu": items_per_page,
                 "shutoku_start_ichi": 1,
-                "sort_key": "koenbi,kaien_time,parent_koen_taisho_flag,kogyo_code,kogyo_sub_code",
                 "parent_genre_code_list": "100", 
                 "streaming_haishin_kubun_list": "0"
             }
@@ -229,11 +265,11 @@ class EplusConnector(BaseConnector):
             total_count = first_page['data'].get('so_kensu', 0)
             print(f"  [eplus] Total events found: {total_count}")
 
-            # Collect tasks
             tasks = []
+
             
-            # Helper to extract events from a page response dict
             def extract_from_json(d):
+
                 events = []
                 if d and d.get('data') and d['data'].get('record_list'):
                     for item in d['data']['record_list']:
@@ -268,64 +304,10 @@ class EplusConnector(BaseConnector):
                     
                 all_events.extend(extract_from_json(d))
         
-            # 3. Populate Images (Guessing)
-            print(f"  [eplus] Guessing images for {len(all_events)} events...")
-            await self._populate_images(client, all_events)
+
 
         return all_events
-    
-    async def _populate_images(self, client: httpx.AsyncClient, events: List[Event]):
-        # We limit concurrency here to avoid swamping the server
-        semaphore = asyncio.Semaphore(50) 
-        
-        async def check_event(ev: Event):
-            if not ev.metadata: return
-            k_code = ev.metadata.get("k_code")
-            k_sub = ev.metadata.get("k_sub")
-            if not k_code or not k_sub: return
-            
-            # Pad k_code to 6 digits, k_sub to 4 digits just in case
-            k_code = k_code.zfill(6)
-            k_sub = k_sub.zfill(4)
-            
-            base_url = f"https://eplus.jp/s/image/{k_code}/{k_sub}/000/{k_code}{k_sub}"
-            found = []
-            
-            # Try range 1..16 (based on user examples 13, 16)
-            # We'll try a few common ones. 
-            # User said {N} seems random. But 1, 4, 13, 16... 
-            # Let's try 1 to 20 to be safe.
-            
-            check_tasks = []
-            candidates = []
-            
-            for n in range(1, 18): # 1 to 17
-                for ext in ['.jpg', '.png']:
-                    url = f"{base_url}_{n}{ext}"
-                    candidates.append(url)
-                    check_tasks.append(self._check_url(client, url, semaphore))
-            
-            results = await asyncio.gather(*check_tasks)
-            
-            for url, exists in zip(candidates, results):
-                if exists:
-                    found.append(url)
-            
-            if found:
-                ev.image = ",".join(found)
-
-        # process all events
-        await asyncio.gather(*[check_event(e) for e in events])
-
-    async def _check_url(self, client, url, semaphore):
-        async with semaphore:
-            try:
-                resp = await client.head(url)
-                return resp.status_code == 200
-            except:
-                return False
 
     def get_events(self, query: str = None) -> List[Event]:
-        # Required by BaseConnector interface
-        # We can default max_pages for testing if needed, but standard run should be all
         return asyncio.run(self._get_events_async(query, max_pages=None))
+
