@@ -19,6 +19,27 @@ class Event(BaseModel):
     @classmethod
     def validate_text(cls, v: Optional[Union[str, List[str]]]) -> Optional[Union[str, List[str]]]:
         if isinstance(v, list):
-            cleaned = [clean_text(i) for i in v]
-            return [x for x in cleaned if x]
+            # deduplicate while preserving order
+            seen = set()
+            cleaned = []
+            for i in v:
+                c = clean_text(i)
+                if c and c not in seen:
+                    seen.add(c)
+                    cleaned.append(c)
+            return cleaned
         return clean_text(v)
+
+    @field_validator('date', mode='before')
+    @classmethod
+    def validate_date(cls, v: Optional[Union[date, str, List[str], List[date]]]) -> Optional[Union[date, str, List[str], List[date]]]:
+        if isinstance(v, list):
+            # deduplicate while preserving order
+            seen = set()
+            deduped = []
+            for i in v:
+                if i not in seen:
+                    seen.add(i)
+                    deduped.append(i)
+            return deduped
+        return v

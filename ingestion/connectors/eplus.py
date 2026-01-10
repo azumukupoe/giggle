@@ -182,7 +182,9 @@ class EplusConnector(BaseConnector):
             # Maybe I accidentally deleted it in previous edits or it was never there and code was broken?
             # I should add it. `uketsuke_list = item.get('uketsuke_list', [])`
             
-            uketsuke_list = item.get('uketsuke_list', [])
+            uketsuke_list = item.get('kanren_uketsuke_koen_list', [])
+            if isinstance(uketsuke_list, dict):
+                uketsuke_list = [uketsuke_list]
 
             if uketsuke_list:
                 for uketsuke in uketsuke_list:
@@ -196,15 +198,19 @@ class EplusConnector(BaseConnector):
                                  t_name = f"{mongon} / {t_name}"
                          ticket_names.append(t_name)
 
-                # Artist from first uketsuke (or merge?) - Existing logic used first. Keep simple for performer.
-                first_uketsuke = uketsuke_list[0]
-                performers = first_uketsuke.get('shutsuensha') 
-                if performers:
-                    performers = performers.replace("※2枚以上ご購入の方はお申込み前に同行者登録が必要です。同行者登録されていない場合お申込み手続きには進めません。\n同行者登録につきましてはこちら\nhttps://eplus.jp/sf/guide/fellow-ep\nをご確認ください。\nチケットには申込者･同行者共、会員登録の氏名が印字されます。", "")
-                    performers = performers.strip()
-                    if performers:
-                        artist = performers
-            
+                # Collect performers from all uketsuke entries
+                artists = []
+                for uketsuke in uketsuke_list:
+                    p_raw = uketsuke.get('shutsuensha')
+                    if p_raw:
+                         # Cleanup boilerplate text commonly found in Eplus performer fields
+                         p_cleaned = p_raw.replace("※2枚以上ご購入の方はお申込み前に同行者登録が必要です。同行者登録されていない場合お申込み手続きには進めません。\n同行者登録につきましてはこちら\nhttps://eplus.jp/sf/guide/fellow-ep\nをご確認ください。\nチケットには申込者･同行者共、会員登録の氏名が印字されます。", "")
+                         p_cleaned = p_cleaned.strip()
+                         if p_cleaned and p_cleaned not in artists:
+                             artists.append(p_cleaned)
+                
+                artist = artists if artists else None
+
             if 'artist' not in locals(): artist = None
 
 
@@ -272,7 +278,10 @@ class EplusConnector(BaseConnector):
 
                 events = []
                 if d and d.get('data') and d['data'].get('record_list'):
-                    for item in d['data']['record_list']:
+                    record_list = d['data']['record_list']
+                    if isinstance(record_list, dict):
+                        record_list = [record_list]
+                    for item in record_list:
                         ev = self._process_item_sync(item, dt_now, excluded_ids)
                         if ev:
                             events.append(ev)

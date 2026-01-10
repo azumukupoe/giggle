@@ -129,6 +129,8 @@ class SongkickConnector(BaseConnector):
     def _parse_json_ld(self, item):
         try:
             organizer = item.get('organizer', {})
+            if isinstance(organizer, list):
+                organizer = organizer[0] if organizer else {}
 
             event_name = organizer.get('name')
             # Fallback to main item name if organizer name is missing
@@ -179,6 +181,8 @@ class SongkickConnector(BaseConnector):
                 event_date = None
             
             venue = item.get('location', {})
+            if isinstance(venue, list):
+                venue = venue[0] if venue else {}
 
             venue_name = venue.get('name')
             
@@ -186,23 +190,25 @@ class SongkickConnector(BaseConnector):
             loc = address.get('addressLocality')
             country = address.get('addressCountry')
 
-            image = item.get('image')
+            image_data = item.get('image')
+            image_url = None
 
-            image_urls = []
-            if image:
-                if isinstance(image, list):
-                    # Filter and extract URLs
-                    for img in image:
+            if image_data:
+                if isinstance(image_data, list):
+                    # Take the first valid image found
+                    for img in image_data:
                         if isinstance(img, str):
-                            image_urls.append(img)
+                            image_url = img
+                            break
                         elif isinstance(img, dict):
                             u = img.get('url')
-                            if u: image_urls.append(u)
-                elif isinstance(image, dict):
-                    if image.get('url'):
-                        image_urls.append(image.get('url'))
-                elif isinstance(image, str):
-                    image_urls.append(image)
+                            if u: 
+                                image_url = u
+                                break
+                elif isinstance(image_data, dict):
+                    image_url = image_data.get('url')
+                elif isinstance(image_data, str):
+                    image_url = image_data
 
             url = item.get('url')
 
@@ -228,7 +234,7 @@ class SongkickConnector(BaseConnector):
                 date=event_dates,
                 time=event_date.timetz() if event_date and date_str and ('T' in date_str or ' ' in date_str) else None,
                 url=url,
-                image=image_urls if image_urls else None,
+                image=image_url if image_url else None,
                 metadata={'country': country} if country else None
             )
         except Exception as e:
