@@ -16,8 +16,8 @@ class SongkickConnector(BaseConnector):
     def source_name(self) -> str:
         return "Songkick"
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, debug: bool = False):
+        super().__init__(debug)
         self.base_url = "https://www.songkick.com"
         
         self.client = httpx.Client(
@@ -43,6 +43,9 @@ class SongkickConnector(BaseConnector):
         events = []
         
         sk_metros_slugs = JAPAN_METROS
+        if self.debug:
+            print("  [Songkick] DEBUG MODE: Limiting to first 2 metros.")
+            sk_metros_slugs = sk_metros_slugs[:2]
 
         print(f"  [Songkick] Fetching {len(sk_metros_slugs)} metros in parallel...")
         with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
@@ -61,6 +64,8 @@ class SongkickConnector(BaseConnector):
         return events
 
     def get_metro_events(self, metro_id: str = "30717-japan-tokyo", max_pages: int = None) -> List[Event]:
+        if self.debug and max_pages is None:
+            max_pages = 1
         """
         Fetch events for metro.
         """

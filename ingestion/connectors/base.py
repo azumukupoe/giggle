@@ -3,8 +3,8 @@ from typing import List
 from ingestion.models import Event
 
 class BaseConnector(ABC):
-    def __init__(self):
-        pass
+    def __init__(self, debug: bool = False):
+        self.debug = debug
 
     @property
     @abstractmethod

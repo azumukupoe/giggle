@@ -16,8 +16,8 @@ class PiaConnector(BaseConnector):
     def source_name(self) -> str:
         return "Pia"
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, debug: bool = False):
+        super().__init__(debug)
         self.base_url = "https://t.pia.jp/pia/rlsInfo.do"
         self.client = httpx.Client(timeout=15.0, http2=True)
     
@@ -43,6 +43,9 @@ class PiaConnector(BaseConnector):
         
         # Concurrent fetch for prefectures
         prefecture_codes = [f"{i:02d}" for i in range(1, 48)]
+        if self.debug:
+            print("  [Pia] DEBUG MODE: Limiting to first 1 prefecture.")
+            prefecture_codes = prefecture_codes[:1]
         
         # We can still use threads for high-level concurrency, or rewrite to async. 
         # For minimal change, we stick to threads with httpx sync client.
@@ -79,6 +82,8 @@ class PiaConnector(BaseConnector):
         print(f"  [Pia] Starting prefecture {pf_code}...")
 
         while True:
+            if self.debug and page > 1:
+                break
             params["page"] = page
 
             try:

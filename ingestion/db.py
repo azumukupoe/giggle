@@ -54,6 +54,11 @@ def upsert_events(supabase: Client, events: list):
                  t = event_dict["time"]
                  event_dict["time"] = [t.isoformat() if hasattr(t, 'isoformat') else str(t)]
 
+        # Final safety check: ensure no empty lists are sent to Supabase
+        for k, v in event_dict.items():
+            if isinstance(v, list) and len(v) == 0:
+                event_dict[k] = None
+
         data.append(event_dict)
 
     try:

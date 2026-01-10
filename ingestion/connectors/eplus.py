@@ -15,8 +15,8 @@ class EplusConnector(BaseConnector):
     def source_name(self) -> str:
         return "Eplus"
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, debug: bool = False):
+        super().__init__(debug)
 
         self.api_url = "https://api.eplus.jp/v3/koen"
         self.headers = {
@@ -334,5 +334,9 @@ class EplusConnector(BaseConnector):
         return all_events
 
     def get_events(self, query: str = None) -> List[Event]:
-        return asyncio.run(self._get_events_async(query, max_pages=None))
+        max_pages = None
+        if self.debug:
+            print("  [eplus] DEBUG MODE: Limiting fetch to 1 page.")
+            max_pages = 1
+        return asyncio.run(self._get_events_async(query, max_pages=max_pages))
 

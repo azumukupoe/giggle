@@ -101,6 +101,11 @@ class Importer:
                         new_times.append(str(t))
                 event_dict["time"] = new_times
 
+            # Final safety check: ensure no empty lists are sent to Supabase
+            for k, v in event_dict.items():
+                if isinstance(v, list) and len(v) == 0:
+                    event_dict[k] = None
+
             data.append(event_dict)
 
         try:

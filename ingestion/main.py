@@ -15,7 +15,14 @@ def main():
     parser = argparse.ArgumentParser(description="Ingest concert data")
     parser.add_argument("--source", type=str, help="Specific source to run (case-insensitive substring match)")
     parser.add_argument("--dry-run", action="store_true", help="Run without changes to DB")
+    parser.add_argument("--debug", action="store_true", help="Enable debug mode (verbose logging, limited fetching)")
     args = parser.parse_args()
+
+    if args.debug:
+        logging.basicConfig(level=logging.DEBUG)
+        print("DEBUG Mode Enabled")
+    else:
+        logging.basicConfig(level=logging.INFO)
 
     # Lazy imports for speed
     from ingestion.models import Event
@@ -29,7 +36,7 @@ def main():
         """Instantiate and run a connector, returning (name, events)."""
         connector_name = "Unknown"
         try:
-            connector = connector_cls()
+            connector = connector_cls(debug=args.debug)
             connector_name = connector.source_name
             print(f"[{connector_name}] Starting...")
             events = connector.get_events()
