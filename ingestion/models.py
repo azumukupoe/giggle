@@ -1,5 +1,5 @@
 from typing import List, Optional, Union
-from datetime import datetime, date, time
+from datetime import datetime, date, time as dt_time
 from pydantic import BaseModel, field_validator
 from ingestion.utils.text import clean_text
 
@@ -8,7 +8,7 @@ class Event(BaseModel):
     ticket: Optional[Union[str, List[str]]] = None
     performer: Optional[Union[str, List[str]]] = None
     date: Optional[Union[date, str, List[str], List[date]]] = None
-    time: Optional[List[time]] = None
+    time: Optional[List[dt_time]] = None
     venue: Optional[Union[str, List[str]]] = None
     location: Optional[Union[str, List[str]]] = None
     image: Optional[Union[str, List[str]]] = None
@@ -46,7 +46,7 @@ class Event(BaseModel):
 
     @field_validator('time', mode='before')
     @classmethod
-    def validate_time(cls, v: Optional[Union[time, str, List[time], List[str]]]) -> Optional[List[time]]:
+    def validate_time(cls, v: Optional[Union[dt_time, str, List[dt_time], List[str]]]) -> Optional[List[dt_time]]:
         if v is None:
             return None
         if not isinstance(v, list):
