@@ -1,5 +1,5 @@
 from typing import List, Dict
-from datetime import date, datetime
+from datetime import date, datetime, time
 from supabase import Client
 from ingestion.utils.db import get_supabase_client
 from ingestion.utils.dates import is_future_event
@@ -79,7 +79,7 @@ class Importer:
             # Exclude 'metadata' from DB payload, but allow None for other optional fields if needed
             event_dict = e.model_dump(exclude={'metadata'})
             
-            for field in ['ticket', 'date', 'image', 'event', 'performer', 'venue', 'location']:
+            for field in ['ticket', 'date', 'time', 'image', 'event', 'performer', 'venue', 'location']:
                 if event_dict.get(field) is not None and not isinstance(event_dict[field], list):
                     event_dict[field] = [event_dict[field]]
 
@@ -93,7 +93,13 @@ class Importer:
                 event_dict["date"] = new_dates
 
             if "time" in event_dict and event_dict["time"]:
-                event_dict["time"] = event_dict["time"].isoformat()
+                new_times = []
+                for t in event_dict["time"]:
+                    if isinstance(t, (time, datetime)):
+                        new_times.append(t.isoformat())
+                    else:
+                        new_times.append(str(t))
+                event_dict["time"] = new_times
 
             data.append(event_dict)
 

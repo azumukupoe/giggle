@@ -2,7 +2,7 @@ import argparse
 import concurrent.futures
 from typing import List, Tuple
 from zoneinfo import ZoneInfo
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 import pytz
 
 from ingestion.utils.config import load_dotenv
@@ -44,7 +44,7 @@ def main():
                      e.venue = std.get_venue_names(e.venue)
 
                      # Timezone Resolution
-                     if e.time and e.time.tzinfo is None:
+                     if e.time:
                         # 1. Try to get timezone from Location DB (Applies to all connectors)
                         loc_tz_str = std.get_location_timezone(e.location)
                         resolved_tz = None
@@ -77,7 +77,7 @@ def main():
                              target_date = None
                              if isinstance(e.date, list) and e.date:
                                  target_date = e.date[0]
-                             elif isinstance(e.date, (datetime.date, str)):
+                             elif isinstance(e.date, (date, str)):
                                   target_date = e.date
                              
                              if isinstance(target_date, str):
@@ -87,25 +87,29 @@ def main():
                                  except:
                                      pass
 
-                             fixed_tz = None
-                             if target_date and isinstance(target_date, datetime.date) and isinstance(target_date, datetime): # Check both to be safe against str
-                                 pass # it's datetime.date so isinstance(d, datetime) might be false depending on subclassing, just check date
-                             
-                             if target_date and not isinstance(target_date, str):
-                                 try:
-                                     dt = datetime.combine(target_date, e.time)
-                                     dt_aware = dt.replace(tzinfo=resolved_tz)
-                                     offset = resolved_tz.utcoffset(dt_aware)
-                                     if offset:
-                                         fixed_tz = timezone(offset)
-                                 except Exception:
-                                     pass
+                             new_times = []
+                             for t in e.time:
+                                 if t.tzinfo is not None:
+                                     new_times.append(t)
+                                     continue
 
-                             if fixed_tz:
-                                  e.time = e.time.replace(tzinfo=fixed_tz)
-                             else:
-                                  # Fallback
-                                  e.time = e.time.replace(tzinfo=resolved_tz)
+                                 fixed_tz = None
+                                 if target_date and not isinstance(target_date, str):
+                                     try:
+                                         dt = datetime.combine(target_date, t)
+                                         dt_aware = dt.replace(tzinfo=resolved_tz)
+                                         offset = resolved_tz.utcoffset(dt_aware)
+                                         if offset:
+                                             fixed_tz = timezone(offset)
+                                     except Exception:
+                                         pass
+
+                                 if fixed_tz:
+                                      new_times.append(t.replace(tzinfo=fixed_tz))
+                                 else:
+                                      # Fallback
+                                      new_times.append(t.replace(tzinfo=resolved_tz))
+                             e.time = new_times
             
             return connector_name, events
         except Exception as e:
