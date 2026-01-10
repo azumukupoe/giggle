@@ -198,8 +198,16 @@ class SongkickConnector(BaseConnector):
             venue_name = venue.get('name')
             
             address = venue.get('address', {})
-            loc = address.get('addressLocality')
+            locality = address.get('addressLocality')
             country = address.get('addressCountry')
+            
+            loc = None
+            if locality and country:
+                loc = f"{locality}, {country}"
+            elif locality:
+                loc = locality
+            elif country:
+                loc = country
 
             image_data = item.get('image')
             image_url = None

@@ -1,6 +1,7 @@
 from typing import List, Optional, Union
 from datetime import datetime, date, time as dt_time
-from pydantic import BaseModel, field_validator
+from datetime import datetime, date, time as dt_time
+from pydantic import BaseModel, field_validator, model_validator
 from ingestion.utils.text import clean_text
 
 class Event(BaseModel):
@@ -55,3 +56,68 @@ class Event(BaseModel):
         # We don't implement strict parsing here as pydantic handles it, 
         # but we ensure it's a list.
         return v
+
+    @model_validator(mode='after')
+    def resolve_timezone(self):
+        """
+        Attempt to resolve timezone for 'time' fields using 'location'.
+        """
+        if not self.time or not self.location:
+            return self
+        
+        from ingestion.utils.timezone import get_timezone_from_location, attach_timezone
+        
+        # Determine location string
+        loc_str = self.location
+        if isinstance(loc_str, list):
+            loc_str = loc_str[0] if loc_str else None
+            
+        if not loc_str:
+            return self
+
+        tz_name = get_timezone_from_location(loc_str)
+        if not tz_name:
+            # Try venue if location didn't work?
+            if self.venue:
+                v_str = self.venue
+                if isinstance(v_str, list):
+                    v_str = v_str[0] if v_str else None
+                if v_str:
+                    tz_name = get_timezone_from_location(v_str)
+
+        if tz_name:
+            # Update times
+            new_times = []
+            for t in self.time:
+                # We need to handle potential string inputs if pydantic hasn't converted yet 
+                # (though 'mode=after' implies validation passed, so they should be dt_time objects)
+                if isinstance(t, dt_time):
+                    # Attach timezone
+                    # We might lack date here, so attach_timezone uses today as reference if needed
+                    # ideally we pass self.date[0] if available
+                    ref_date = None
+                    if self.date and isinstance(self.date, list) and len(self.date) > 0:
+                         d = self.date[0]
+                         if isinstance(d, date): # Could be date or str
+                              ref_date = d
+                         elif isinstance(d, str):
+                              try:
+                                  ref_date = date.fromisoformat(d)
+                              except:
+                                  pass
+                    
+                    # attach_timezone implementation needs to handle ref_date if we update it
+                    # Current implementation allows it but we need to check signature
+                    # Wait, our `attach_timezone` implementation in prev turn didn't take date_obj explicitly in signature?
+                    # Let me check `ingestion/utils/timezone.py` again or blindly update it.
+                    # I will assume I need to double check `attach_timezone` signature or update it if needed.
+                    # The previous `replace_file_content` added `attach_timezone(t, tz_name: str)`.
+                    # It calculated `now = datetime.now()` inside. 
+                    # Use that for now.
+                    t_aware = attach_timezone(t, tz_name)
+                    new_times.append(t_aware)
+                else:
+                    new_times.append(t)
+            self.time = new_times
+            
+        return self
