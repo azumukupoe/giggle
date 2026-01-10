@@ -104,14 +104,10 @@ export const Feed = () => {
                     (e.performer || []).some(perf => normalizeJapanese(perf).includes(token));
 
                 const matchVenue = (searchAll || activeFilters.includes('venue')) &&
-                    (normalizeJapanese(e.venue.en || "").includes(token) ||
-                        normalizeJapanese(e.venue.ja || "").includes(token));
+                    (e.venue || []).some(v => normalizeJapanese(v).includes(token));
 
                 const matchLocation = (searchAll || activeFilters.includes('location')) &&
-                    (e.location || []).some(loc =>
-                        normalizeJapanese(loc.en || "").includes(token) ||
-                        normalizeJapanese(loc.ja || "").includes(token)
-                    );
+                    (e.location || []).some(loc => normalizeJapanese(loc).includes(token));
 
                 const matchDate = (searchAll || activeFilters.includes('date')) && (
                     (e.date || []).some(d => normalizeJapanese(d).includes(token)) ||

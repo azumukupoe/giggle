@@ -75,19 +75,21 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
             if (locationConflict) return false;
 
             // 2. Venue Matching
-            const eventVenueStr = event.venue || "";
+            const eventVenues = event.venue || [];
 
             const strictVenueMatch = Array.from(group.venues).some(v => {
-                return areStringsSimilar(v, eventVenueStr);
+                return eventVenues.some(evV => areStringsSimilar(v, evV));
             });
 
             const partialVenueMatch = Array.from(group.venues).some(v => {
-                const norm1 = normalizeVenue(v);
-                const norm2 = normalizeVenue(eventVenueStr);
-                const common = getCommonSubstring([norm1, norm2]);
-                const isNonAscii = /[^\x00-\x7F]/.test(common);
-                if (isNonAscii) return common.length >= 2;
-                return common.length >= 5;
+                return eventVenues.some(evV => {
+                    const norm1 = normalizeVenue(v);
+                    const norm2 = normalizeVenue(evV);
+                    const common = getCommonSubstring([norm1, norm2]);
+                    const isNonAscii = /[^\x00-\x7F]/.test(common);
+                    if (isNonAscii) return common.length >= 2;
+                    return common.length >= 5;
+                });
             });
 
             // --- Pass 1 Check: Strict Event Name Match ---
@@ -170,7 +172,7 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
                 group.urls.add(event.url);
                 (event.event || []).forEach(n => group.eventNames.add(n));
                 if (event.performer) event.performer.forEach(p => group.performers.add(p));
-                if (event.venue) group.venues.add(event.venue);
+                if (event.venue) event.venue.forEach(v => group.venues.add(v));
                 if (event.location) event.location.forEach(l => group.locations.add(l));
                 dateTimeStrs.forEach(d => group.dates.add(d));
                 group.sourceEvents.push(event);

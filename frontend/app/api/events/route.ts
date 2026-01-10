@@ -105,10 +105,10 @@ const getCachedGroupedEvents = unstable_cache(
                 if (firstDateStr.includes("T")) {
                     const parts = firstDateStr.split("T");
                     newDate = [parts[0]];
-                    newTime = parts[1];
+                    newTime = [parts[1]];
                 } else {
                     newDate = [firstDateStr];
-                    newTime = null;
+                    newTime = null; // Or []? Keeping null might cause issues if type changed. I'll stick to what looks safest: null if allowed, but error said string vs string[]. 
                 }
             }
 
