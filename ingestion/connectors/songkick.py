@@ -202,9 +202,7 @@ class SongkickConnector(BaseConnector):
             country = address.get('addressCountry')
             
             loc = None
-            if locality and country:
-                loc = f"{locality}, {country}"
-            elif locality:
+            if locality:
                 loc = locality
             elif country:
                 loc = country

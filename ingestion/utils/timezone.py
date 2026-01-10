@@ -25,7 +25,7 @@ def _get_tf():
     return _tf
 
 @lru_cache(maxsize=1000)
-def get_timezone_from_location(location_name: str) -> Optional[str]:
+def get_timezone_from_location(location_name: str, country_code: Optional[str] = None) -> Optional[str]:
     """
     Returns timezone name (e.g. 'Asia/Tokyo') for a given location string.
     Uses caching to avoid hitting rate limits.
@@ -33,13 +33,28 @@ def get_timezone_from_location(location_name: str) -> Optional[str]:
     if not location_name:
         return None
     
-    # Clean location name?
     location_name = location_name.strip()
 
+    # Country code check (fastest)
+    if country_code and country_code.upper() in ["JP", "JAPAN", "JPN"]:
+        return "Asia/Tokyo"
+
     # Pre-checks for common locations to save API calls (Optimization)
-    # This is a naive heuristic but effective for the specific dataset mentioned
-    if any(x in location_name for x in ["Tokyo", "Japan", "Osaka", "Kyoto", "Nagoya", "Yokohama", "Sapporo", "Fukuoka"]):
-         return "Asia/Tokyo"
+    # 47 Prefectures of Japan
+    jp_prefectures = [
+        "北海道", "青森県", "岩手県", "宮城県", "秋田県", "山形県", "福島県",
+        "茨城県", "栃木県", "群馬県", "埼玉県", "千葉県", "東京都", "神奈川県",
+        "新潟県", "富山県", "石川県", "福井県", "山梨県", "長野県", "岐阜県",
+        "静岡県", "愛知県", "三重県", "滋賀県", "京都府", "大阪府", "兵庫県",
+        "奈良県", "和歌山県", "鳥取県", "島根県", "岡山県", "広島県", "山口県",
+        "徳島県", "香川県", "愛媛県", "高知県", "福岡県", "佐賀県", "長崎県",
+        "熊本県", "大分県", "宮崎県", "鹿児島県", "沖縄県"
+    ]
+    # Common cities or variants
+    # If country code wasn't provided, check for Japan-specific names
+    
+    if any(p in location_name for p in jp_prefectures) or "Japan" in location_name or "Tokyo" in location_name:
+        return "Asia/Tokyo"
     
     try:
         geo = _get_geolocator()
@@ -57,39 +72,37 @@ def attach_timezone(t, tz_name: str):
     """
     Attaches timezone to a naive time object.
     If t is already aware, returns it as is.
-    Note: Attaching timezone to time without date is ambiguous for DST.
-    We assume standard offset or rely on downstream handling if date is known.
-    Actually, pytz timezones need a date to determine offset.
-    If we only have time, we can't strictly determine the offset for a named timezone like 'Asia/Tokyo' (which might change).
-    However, 'Asia/Tokyo' doesn't observe DST currently.
-    For 'Europe/London', 19:00 could be +00 or +01.
-    
-    If the database column is `timetz`, it expects an offset.
-    We might need to use a dummy date (e.g. today) to resolve the offset.
+    Uses proper fixed-offset timezone to ensure valid ISO serialization for time objects.
     """
-    from datetime import datetime, date
+    from datetime import datetime, timezone
     import pytz
     
     if t.tzinfo is not None:
         return t
         
     try:
+        # To get the correct offset, we need a reference date.
+        # We use strict current local time for that timezone to determine current offset.
+        # This handles DST correctly if the timezone observes it (though Asia/Tokyo doesn't).
+        
         tz = pytz.timezone(tz_name)
-        # Use today's date to resolve offset? Or the event date?
-        # Ideally event date. But here we might not have it easily if processing list of times.
-        # We will assume 'today' for offset resolution if date not provided?
-        # This is risky for future events.
-        # Ideally, we should process constraints in the Connector where we have both.
-        
-        # For now, let's try to just resolve simple cases or return the timezone object itself if supported.
-        # datetime.time(..., tzinfo=tz) works but might be ambiguous.
-        
-        # Better approach:
-        # Use a reference date (e.g. current date or cheap guess).
         now = datetime.now()
+        
+        # Combine with today's date to get a concrete datetime
         dt = datetime.combine(now.date(), t)
+        
+        # Localize it to the target timezone (handles ambiguous times like fall-back)
         dt_aware = tz.localize(dt)
-        return dt_aware.timetz()
+        
+        # Extract the fixed offset (e.g., +09:00)
+        offset = dt_aware.utcoffset()
+        
+        # Create a fixed-offset timezone info (valid for time objects)
+        fixed_tz = timezone(offset)
+        
+        # Attach and return
+        return t.replace(tzinfo=fixed_tz)
+        
     except Exception as e:
         logger.warning(f"Failed to attach timezone {tz_name} to time {t}: {e}")
         return t

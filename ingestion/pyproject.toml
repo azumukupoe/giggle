@@ -13,7 +13,7 @@ dependencies = [
     "supabase>=2.27.0",
     "tzdata>=2025.3",
     "pytz>=2025.2",
-    "types-beautifulsoup4>=4.12.0.20250516",
+
     "geopy>=2.4.1",
     "timezonefinder>=8.2.1",
 ]

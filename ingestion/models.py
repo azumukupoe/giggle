@@ -28,7 +28,7 @@ class Event(BaseModel):
                 if c and c not in seen:
                     seen.add(c)
                     cleaned.append(c)
-            return cleaned
+            return cleaned if cleaned else None
         return clean_text(v)
 
     @field_validator('date', mode='before')
@@ -42,7 +42,7 @@ class Event(BaseModel):
                 if i not in seen:
                     seen.add(i)
                     deduped.append(i)
-            return deduped
+            return deduped if deduped else None
         return v
 
     @field_validator('time', mode='before')
@@ -55,7 +55,7 @@ class Event(BaseModel):
         
         # We don't implement strict parsing here as pydantic handles it, 
         # but we ensure it's a list.
-        return v
+        return v if v else None
 
     @model_validator(mode='after')
     def resolve_timezone(self):
@@ -75,7 +75,8 @@ class Event(BaseModel):
         if not loc_str:
             return self
 
-        tz_name = get_timezone_from_location(loc_str)
+        country = self.metadata.get('country') if self.metadata else None
+        tz_name = get_timezone_from_location(loc_str, country_code=country)
         if not tz_name:
             # Try venue if location didn't work?
             if self.venue:
