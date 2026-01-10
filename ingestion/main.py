@@ -2,6 +2,7 @@ import argparse
 import concurrent.futures
 from typing import List, Tuple
 from zoneinfo import ZoneInfo
+from datetime import datetime, timezone
 import pytz
 
 from ingestion.utils.config import load_dotenv
@@ -39,8 +40,8 @@ def main():
 
                 for e in events:
                      raw_loc = e.location
-                     e.location = std.get_location_codes(raw_loc, match_lang=match_lang)
-                     e.venue = std.get_venue_code(e.venue, context_location=raw_loc)
+                     e.location = std.get_location_names(raw_loc)
+                     e.venue = std.get_venue_names(e.venue)
 
                      # Timezone Resolution
                      if e.time and e.time.tzinfo is None:
@@ -72,7 +73,39 @@ def main():
                                     print(f"Error resolving timezone for country {country}: {e}")
                         
                         if resolved_tz:
-                             e.time = e.time.replace(tzinfo=resolved_tz)
+                             # Use date + time to calculate fixed offset for proper serialization
+                             target_date = None
+                             if isinstance(e.date, list) and e.date:
+                                 target_date = e.date[0]
+                             elif isinstance(e.date, (datetime.date, str)):
+                                  target_date = e.date
+                             
+                             if isinstance(target_date, str):
+                                 try:
+                                     # Assuming ISO format yyyy-mm-dd
+                                     target_date = datetime.strptime(target_date, "%Y-%m-%d").date()
+                                 except:
+                                     pass
+
+                             fixed_tz = None
+                             if target_date and isinstance(target_date, datetime.date) and isinstance(target_date, datetime): # Check both to be safe against str
+                                 pass # it's datetime.date so isinstance(d, datetime) might be false depending on subclassing, just check date
+                             
+                             if target_date and not isinstance(target_date, str):
+                                 try:
+                                     dt = datetime.combine(target_date, e.time)
+                                     dt_aware = dt.replace(tzinfo=resolved_tz)
+                                     offset = resolved_tz.utcoffset(dt_aware)
+                                     if offset:
+                                         fixed_tz = timezone(offset)
+                                 except Exception:
+                                     pass
+
+                             if fixed_tz:
+                                  e.time = e.time.replace(tzinfo=fixed_tz)
+                             else:
+                                  # Fallback
+                                  e.time = e.time.replace(tzinfo=resolved_tz)
             
             return connector_name, events
         except Exception as e:

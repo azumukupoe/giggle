@@ -28,7 +28,6 @@ const getCachedGroupedEvents = unstable_cache(
             const { data, error } = await supabase
                 .from('events')
                 .select('*')
-
                 .order('url', { ascending: true })
                 .range(p * pageSize, (p + 1) * pageSize - 1);
 
@@ -38,7 +37,14 @@ const getCachedGroupedEvents = unstable_cache(
             }
 
             if (data) {
-                allData = [...allData, ...(data as unknown as Event[])];
+                // Ensure correct types (map nullable format to expected format)
+                const mapped = data.map((d: any) => ({
+                    ...d,
+                    venue: d.venue || [],
+                    location: d.location || [],
+                })) as Event[];
+
+                allData = [...allData, ...mapped];
                 if (data.length < pageSize) {
                     hasMore = false;
                 } else {
@@ -49,56 +55,7 @@ const getCachedGroupedEvents = unstable_cache(
             }
         }
 
-        const { data: locationsData } = await supabase
-            .from('locations')
-            .select('id, name_en, name_ja');
-
-        const locationMap = new Map<string, { en: string; ja: string }>();
-        if (locationsData) {
-            locationsData.forEach(l => {
-                locationMap.set(l.id, {
-                    en: l.name_en || l.name_ja || '',
-                    ja: l.name_ja || l.name_en || ''
-                });
-            });
-        }
-
-        const { data: venuesData } = await supabase
-            .from('venues')
-            .select('id, variation, name_en, name_ja');
-
-        const venueMap = new Map<string, { en: string; ja: string }>();
-        if (venuesData) {
-            venuesData.forEach(v => {
-                // Priority: name_en/ja -> variation[0]
-                const fallback = (v.variation && v.variation.length > 0) ? v.variation[0] : '';
-                const en = v.name_en || fallback || '';
-                const ja = v.name_ja || fallback || '';
-                venueMap.set(v.id, { en, ja });
-            });
-        }
-
-        allData.forEach(e => {
-            if (e.location && Array.isArray(e.location)) {
-                const resolvedLocs = (e.location as unknown as string[]).map((uuid: string) => {
-                    const found = locationMap.get(uuid);
-                    if (found) return found;
-                    return { en: uuid, ja: uuid }; // Fallback
-                });
-                // Cast to any to bypass TS complaining about string[] vs object[] during transition if not fully aligned
-                (e.location as any) = resolvedLocs;
-            } else {
-                (e.location as any) = [];
-            }
-
-            const vUuid = e.venue as unknown as string;
-            const foundVenue = venueMap.get(vUuid);
-            if (foundVenue) {
-                (e.venue as any) = foundVenue;
-            } else {
-                (e.venue as any) = { en: vUuid || '', ja: vUuid || '' };
-            }
-        });
+        // Logic simplifed: No need to fetch/join locations or venues tables anymore
 
         const grouped = groupEvents(allData);
 

@@ -47,7 +47,12 @@ def upsert_events(supabase: Client, events: list):
             event_dict["date"] = new_dates
 
         if "time" in event_dict and event_dict["time"]:
-             event_dict["time"] = event_dict["time"].isoformat()
+             if isinstance(event_dict["time"], list):
+                 event_dict["time"] = [t.isoformat() if hasattr(t, 'isoformat') else str(t) for t in event_dict["time"]]
+             else:
+                 # Fallback for single value
+                 t = event_dict["time"]
+                 event_dict["time"] = [t.isoformat() if hasattr(t, 'isoformat') else str(t)]
 
         data.append(event_dict)
 

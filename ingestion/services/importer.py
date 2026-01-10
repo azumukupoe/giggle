@@ -79,7 +79,7 @@ class Importer:
             # Exclude 'metadata' from DB payload, but allow None for other optional fields if needed
             event_dict = e.model_dump(exclude={'metadata'})
             
-            for field in ['ticket', 'date', 'location', 'image', 'event', 'performer']:
+            for field in ['ticket', 'date', 'image', 'event', 'performer', 'venue', 'location']:
                 if event_dict.get(field) is not None and not isinstance(event_dict[field], list):
                     event_dict[field] = [event_dict[field]]
 

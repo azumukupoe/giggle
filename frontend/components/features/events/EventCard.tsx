@@ -17,8 +17,8 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
     const [isIdsModalOpen, setIsIdsModalOpen] = useState(false);
 
     const formattedLocation = [
-        language === 'ja' ? (event.venue.ja || event.venue.en) : (event.venue.en || event.venue.ja),
-        ...(event.location || []).map(l => language === 'ja' ? (l.ja || l.en) : (l.en || l.ja))
+        ...(event.venue || []),
+        ...(event.location || [])
     ]
         .filter(Boolean)
         .join(", ");
@@ -77,7 +77,14 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
             }
             const month = date.getMonth() + 1;
             const day = date.getDate();
-            const timeStr = sourceEvent.time ? sourceEvent.time.substring(0, 5) : "";
+            const timeSeparator = language === 'ja' ? '～' : '-';
+            let timeStr = "";
+            if (sourceEvent.time && sourceEvent.time.length > 0) {
+                timeStr = sourceEvent.time[0].substring(0, 5);
+                if (sourceEvent.time.length > 1) {
+                    timeStr += `${timeSeparator}${sourceEvent.time[1].substring(0, 5)}`;
+                }
+            }
             label = timeStr ? `${month}/${day} ${timeStr}` : `${month}/${day}`;
         } else {
             label = t('common.check_site') || "Check Site";

@@ -1,6 +1,6 @@
 import asyncio
 import httpx
-from datetime import datetime
+from datetime import datetime, time
 from typing import List, Optional, Tuple, Set
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 import logging
@@ -140,16 +140,32 @@ class EplusConnector(BaseConnector):
                     except ValueError:
                         pass
 
-                # Apply time to date_obj (start date)
-                kaien_time = item.get('kaien_time') 
+                # Time handling
+                times = []
+                kaien_time = item.get('kaien_time')
+                shuen_time = item.get('shuen_time')
+
                 if kaien_time and len(kaien_time) == 4:
-                    try:
-                        date_obj = date_obj.replace(
-                            hour=int(kaien_time[:2]),
-                            minute=int(kaien_time[2:])
-                        )
-                    except ValueError:
-                        pass
+                     try:
+                         t_start = time(int(kaien_time[:2]), int(kaien_time[2:]))
+                         times.append(t_start)
+                     except ValueError:
+                         pass
+
+                if shuen_time and len(shuen_time) == 4:
+                     try:
+                         t_end = time(int(shuen_time[:2]), int(shuen_time[2:]))
+                         times.append(t_end)
+                     except ValueError:
+                         pass
+
+                # Apply time to date_obj (start date) just in case it's used elsewhere, 
+                # although we use .date() mostly.
+                if times:
+                    date_obj = date_obj.replace(
+                        hour=times[0].hour,
+                        minute=times[0].minute
+                    )
             
             pref_name = venue_info.get('todofuken_name')
             location = pref_name if pref_name else None
@@ -226,7 +242,7 @@ class EplusConnector(BaseConnector):
                     venue=venue_name,
                     location=location,
                     date=event_dates,
-                    time=None if "～" in koenbi_term else (date_obj.timetz() if item.get('kaien_time') and len(item.get('kaien_time')) == 4 else None),
+                    time=times if (times and "～" not in koenbi_term) else None,
                     url=link,
                     metadata=None
                 )

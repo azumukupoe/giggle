@@ -1,5 +1,5 @@
 import { differenceInCalendarDays } from "date-fns";
-import { Event, GroupedEvent, LocalizedText } from "@/types/event";
+import { Event, GroupedEvent } from "@/types/event";
 import {
     normalizeVenue,
     normalizeEventName,
@@ -7,11 +7,9 @@ import {
     createIsoDate,
     mergeEventNames,
     mergePerformers,
-    resolveCaseVariations,
     filterRedundantDates,
     getStartDate,
     getEndDate,
-
     areStringsSimilar,
     getCommonSubstring,
     getEventBaseName
@@ -22,8 +20,8 @@ interface IntermediateGroup {
     urls: Set<string>;
     eventNames: Set<string>;
     performers: Set<string>;
-    venues: Set<string>; // Set of JSON-stringified LocalizedText
-    locations: Set<string>; // Set of JSON-stringified LocalizedText
+    venues: Set<string>;
+    locations: Set<string>;
     dates: Set<string>; // Set of ISO strings
 
     sourceEvents: Event[];
@@ -58,13 +56,10 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
             let hasCommonLocation = false;
 
             if (event.location && event.location.length > 0) {
-                const locs1 = event.location.map(l => normalizeLocation(l.ja || l.en)).filter(Boolean);
+                const locs1 = event.location.map(l => normalizeLocation(l)).filter(Boolean);
 
                 if (locs1.length > 0 && group.locations.size > 0) {
-                    const groupLocs = Array.from(group.locations).map(lStr => {
-                        const l = JSON.parse(lStr);
-                        return normalizeLocation(l.ja || l.en);
-                    }).filter(Boolean);
+                    const groupLocs = Array.from(group.locations).map(l => normalizeLocation(l)).filter(Boolean);
 
                     const hasOverlap = locs1.some(l1 => groupLocs.includes(l1));
 
@@ -80,19 +75,14 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
             if (locationConflict) return false;
 
             // 2. Venue Matching
-            const eventVenueStr = event.venue?.ja || event.venue?.en || "";
+            const eventVenueStr = event.venue || "";
 
-            const strictVenueMatch = Array.from(group.venues).some(vStr => {
-                const v = JSON.parse(vStr);
-                const s = v.ja || v.en || "";
-                return areStringsSimilar(s, eventVenueStr);
+            const strictVenueMatch = Array.from(group.venues).some(v => {
+                return areStringsSimilar(v, eventVenueStr);
             });
 
-            const partialVenueMatch = Array.from(group.venues).some(vStr => {
-                const vStrObj = JSON.parse(vStr);
-                const s = vStrObj.ja || vStrObj.en || "";
-
-                const norm1 = normalizeVenue(s);
+            const partialVenueMatch = Array.from(group.venues).some(v => {
+                const norm1 = normalizeVenue(v);
                 const norm2 = normalizeVenue(eventVenueStr);
                 const common = getCommonSubstring([norm1, norm2]);
                 const isNonAscii = /[^\x00-\x7F]/.test(common);
@@ -180,8 +170,8 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
                 group.urls.add(event.url);
                 (event.event || []).forEach(n => group.eventNames.add(n));
                 if (event.performer) event.performer.forEach(p => group.performers.add(p));
-                if (event.venue) group.venues.add(JSON.stringify(event.venue));
-                if (event.location) event.location.forEach(l => group.locations.add(JSON.stringify(l)));
+                if (event.venue) group.venues.add(event.venue);
+                if (event.location) event.location.forEach(l => group.locations.add(l));
                 dateTimeStrs.forEach(d => group.dates.add(d));
                 group.sourceEvents.push(event);
 
@@ -211,8 +201,8 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
                     group.urls.add(event.url);
                     if (event.event) event.event.forEach(n => group.eventNames.add(n));
                     if (event.performer) event.performer.forEach(p => group.performers.add(p));
-                    if (event.venue) group.venues.add(JSON.stringify(event.venue));
-                    if (event.location) event.location.forEach(l => group.locations.add(JSON.stringify(l)));
+                    if (event.venue) event.venue.forEach(v => group.venues.add(v));
+                    if (event.location) event.location.forEach(l => group.locations.add(l));
                     dateTimeStrs.forEach(d => group.dates.add(d));
                     group.sourceEvents.push(event);
 
@@ -238,8 +228,8 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
                 urls: new Set([event.url]),
                 eventNames: new Set(event.event || []),
                 performers: new Set(event.performer || []),
-                venues: new Set([JSON.stringify(event.venue)]),
-                locations: new Set((event.location || []).map(l => JSON.stringify(l))),
+                venues: new Set(event.venue || []),
+                locations: new Set(event.location || []),
                 dates: new Set(dateTimeStrs),
                 sourceEvents: [event],
                 latestDate: eventDate
@@ -256,30 +246,19 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
         .map(g => {
             const sortedDates = Array.from(g.dates).sort();
 
-            let time: string | null = null;
-            const baseDates = g.baseEvent.date; // array
-
-            for (const dStr of sortedDates) {
-                if (dStr.includes("T")) {
-                    // Ideally matches the first date's time
-                    const dDate = dStr.split("T")[0];
-                    if (baseDates.includes(dDate) || !time) {
-                        time = dStr.split("T")[1];
-                    }
-                }
-            }
+            let time: string[] | null = g.baseEvent.time;
 
             // Resolve Venue
-            const venueObjects = Array.from(g.venues).map(s => JSON.parse(s));
             // Prefer one with most info? For now just take first.
-            const resolvedVenue = venueObjects[0] || { en: "", ja: "" };
+            const venues = Array.from(g.venues);
+            const resolvedVenue = venues;
 
             return {
                 id: g.baseEvent.id,
                 event: mergeEventNames(g.eventNames),
                 performer: mergePerformers(Array.from(g.performers)),
                 venue: resolvedVenue,
-                location: Array.from(g.locations).map(s => JSON.parse(s)), // Return array of objects
+                location: Array.from(g.locations),
                 date: g.baseEvent.date,
                 time,
                 urls: Array.from(g.urls),
@@ -293,8 +272,8 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
             const dateDiff = dA.localeCompare(dB);
             if (dateDiff !== 0) return dateDiff;
 
-            const timeA = a.time;
-            const timeB = b.time;
+            const timeA = a.time ? a.time[0] : null;
+            const timeB = b.time ? b.time[0] : null;
 
             if (timeA && !timeB) return -1;
             if (!timeA && timeB) return 1;

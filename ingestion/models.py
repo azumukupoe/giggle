@@ -8,8 +8,8 @@ class Event(BaseModel):
     ticket: Optional[Union[str, List[str]]] = None
     performer: Optional[Union[str, List[str]]] = None
     date: Optional[Union[date, str, List[str], List[date]]] = None
-    time: Optional[time]
-    venue: Optional[str] = None
+    time: Optional[List[time]] = None
+    venue: Optional[Union[str, List[str]]] = None
     location: Optional[Union[str, List[str]]] = None
     image: Optional[Union[str, List[str]]] = None
     url: str
@@ -42,4 +42,16 @@ class Event(BaseModel):
                     seen.add(i)
                     deduped.append(i)
             return deduped
+        return v
+
+    @field_validator('time', mode='before')
+    @classmethod
+    def validate_time(cls, v: Optional[Union[time, str, List[time], List[str]]]) -> Optional[List[time]]:
+        if v is None:
+            return None
+        if not isinstance(v, list):
+            v = [v]
+        
+        # We don't implement strict parsing here as pydantic handles it, 
+        # but we ensure it's a list.
         return v

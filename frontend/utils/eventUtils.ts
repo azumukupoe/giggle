@@ -271,13 +271,16 @@ export const areStringsSimilar = (s1: string | null | undefined, s2: string | nu
 };
 
 // Create safe ISO strings
-export const createIsoDate = (date: string, time: string | null): string => {
+export const createIsoDate = (date: string, time: string | string[] | null): string => {
     if (!time) return date;
 
+    let tStr = Array.isArray(time) ? (time.length > 0 ? time[0] : null) : time;
+    if (!tStr) return date;
+
     // Fix timezone offset
-    let properTime = time;
-    if (/[+-]\d{2}$/.test(time)) {
-        properTime = `${time}:00`;
+    let properTime = tStr;
+    if (/[+-]\d{2}$/.test(tStr)) {
+        properTime = `${tStr}:00`;
     }
 
     return `${date}T${properTime}`;

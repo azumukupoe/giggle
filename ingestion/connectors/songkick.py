@@ -174,11 +174,22 @@ class SongkickConnector(BaseConnector):
                 except ValueError:
                     event_dates.append(date_str.split('T')[0])
             
-            # Parsing for time extraction only
+            # Parsing for time extraction
+            times = []
             try:
-                event_date = datetime.fromisoformat(date_str)
+                if date_str and ('T' in date_str or ' ' in date_str):
+                     s_dt = datetime.fromisoformat(date_str)
+                     times.append(s_dt.timetz())
             except:
-                event_date = None
+                pass
+            
+            if end_date_str:
+                 try:
+                     if 'T' in end_date_str or ' ' in end_date_str:
+                         e_dt = datetime.fromisoformat(end_date_str)
+                         times.append(e_dt.timetz())
+                 except:
+                     pass
             
             venue = item.get('location', {})
             if isinstance(venue, list):
@@ -232,7 +243,7 @@ class SongkickConnector(BaseConnector):
                 venue=venue_name,
                 location=loc,
                 date=event_dates,
-                time=event_date.timetz() if event_date and date_str and ('T' in date_str or ' ' in date_str) else None,
+                time=times if times else None,
                 url=url,
                 image=image_url if image_url else None,
                 metadata={'country': country} if country else None
