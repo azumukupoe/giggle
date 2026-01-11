@@ -3,6 +3,7 @@ from datetime import datetime, date, time as dt_time
 from datetime import datetime, date, time as dt_time
 from pydantic import BaseModel, field_validator, model_validator
 from ingestion.utils.text import clean_text
+from ingestion.utils.locations import normalize_to_romanized_prefecture
 
 class Event(BaseModel):
     event: Optional[Union[str, List[str]]] = None
@@ -30,6 +31,16 @@ class Event(BaseModel):
                     cleaned.append(c)
             return cleaned if cleaned else None
         return clean_text(v)
+
+    @field_validator('location', mode='after')
+    @classmethod
+    def normalize_location(cls, v: Optional[Union[str, List[str]]]) -> Optional[Union[str, List[str]]]:
+        if not v:
+            return v
+        
+        if isinstance(v, list):
+            return [normalize_to_romanized_prefecture(x) for x in v]
+        return normalize_to_romanized_prefecture(v)
 
     @field_validator('date', mode='before')
     @classmethod

@@ -2,56 +2,57 @@
 
 import { useState } from "react";
 import { GroupedEvent } from "@/types/event";
-import { parseISO, format, isValid } from "date-fns";
+import { parseISO, format, isValid, isSameDay } from "date-fns";
 import { enUS, ja } from "date-fns/locale";
 import { ExternalLink, MapPin, Calendar } from "lucide-react";
 import { motion } from "framer-motion";
 import { useLanguage } from "../../providers/LanguageContext";
-import { getStartDate, getDomain, normalizeEventName, cleanEventName } from "@/utils/eventUtils";
+import { getDomain } from "@/utils/eventUtils";
 import { prefectures } from "@/utils/prefectures";
 import { Modal } from "../../ui/Modal";
-import { TooltippedLink } from "../../ui/TooltippedLink";
-import { TruncatedText } from "../../ui/TruncatedText";
 
 export const EventCard = ({ event }: { event: GroupedEvent }) => {
     const { language, t } = useLanguage();
     const [isIdsModalOpen, setIsIdsModalOpen] = useState(false);
 
-    const formattedLocation = [
+    // Helper to process location strings
+    const processLocations = (locs: string[]) => {
+        return locs
+            .filter(Boolean)
+            .map(loc => {
+                const lower = loc.toLowerCase().trim();
+
+                if (language === 'en') {
+                    if (prefectures[lower]) {
+                        return lower.charAt(0).toUpperCase() + lower.slice(1);
+                    }
+
+                    const entry = Object.entries(prefectures).find(([_, value]) => value === loc);
+                    if (entry) {
+                        const key = entry[0];
+                        return key.charAt(0).toUpperCase() + key.slice(1);
+                    }
+
+                    return loc;
+                }
+
+                if (prefectures[lower]) return prefectures[lower];
+
+                const stripped = lower.replace(/\s+(prefecture|city)$/, "");
+                if (prefectures[stripped]) return prefectures[stripped];
+                return loc;
+            })
+            .join(", ");
+    };
+
+    // Card shows only location
+    const cardLocation = processLocations(event.location || []);
+
+    // Modal shows venue + location
+    const fullLocation = processLocations([
         ...(event.venue || []),
         ...(event.location || [])
-    ]
-        .filter(Boolean)
-        .map(loc => {
-            const lower = loc.toLowerCase().trim();
-
-
-            if (language === 'en') {
-
-                if (prefectures[lower]) {
-
-                    return lower.charAt(0).toUpperCase() + lower.slice(1);
-                }
-
-
-                const entry = Object.entries(prefectures).find(([_, value]) => value === loc);
-                if (entry) {
-                    const key = entry[0];
-                    return key.charAt(0).toUpperCase() + key.slice(1);
-                }
-
-                return loc;
-            }
-
-
-            if (prefectures[lower]) return prefectures[lower];
-
-            const stripped = lower.replace(/\s+(prefecture|city)$/, "");
-            if (prefectures[stripped]) return prefectures[stripped];
-            return loc;
-        })
-        .join(", ");
-
+    ]);
 
     const sortedAllDates = Array.from(new Set([
         ...(event.date || []),
@@ -66,26 +67,26 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
         const firstDate = parseISO(sortedAllDates[0]);
         const lastDate = parseISO(sortedAllDates[sortedAllDates.length - 1]);
 
+
         if (isValid(firstDate) && isValid(lastDate)) {
             const currentYear = new Date().getFullYear();
             const startYear = firstDate.getFullYear();
             const endYear = lastDate.getFullYear();
 
+            // Modified to use short month (MMM) instead of long month (MMMM)
             const getFormat = (showYear: boolean) =>
                 language === 'ja'
                     ? (showYear ? "yyyy年M月d日" : "M月d日")
-                    : (showYear ? "MMMM d, yyyy" : "MMMM d");
-
-
+                    : (showYear ? "MMM d, yyyy" : "MMM d");
 
             const isSameYear = startYear === endYear;
             const isCurrentYear = startYear === currentYear;
 
-            if (firstDate.getTime() === lastDate.getTime()) {
+            if (isSameDay(firstDate, lastDate)) {
                 dateString = format(firstDate, getFormat(!isCurrentYear), { locale: language === 'ja' ? ja : enUS });
             } else {
                 if (isSameYear) {
-                    const startFmt = format(firstDate, language === 'ja' ? "M月d日" : "MMMM d", { locale: language === 'ja' ? ja : enUS });
+                    const startFmt = format(firstDate, language === 'ja' ? "M月d日" : "MMM d", { locale: language === 'ja' ? ja : enUS });
                     const endFmt = format(lastDate, getFormat(!isCurrentYear), { locale: language === 'ja' ? ja : enUS });
                     const sep = language === 'ja' ? ' ～ ' : ' - ';
                     dateString = `${startFmt}${sep}${endFmt}`;
@@ -101,8 +102,6 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
 
     const rawPerformer = event.performer;
 
-
-
     return (
         <>
             <motion.div
@@ -110,42 +109,36 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
                 animate={{ opacity: 1, y: 0 }}
                 whileHover={{ scale: 1.02 }}
                 onClick={() => setIsIdsModalOpen(true)}
-                className="group flex flex-col justify-between overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm transition-all hover:shadow-md h-[180px] w-full cursor-pointer hover:border-primary/50"
+                className="group flex flex-col justify-between overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm transition-all hover:shadow-md h-full w-full cursor-pointer hover:border-primary/50"
             >
                 <div className="p-4 flex flex-col h-full">
-
-
                     <div className="flex flex-col flex-grow min-h-0 mb-2">
                         <div className="mb-1 shrink-0">
-                            <h3 className="text-sm font-bold leading-tight line-clamp-3 break-words group-hover:text-primary transition-colors">
+                            {/* Removed line-clamp-3 per user request */}
+                            <h3 className="text-sm font-bold leading-tight break-words group-hover:text-primary transition-colors">
                                 {event.event.join(" ")}
                             </h3>
                         </div>
                     </div>
 
-
                     <div className="flex flex-col gap-1.5 shrink-0 border-t pt-2 border-border/50">
                         <div className="flex flex-col gap-1 text-xs text-muted-foreground">
-                            <div className="flex items-center gap-2">
-                                <Calendar className="w-3.5 h-3.5 shrink-0" />
+                            <div className="flex items-start gap-2">
+                                <Calendar className="w-3.5 h-3.5 shrink-0 mt-0.5" />
                                 <div className="min-w-0 flex-1">
-                                    <TruncatedText
-                                        text={dateString}
-                                        className="block"
-                                        maxLines={1}
-                                        followCursor={true}
-                                    />
+                                    {/* Replaced TruncatedText with simple span */}
+                                    <span className="block">
+                                        {dateString}
+                                    </span>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                                <MapPin className="w-3.5 h-3.5 shrink-0" />
+                            <div className="flex items-start gap-2">
+                                <MapPin className="w-3.5 h-3.5 shrink-0 mt-0.5" />
                                 <div className="min-w-0 flex-1">
-                                    <TruncatedText
-                                        as="span"
-                                        text={formattedLocation}
-                                        className="line-clamp-1 block"
-                                        maxLines={1}
-                                    />
+                                    {/* Replaced TruncatedText with simple span and using cardLocation */}
+                                    <span className="block">
+                                        {cardLocation}
+                                    </span>
                                 </div>
                             </div>
                         </div>
@@ -153,14 +146,12 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
                 </div>
             </motion.div>
 
-
             <Modal
                 isOpen={isIdsModalOpen}
                 onClose={() => setIsIdsModalOpen(false)}
             >
                 <div className="flex flex-col h-full overflow-hidden">
                     <div className="flex flex-col min-h-0">
-
                         <div className="shrink-0 flex gap-4 pb-4 mb-4 pt-6 px-6">
                             <div className="flex-1 space-y-2">
                                 <h3 className="text-2xl font-bold leading-tight">{event.event.join(" ")}</h3>
@@ -172,11 +163,11 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
                                     </div>
                                     <div className="flex items-center gap-2">
                                         <MapPin className="w-4 h-4 text-primary shrink-0" />
-                                        <span>{formattedLocation}</span>
+                                        {/* Using fullLocation (venue + location) for Modal */}
+                                        <span>{fullLocation}</span>
                                     </div>
                                 </div>
                             </div>
-
 
                             {event.image && event.image.length > 0 && (
                                 <div className="w-32 aspect-square shrink-0 rounded-lg overflow-hidden bg-muted/20 relative">
@@ -190,8 +181,6 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
                         </div>
 
                         <div className="flex-1 overflow-y-auto min-h-0 space-y-6 px-6">
-
-
                             {rawPerformer && rawPerformer.length > 0 && (
                                 <div className="bg-muted/30 p-3 rounded-lg max-h-40 overflow-y-auto custom-scrollbar">
                                     <div className="whitespace-pre-wrap text-sm leading-relaxed font-medium">
@@ -200,14 +189,11 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
                                 </div>
                             )}
 
-
                             <div className="pb-6">
                                 <div className="flex flex-col gap-3">
                                     {event.sourceEvents.map((ev, i) => {
-
                                         const sortedDates = [...(ev.date || [])].sort();
                                         let dateLabel = "";
-                                        const timeSeparator = language === 'ja' ? '～' : '-';
 
                                         if (sortedDates.length > 0) {
                                             const s = parseISO(sortedDates[0]);
@@ -218,26 +204,21 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
                                                 const eYear = e.getFullYear();
                                                 const curYear = new Date().getFullYear();
 
-
-
                                                 const isSameYear = sYear === eYear;
                                                 const isCurrentYear = sYear === curYear;
 
                                                 const dateFormat = (d: Date, forceYear: boolean) =>
                                                     format(d, (forceYear || d.getFullYear() !== curYear) ? "M/d/yy" : "M/d");
 
-                                                if (sortedDates.length === 1 || s.getTime() === e.getTime()) {
+                                                if (sortedDates.length === 1 || isSameDay(s, e)) {
                                                     dateLabel = dateFormat(s, false);
                                                     if (ev.time && ev.time.length > 0) {
                                                         const timeStr = ev.time[0].substring(0, 5);
                                                         dateLabel += ` ${timeStr}`;
                                                     }
                                                 } else {
-
-
                                                     const startStr = format(s, !isSameYear || !isCurrentYear ? "M/d/yy" : "M/d");
                                                     const endStr = format(e, !isSameYear || !isCurrentYear ? "M/d/yy" : "M/d");
-
                                                     const sep = language === 'ja' ? '～' : '-';
                                                     dateLabel = `${startStr}${sep}${endStr}`;
                                                 }
@@ -254,7 +235,6 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
                                                 rel="noopener noreferrer"
                                                 className="flex flex-col gap-2 p-3 rounded-lg bg-secondary/50 hover:bg-secondary text-secondary-foreground transition-all group"
                                             >
-
                                                 <div className="flex items-start gap-3 w-full">
                                                     {hostname && (
                                                         <img
@@ -265,11 +245,9 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
                                                     )}
 
                                                     <div className="flex flex-col gap-1.5 min-w-0 flex-1">
-
                                                         <div className="font-semibold text-sm">
                                                             {dateLabel || (t('common.check_site') || "Check Site")}
                                                         </div>
-
 
                                                         {ev.ticket && ev.ticket.length > 0 && (
                                                             <div className="flex flex-col gap-0.5">
