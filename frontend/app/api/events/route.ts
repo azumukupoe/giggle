@@ -4,7 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { groupEvents } from "@/utils/groupEvents";
 import { createIsoDate, mergeEventNames, getStartDate } from "@/utils/eventUtils";
 
-import { Event } from "@/types/event";
+import { Event, GroupedEvent } from "@/types/event";
 import { unstable_cache } from "next/cache";
 
 export const dynamic = 'force-dynamic';
