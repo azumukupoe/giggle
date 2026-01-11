@@ -27,7 +27,7 @@ export const Modal = ({
                 initial={{ scale: 0.95, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.95, opacity: 0 }}
-                className="relative bg-card text-card-foreground p-6 rounded-xl shadow-xl w-full max-w-lg max-h-[85vh] overflow-y-auto border border-border"
+                className="relative bg-card text-card-foreground p-6 rounded-xl shadow-xl w-full max-w-3xl max-h-[85vh] overflow-y-auto border border-border"
                 onClick={(e) => e.stopPropagation()}
             >
                 {children}

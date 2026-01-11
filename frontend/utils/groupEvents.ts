@@ -265,7 +265,8 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
                 time,
                 urls: Array.from(g.urls),
                 sourceEvents: g.sourceEvents,
-                displayDates: filterRedundantDates(Array.from(g.dates))
+                displayDates: filterRedundantDates(Array.from(g.dates)),
+                image: g.baseEvent.image
             };
         })
         .sort((a, b) => {
