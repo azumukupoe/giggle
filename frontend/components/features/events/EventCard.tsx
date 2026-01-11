@@ -115,29 +115,7 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
 
     const rawPerformer = event.performer;
 
-    // Group source events by subtitle (index 1 of their event array)
-    const groupedSourceEvents: Record<string, Event[]> = {};
-    const noSubtitleEvents: Event[] = [];
 
-    const normMain = normalizeEventName(mainTitle);
-
-    event.sourceEvents.forEach(ev => {
-        let sub = ev.event && ev.event.length > 1 ? ev.event[1] : null;
-
-        // If subtitle is part of the main title (e.g. "2026" in "GMO SONIC 2026"), ignore it for grouping
-        if (sub && normMain.includes(normalizeEventName(sub))) {
-            sub = null;
-        }
-
-        if (sub) {
-            if (!groupedSourceEvents[sub]) {
-                groupedSourceEvents[sub] = [];
-            }
-            groupedSourceEvents[sub].push(ev);
-        } else {
-            noSubtitleEvents.push(ev);
-        }
-    });
 
     // Helper to format date display for ticket buttons
     const getTicketDateLabel = (ev: Event) => {
@@ -248,164 +226,74 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
                         )}
                     </div>
 
-                    {/* Split Content Area */}
-                    <div className="flex-1 flex flex-col min-h-0 px-6 gap-4 pb-0">
+                    {/* Tickets Section - Independently Scrollable */}
+                    <div className="flex-1 min-h-[30%] overflow-y-auto custom-scrollbar pb-2">
 
-                        {/* Performers Section - Independently Scrollable */}
                         {(() => {
-                            // 1. Group performers by unique time slots
-                            const performerGroups: { date: Date; timeStr: string; performers: string[] }[] = [];
-                            const seenSlots = new Set<string>();
+                            // Group source events by performer
+                            const groupedByPerformer: Record<string, Event[]> = {};
+                            const noPerformerEvents: Event[] = [];
 
                             event.sourceEvents.forEach(ev => {
                                 const p = ev.performer;
-                                if (!p || p.length === 0) return;
-
-                                const dStr = ev.date?.[0];
-                                const tStr = ev.time?.[0];
-
-                                if (!dStr) return;
-
-                                // Create a unique key for this slot
-                                const slotKey = `${dStr}_${tStr || 'NO_TIME'}`;
-
-                                if (!seenSlots.has(slotKey)) {
-                                    seenSlots.add(slotKey);
-
-                                    // Combine date and time for sorting
-                                    let dateObj = parseISO(dStr);
-                                    if (tStr) {
-                                        // Try to parse combined string if possible, or just add time to date object
-                                        // Simplest: use string comparison for same-date sorting or just assume sourceEvents might be sorted? 
-                                        // Better: Parse properly. 
-                                        // If tStr is "13:30:00+09", we can append it to date string "2026-01-12" -> "2026-01-12T13:30:00+09"
-                                        try {
-                                            const combined = parseISO(`${dStr}T${tStr}`);
-                                            if (isValid(combined)) dateObj = combined;
-                                        } catch (e) { }
+                                if (p && p.length > 0) {
+                                    // Create a key from sorted performers to ensure consistent grouping
+                                    const key = [...p].sort().join(", ");
+                                    if (!groupedByPerformer[key]) {
+                                        groupedByPerformer[key] = [];
                                     }
-
-                                    performerGroups.push({
-                                        date: dateObj,
-                                        timeStr: tStr || "",
-                                        performers: p
-                                    });
+                                    groupedByPerformer[key].push(ev);
+                                } else {
+                                    noPerformerEvents.push(ev);
                                 }
                             });
 
-                            // 2. Sort chronologically
-                            performerGroups.sort((a, b) => a.date.getTime() - b.date.getTime());
-
-                            // 3. Check if we need split display
-                            // If any group has a different performer set than the first group
-                            let hasDiff = false;
-                            if (performerGroups.length > 1) {
-                                const firstSig = JSON.stringify([...performerGroups[0].performers].sort());
-                                hasDiff = performerGroups.some(g => JSON.stringify([...g.performers].sort()) !== firstSig);
-                            }
-
-                            if (hasDiff) {
-                                return (
-                                    <div className="flex-1 min-h-[20%] overflow-y-auto custom-scrollbar border-b border-border/40 pb-4">
-                                        <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">{t('event.performers') || "Performers"}</h4>
-                                        <div className="flex flex-col gap-3">
-                                            {performerGroups.map((group, idx) => {
-                                                const prevGroup = idx > 0 ? performerGroups[idx - 1] : null;
-                                                const showDate = !prevGroup || !isSameDay(group.date, prevGroup.date);
-
-                                                // Format: "13:30" or "Feb 12 13:30"
-                                                let headerText = "";
-                                                const timeDisplay = group.timeStr ? group.timeStr.substring(0, 5) : ""; // simplistic HH:MM extraction
-
-                                                if (showDate) {
-                                                    const dateFmt = language === 'ja' ? "M月d日" : "MMM d";
-                                                    const dateStr = format(group.date, dateFmt, { locale: language === 'ja' ? ja : enUS });
-                                                    headerText = `${dateStr}`;
-                                                }
-
-                                                if (timeDisplay) {
-                                                    headerText = headerText ? `${headerText} ${timeDisplay}` : timeDisplay;
-                                                }
-                                                // If exact matching was merged, we wouldn't satisfy hasDiff unless performers differed for SAME slot (which shouldn't happen by logic above unless we merge slots differently)
-                                                // User req: "if date differ it should be displayed beside time" -> Checked above
-
-                                                return (
-                                                    <div key={idx} className="bg-muted/30 p-3 rounded-lg">
-                                                        {(headerText) && (
-                                                            <div className="text-xs font-bold text-primary mb-1.5 opacity-90">
-                                                                {headerText}
-                                                            </div>
-                                                        )}
-                                                        <div className="whitespace-pre-wrap text-sm leading-relaxed font-medium">
-                                                            {group.performers.join(", ")}
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    </div>
-                                );
-                            } else {
-                                // Default display
-                                return rawPerformer && rawPerformer.length > 0 && (
-                                    <div className="flex-1 min-h-[20%] overflow-y-auto custom-scrollbar border-b border-border/40 pb-4">
-                                        <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">{t('event.performers') || "Performers"}</h4>
-                                        <div className="bg-muted/30 p-3 rounded-lg">
-                                            <div className="whitespace-pre-wrap text-sm leading-relaxed font-medium">
-                                                {rawPerformer.join(", ")}
+                            return (
+                                <>
+                                    {/* Render grouped events */}
+                                    {Object.entries(groupedByPerformer).map(([performerList, events], idx) => (
+                                        <div key={idx} className="mb-6 last:mb-0">
+                                            <h4 className="text-sm font-semibold mb-2 sticky top-0 bg-background/95 backdrop-blur py-1 z-10 border-b border-border/50 text-foreground/80 leading-relaxed whitespace-pre-wrap">
+                                                {performerList}
+                                            </h4>
+                                            <div className="flex flex-col gap-2">
+                                                {events.map((ev, i) => (
+                                                    <TicketButton key={`${idx}-${i}`} ev={ev} language={language} getDomain={getDomain} getTicketDateLabel={getTicketDateLabel} />
+                                                ))}
                                             </div>
                                         </div>
-                                    </div>
-                                );
-                            }
-                        })()}
+                                    ))}
 
-                        {/* Tickets Section - Independently Scrollable */}
-                        <div className="flex-1 min-h-[30%] overflow-y-auto custom-scrollbar pb-2">
-
-                            {/* Render grouped events */}
-                            {Object.entries(groupedSourceEvents).map(([subtitle, events], idx) => (
-                                <div key={idx} className="mb-6 last:mb-0">
-                                    <h4 className="text-sm font-semibold mb-2 sticky top-0 bg-background/95 backdrop-blur py-1 z-10 border-b border-border/50 text-foreground/80">
-                                        {subtitle}
-                                    </h4>
-                                    <div className="flex flex-col gap-2">
-                                        {events.map((ev, i) => (
-                                            <TicketButton key={`${idx}-${i}`} ev={ev} language={language} getDomain={getDomain} getTicketDateLabel={getTicketDateLabel} />
-                                        ))}
-                                    </div>
-                                </div>
-                            ))}
-
-                            {/* Render events with no subtitle */}
-                            {noSubtitleEvents.length > 0 && (
-                                <div className="mb-4">
-                                    {(Object.keys(groupedSourceEvents).length > 0) && (
-                                        <h4 className="text-sm font-semibold mb-2 sticky top-0 bg-background/95 backdrop-blur py-1 z-10 border-b border-border/50 text-foreground/80">
-                                            {t('event.others') || "Others"}
-                                        </h4>
+                                    {/* Render events with no performer info */}
+                                    {noPerformerEvents.length > 0 && (
+                                        <div className="mb-4">
+                                            <h4 className="text-sm font-semibold mb-2 sticky top-0 bg-background/95 backdrop-blur py-1 z-10 border-b border-border/50 text-foreground/80">
+                                                {t('event.general_tickets') || "General Tickets"}
+                                            </h4>
+                                            <div className="flex flex-col gap-2">
+                                                {noPerformerEvents.map((ev, i) => (
+                                                    <TicketButton key={`noperf-${i}`} ev={ev} language={language} getDomain={getDomain} getTicketDateLabel={getTicketDateLabel} />
+                                                ))}
+                                            </div>
+                                        </div>
                                     )}
-                                    <div className="flex flex-col gap-2">
-                                        {noSubtitleEvents.map((ev, i) => (
-                                            <TicketButton key={`nosec-${i}`} ev={ev} language={language} getDomain={getDomain} getTicketDateLabel={getTicketDateLabel} />
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Footer - Fixed */}
-                    <div className="flex justify-end p-4 shrink-0 mt-auto border-t border-border/40">
-                        <button
-                            onClick={() => setIsIdsModalOpen(false)}
-                            className="px-6 py-2 bg-primary text-primary-foreground rounded-full text-sm font-medium hover:bg-primary/90 transition-colors shadow-sm"
-                        >
-                            {t('common.close')}
-                        </button>
+                                </>
+                            );
+                        })()}
                     </div>
                 </div>
-            </Modal>
+
+                {/* Footer - Fixed */}
+                <div className="flex justify-end p-4 shrink-0 mt-auto border-t border-border/40">
+                    <button
+                        onClick={() => setIsIdsModalOpen(false)}
+                        className="px-6 py-2 bg-primary text-primary-foreground rounded-full text-sm font-medium hover:bg-primary/90 transition-colors shadow-sm"
+                    >
+                        {t('common.close')}
+                    </button>
+                </div>
+            </div>
+        </Modal >
         </>
     );
 };
