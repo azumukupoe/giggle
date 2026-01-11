@@ -1,4 +1,5 @@
 import argparse
+import logging
 import concurrent.futures
 from typing import List, Tuple
 from zoneinfo import ZoneInfo
