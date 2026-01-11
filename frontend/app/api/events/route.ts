@@ -120,8 +120,16 @@ const getCachedGroupedEvents = unstable_cache(
         }).filter(group => group !== null) as unknown as GroupedEvent[];
 
         timeFiltered.sort((a, b) => {
-            const dateA = getStartDate(a.date).getTime();
-            const dateB = getStartDate(b.date).getTime();
+            // Sort by earliest date in the range, not just the next upcoming date
+            const getEarliest = (e: GroupedEvent) => {
+                const dates = (e.displayDates && e.displayDates.length > 0)
+                    ? e.displayDates
+                    : e.date;
+                return getStartDate(dates).getTime();
+            };
+
+            const dateA = getEarliest(a);
+            const dateB = getEarliest(b);
             return dateA - dateB;
         });
 
