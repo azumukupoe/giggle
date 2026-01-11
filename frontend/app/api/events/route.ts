@@ -2,7 +2,7 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { groupEvents } from "@/utils/groupEvents";
-import { createIsoDate, mergeEventNames } from "@/utils/eventUtils";
+import { createIsoDate, mergeEventNames, getStartDate } from "@/utils/eventUtils";
 
 import { Event } from "@/types/event";
 import { unstable_cache } from "next/cache";
@@ -62,7 +62,7 @@ const getCachedGroupedEvents = unstable_cache(
         const grouped = groupEvents(allData);
 
         const timeFiltered = grouped.map(group => {
-            const validDates = group.displayDates.filter(dStr => {
+            const futureDates = group.displayDates.filter(dStr => {
                 const isFuture = (str: string) => {
                     if (str.includes("T")) {
                         let dateStr = str;
@@ -85,21 +85,12 @@ const getCachedGroupedEvents = unstable_cache(
                 return isFuture(dStr);
             });
 
-            const validDateSet = new Set(validDates);
-            const validEvents = group.sourceEvents
-                .filter(ev => {
-                    return ev.date.some(d => {
-                        const dStr = createIsoDate(d, ev.time);
-                        return validDateSet.has(dStr);
-                    });
-                });
+            if (futureDates.length === 0) {
+                return null;
+            }
 
-            const uniqueUrls = Array.from(new Set(validEvents.map(ev => ev.url)));
-
-            const validEventNames = new Set(group.sourceEvents.flatMap(ev => ev.event || []));
-            const validPerformers = new Set(validEvents.flatMap(ev => ev.performer || []));
-
-            const firstDateStr = validDates[0];
+            // We want to sort by the NEXT upcoming date, so update header date/time
+            const firstDateStr = futureDates[0];
             let newDate = group.date;
             let newTime = group.time;
 
@@ -110,20 +101,29 @@ const getCachedGroupedEvents = unstable_cache(
                     newTime = [parts[1]];
                 } else {
                     newDate = [firstDateStr];
-                    newTime = null; // Or []? Keeping null might cause issues if type changed. I'll stick to what looks safest: null if allowed, but error said string vs string[]. 
+                    // Only reset time if using a date-only string? 
+                    // Actually, if we have a specific date string, we often lose the specific time associated with the "original" start date.
+                    // But for sorting purposes, this is fine.
+                    newTime = null;
                 }
             }
 
             return {
                 ...group,
-                event: mergeEventNames(validEventNames),
-                performer: Array.from(validPerformers).filter(Boolean),
-                displayDates: validDates,
-                urls: uniqueUrls,
                 date: newDate,
-                time: newTime
+                time: newTime,
+                // KEEP original displayDates and sourceEvents to show full range history
+                // displayDates: validDates, <--- CHANGED: Use original group.displayDates
+                // urls: uniqueUrls, <--- CHANGED: Use original group.urls
+                // sourceEvents: validEvents <--- CHANGED: Use original group.sourceEvents
             };
-        }).filter(group => group.displayDates.length > 0);
+        }).filter(group => group !== null) as unknown as GroupedEvent[];
+
+        timeFiltered.sort((a, b) => {
+            const dateA = getStartDate(a.date).getTime();
+            const dateB = getStartDate(b.date).getTime();
+            return dateA - dateB;
+        });
 
         return timeFiltered;
     },
