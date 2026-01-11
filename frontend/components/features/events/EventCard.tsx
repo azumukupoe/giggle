@@ -54,38 +54,27 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
         .join(", ");
 
     // Format dates into a single string for the tooltip/truncation
-    const dateString = (event.displayDates && event.displayDates.length > 0 ? event.displayDates : event.date).map((d) => {
-        // Handle space-separated range (e.g. "2026-07-25 2026-08-23")
-        const dateParts = d.split(' ');
+    const sortedAllDates = [...(event.displayDates && event.displayDates.length > 0 ? event.displayDates : event.date)]
+        .flatMap(d => d.split(/\s+/))
+        .filter(d => isValid(parseISO(d)))
+        .sort();
 
-        // If it's a range (start end), format nicely
-        if (dateParts.length >= 2) {
-            const startParsed = parseISO(dateParts[0]);
-            const endParsed = parseISO(dateParts[dateParts.length - 1]);
-            if (isValid(startParsed) && isValid(endParsed)) {
-                const startFmt = format(startParsed, language === 'ja' ? "M月d日" : "MMM d", { locale: language === 'ja' ? ja : enUS });
-                const endFmt = format(endParsed, language === 'ja' ? "M月d日" : "MMM d", { locale: language === 'ja' ? ja : enUS });
+    let dateString = "";
+    if (sortedAllDates.length > 0) {
+        const firstDate = parseISO(sortedAllDates[0]);
+        const lastDate = parseISO(sortedAllDates[sortedAllDates.length - 1]);
+
+        if (isValid(firstDate) && isValid(lastDate)) {
+            const startFmt = format(firstDate, language === 'ja' ? "M月d日" : "MMM d", { locale: language === 'ja' ? ja : enUS });
+            if (firstDate.getTime() === lastDate.getTime()) {
+                dateString = startFmt;
+            } else {
+                const endFmt = format(lastDate, language === 'ja' ? "M月d日" : "MMM d", { locale: language === 'ja' ? ja : enUS });
                 const sep = language === 'ja' ? ' ～ ' : ' - ';
-                return `${startFmt}${sep}${endFmt}`;
+                dateString = `${startFmt}${sep}${endFmt}`;
             }
         }
-
-        const formattedParts = dateParts.map(part => {
-            const parsed = parseISO(part);
-            if (!isValid(parsed)) return part;
-
-            const hasTime = part.includes('T');
-            return format(parsed,
-                language === 'ja'
-                    ? (hasTime ? "M月d日(EEE) HH:mm" : "M月d日(EEE)")
-                    : (hasTime ? "EEE, MMM d, h:mm a" : "EEE, MMM d"),
-                { locale: language === 'ja' ? ja : enUS }
-            );
-        });
-
-        const separator = language === 'ja' ? " ～ " : " - ";
-        return formattedParts.join(separator);
-    }).join(" / ");
+    }
 
     const rawPerformer = event.performer;
 
@@ -150,11 +139,15 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
                 <div className="flex flex-col h-full overflow-hidden">
                     <div className="flex flex-col min-h-0">
                         {/* Header with Image on Right */}
-                        <div className="shrink-0 flex gap-4 border-b pb-4 mb-4 pt-6 px-6">
-                            <div className="flex-1 space-y-4">
+                        <div className="shrink-0 flex gap-4 pb-4 mb-4 pt-6 px-6">
+                            <div className="flex-1 space-y-2">
                                 <h3 className="text-2xl font-bold leading-tight">{event.event.join(" ")}</h3>
 
-                                <div className="flex flex-col gap-2 text-sm text-muted-foreground">
+                                <div className="flex flex-col gap-1 text-sm text-muted-foreground">
+                                    <div className="flex items-center gap-2">
+                                        <Calendar className="w-4 h-4 text-primary shrink-0" />
+                                        <span>{dateString}</span>
+                                    </div>
                                     <div className="flex items-center gap-2">
                                         <MapPin className="w-4 h-4 text-primary shrink-0" />
                                         <span>{formattedLocation}</span>
@@ -164,7 +157,7 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
 
                             {/* Image Section */}
                             {event.image && event.image.length > 0 && (
-                                <div className="w-32 h-24 shrink-0 rounded-lg overflow-hidden bg-muted/20 relative">
+                                <div className="w-32 aspect-square shrink-0 rounded-lg overflow-hidden bg-muted/20 relative">
                                     <img
                                         src={event.image[0]}
                                         alt={event.event[0] || "Event Image"}
@@ -178,7 +171,7 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
 
                             {/* Performers Section - Hidden if empty */}
                             {rawPerformer && rawPerformer.length > 0 && (
-                                <div className="bg-muted/30 p-3 rounded-lg">
+                                <div className="bg-muted/30 p-3 rounded-lg max-h-40 overflow-y-auto custom-scrollbar">
                                     <div className="whitespace-pre-wrap text-sm leading-relaxed font-medium">
                                         {rawPerformer.join(", ")}
                                     </div>
@@ -198,20 +191,24 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
                                             const s = parseISO(sortedDates[0]);
                                             const e = parseISO(sortedDates[sortedDates.length - 1]);
                                             if (isValid(s) && isValid(e)) {
-                                                const sFmt = format(s, language === 'ja' ? "yyyy/M/d" : "MMM d, yyyy", { locale: language === 'ja' ? ja : enUS });
-                                                const eFmt = format(e, language === 'ja' ? "M/d" : "MMM d", { locale: language === 'ja' ? ja : enUS });
-                                                const sep = language === 'ja' ? ' ～ ' : ' - ';
+                                                const sFmt = format(s, "M/d");
+                                                const eFmt = format(e, "M/d");
+                                                const sep = language === 'ja' ? '～' : '-';
                                                 dateLabel = `${sFmt}${sep}${eFmt}`;
                                             }
                                         } else if (sortedDates.length === 1) {
                                             const d = parseISO(sortedDates[0]);
                                             if (isValid(d)) {
-                                                // Usage: Full date dateLabel += Time
-                                                dateLabel = format(d, language === 'ja' ? "yyyy/M/d(EEE)" : "EEE, MMM d, yyyy", { locale: language === 'ja' ? ja : enUS });
+                                                // Usage: M/d + Time
+                                                dateLabel = format(d, "M/d");
                                                 if (ev.time && ev.time.length > 0) {
                                                     let timeStr = ev.time[0].substring(0, 5);
                                                     if (ev.time.length > 1) {
-                                                        timeStr += `${timeSeparator}${ev.time[1].substring(0, 5)}`;
+                                                        // If end time exists if needed (usually just start time for ticket buttons is ok)
+                                                        // But let's show range if we have it? The prompt said "simplified like 1/1"
+                                                        // Maybe just date is enough or simplified time?
+                                                        // Let's stick to Date for now unless simple time is asked.
+                                                        // Start time is useful though.
                                                     }
                                                     dateLabel += ` ${timeStr}`;
                                                 }
@@ -267,7 +264,7 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
                         </div>
                     </div>
 
-                    <div className="flex justify-end p-4 shrink-0 border-t mt-auto">
+                    <div className="flex justify-end p-4 shrink-0 mt-auto">
                         <button
                             onClick={() => setIsIdsModalOpen(false)}
                             className="px-6 py-2 bg-primary text-primary-foreground rounded-full text-sm font-medium hover:bg-primary/90 transition-colors shadow-sm"
