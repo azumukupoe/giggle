@@ -62,43 +62,52 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
         .filter(d => isValid(parseISO(d)))
         .sort();
 
-    let dateString = "";
-    if (sortedAllDates.length > 0) {
+    const generateDateString = (short: boolean) => {
+        if (sortedAllDates.length === 0) return "";
         const firstDate = parseISO(sortedAllDates[0]);
         const lastDate = parseISO(sortedAllDates[sortedAllDates.length - 1]);
-
 
         if (isValid(firstDate) && isValid(lastDate)) {
             const currentYear = new Date().getFullYear();
             const startYear = firstDate.getFullYear();
             const endYear = lastDate.getFullYear();
 
-            // Modified to use short month (MMM) instead of long month (MMMM)
-            const getFormat = (showYear: boolean) =>
-                language === 'ja'
-                    ? (showYear ? "yyyy年M月d日" : "M月d日")
-                    : (showYear ? "MMM d, yyyy" : "MMM d");
-
             const isSameYear = startYear === endYear;
             const isCurrentYear = startYear === currentYear;
 
-            if (isSameDay(firstDate, lastDate)) {
-                dateString = format(firstDate, getFormat(!isCurrentYear), { locale: language === 'ja' ? ja : enUS });
-            } else {
-                if (isSameYear) {
-                    const startFmt = format(firstDate, language === 'ja' ? "M月d日" : "MMM d", { locale: language === 'ja' ? ja : enUS });
-                    const endFmt = format(lastDate, getFormat(!isCurrentYear), { locale: language === 'ja' ? ja : enUS });
-                    const sep = language === 'ja' ? ' ～ ' : ' - ';
-                    dateString = `${startFmt}${sep}${endFmt}`;
+            const getFormatString = (hasYear: boolean) => {
+                if (language === 'ja') {
+                    let fmt = hasYear ? "yyyy年M月d日" : "M月d日";
+                    if (!short) fmt += "(EEE)";
+                    return fmt;
                 } else {
-                    const startFmt = format(firstDate, getFormat(true), { locale: language === 'ja' ? ja : enUS });
-                    const endFmt = format(lastDate, getFormat(true), { locale: language === 'ja' ? ja : enUS });
-                    const sep = language === 'ja' ? ' ～ ' : ' - ';
-                    dateString = `${startFmt}${sep}${endFmt}`;
+                    const monthFmt = short ? "MMM" : "MMMM";
+                    let fmt = hasYear ? `${monthFmt} d, yyyy` : `${monthFmt} d`;
+                    if (!short) fmt = `EEEE, ${fmt}`;
+                    return fmt;
+                }
+            };
+
+            if (isSameDay(firstDate, lastDate)) {
+                return format(firstDate, getFormatString(!isCurrentYear), { locale: language === 'ja' ? ja : enUS });
+            } else {
+                const sep = language === 'ja' ? ' ～ ' : ' - ';
+                if (isSameYear) {
+                    const startStr = format(firstDate, getFormatString(false), { locale: language === 'ja' ? ja : enUS });
+                    const endStr = format(lastDate, getFormatString(!isCurrentYear), { locale: language === 'ja' ? ja : enUS });
+                    return `${startStr}${sep}${endStr}`;
+                } else {
+                    const startStr = format(firstDate, getFormatString(true), { locale: language === 'ja' ? ja : enUS });
+                    const endStr = format(lastDate, getFormatString(true), { locale: language === 'ja' ? ja : enUS });
+                    return `${startStr}${sep}${endStr}`;
                 }
             }
         }
-    }
+        return "";
+    };
+
+    const cardDateString = generateDateString(true);
+    const modalDateString = generateDateString(false);
 
     const rawPerformer = event.performer;
 
@@ -128,7 +137,7 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
                                 <div className="min-w-0 flex-1">
                                     {/* Replaced TruncatedText with simple span */}
                                     <span className="block">
-                                        {dateString}
+                                        {cardDateString}
                                     </span>
                                 </div>
                             </div>
@@ -159,7 +168,7 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
                                 <div className="flex flex-col gap-1 text-sm text-muted-foreground">
                                     <div className="flex items-center gap-2">
                                         <Calendar className="w-4 h-4 text-primary shrink-0" />
-                                        <span>{dateString}</span>
+                                        <span>{modalDateString}</span>
                                     </div>
                                     <div className="flex items-center gap-2">
                                         <MapPin className="w-4 h-4 text-primary shrink-0" />

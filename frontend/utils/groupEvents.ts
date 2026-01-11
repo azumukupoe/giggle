@@ -66,17 +66,21 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
 
 
             const eventVenues = event.venue || [];
-            if (eventVenues.length > 0 && group.venues.size > 0) {
-                const groupVenues = Array.from(group.venues);
-                const hasVenueMatch = eventVenues.some(v1 =>
-                    groupVenues.some(v2 => {
-                        const n1 = normalizeVenue(v1);
-                        const n2 = normalizeVenue(v2);
-                        return n1.includes(n2) || n2.includes(n1);
-                    })
-                );
-                if (!hasVenueMatch) return false;
+
+            // STRICT RULE: If either side is missing venue, don't group.
+            if (eventVenues.length === 0 || group.venues.size === 0) {
+                return false;
             }
+
+            const groupVenues = Array.from(group.venues);
+            const hasVenueMatch = eventVenues.some(v1 =>
+                groupVenues.some(v2 => {
+                    const n1 = normalizeVenue(v1);
+                    const n2 = normalizeVenue(v2);
+                    return n1.includes(n2) || n2.includes(n1);
+                })
+            );
+            if (!hasVenueMatch) return false;
 
 
             const nameMatch = (

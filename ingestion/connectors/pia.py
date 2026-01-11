@@ -164,7 +164,7 @@ class PiaConnector(BaseConnector):
                                 
                                 if is_location_list:
                                     venue = None
-                                    location = raw_venue
+                                    location = [p.strip() for p in parts if p.strip()]
                                 # Else: strictly use raw_venue as venue, location empty
 
                             ticket_name_h4 = sub.select_one('.PC-perfinfo-title')

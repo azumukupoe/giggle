@@ -171,47 +171,16 @@ class EplusConnector(BaseConnector):
             location = pref_name if pref_name else None
 
             ticket_names = []
-            # Wait, uketsuke_list was NOT defined in the viewed snippet around line 157.
-            # I must have missed where uketsuke_list comes from.
-            # Looking at original file content I viewed...
-            # Line 157: if uketsuke_list:
-            # I don't see uketsuke_list definition in `_process_item_sync`.
-            # Ah, maybe I missed a chunk in previous view?
-            # Let me check `_process_item_sync` start (Line 89).
-            # It gets `item`.
-            # I suspect `uketsuke_list` extraction is missing in my previous `view_file` output or my mental model?
-            # Line 98: `kogyo = item.get('kanren_kogyo_sub', {})`
-            # I don't see `uketsuke_list = ...`
-            # Line 157 uses `uketsuke_list`.
-            # If `uketsuke_list` is missing in the file, then the code was broken before?
-            # Or I missed it.
-            # Let me re-read `view_file` output carefully.
-            # Lines 89-197.
-            # I see `k_code`, `k_sub`, `kogyo`, `venue_info`, `detail_path`, `koenbi_term`, `date_obj`.
-            # Then `pref_name`.
-            # Then `ticket_names = []`.
-            # Then `if uketsuke_list:` (Line 157).
-            # `uketsuke_list` IS NOT DEFINED locally.
-            # Is it a standardizer global? No.
-            # Is it implicitly available? No.
-            # It must be `uketsuke_list = item.get('uketsuke_list')` or similar.
-            # Maybe I accidentally deleted it in previous edits or it was never there and code was broken?
-            # I should add it. `uketsuke_list = item.get('uketsuke_list', [])`
-            
+
             uketsuke_list = item.get('kanren_uketsuke_koen_list', [])
             if isinstance(uketsuke_list, dict):
                 uketsuke_list = [uketsuke_list]
 
+            artist = None
             if uketsuke_list:
                 for uketsuke in uketsuke_list:
                     t_name = uketsuke.get('uketsuke_name_pc') or uketsuke.get('uketsuke_name_mobile')
                     if t_name:
-                         # Append mongon if flag is true (applied to all? logic suggests per item maybe but existing used root item flag)
-                         # The item level has 'koenbi_hyoji_mongon'. Let's assume it applies globally or check item.
-                         if item.get('koenbi_hyoji_mongon_hyoji_flag') is True:
-                             mongon = item.get('koenbi_hyoji_mongon')
-                             if mongon:
-                                 t_name = f"{mongon} / {t_name}"
                          ticket_names.append(t_name)
 
                 # Collect performers from all uketsuke entries
@@ -226,8 +195,6 @@ class EplusConnector(BaseConnector):
                              artists.append(p_cleaned)
                 
                 artist = artists if artists else None
-
-            if 'artist' not in locals(): artist = None
 
 
             if link:
