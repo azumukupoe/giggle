@@ -292,8 +292,7 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
                         {t('common.close')}
                     </button>
                 </div>
-            </div>
-        </Modal >
+        </Modal>
         </>
     );
 };
@@ -340,3 +339,4 @@ const TicketButton = ({ ev, language, getDomain, getTicketDateLabel }: { ev: Eve
         </a>
     );
 };
+
