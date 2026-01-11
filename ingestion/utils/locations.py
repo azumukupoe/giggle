@@ -58,32 +58,26 @@ def normalize_to_romanized_prefecture(text: str) -> str:
     if not text:
         return text
         
+    cleaned = text.strip()
+    
     # direct match
-    if text in PREFECTURES_JP_TO_EN:
-        return PREFECTURES_JP_TO_EN[text]
+    if cleaned in PREFECTURES_JP_TO_EN:
+        return PREFECTURES_JP_TO_EN[cleaned]
     
-    # partial match check (e.g. "東京都 (Tokyo)" or "Tokyo, Japan" handling might be needed later, 
-    # but for now we stick to simple replacement if the string IS the prefecture or contains it?)
-    # The requirement is "normalize location to be in alphabets".
-    # Often scrapers might return "東京都" exactly.
-    
-    # Let's try to find if the text *contains* a prefecture name
-    # But be careful about false positives? Unlikely with full prefecture names including 'to/fu/ken'.
-    
-    for jp_name, en_name in PREFECTURES_JP_TO_EN.items():
-        if jp_name in text:
-            # If the text is just the prefecture, return the English name
-            if text == jp_name:
-                return en_name
-            # If it contains it, maybe we should replace it?
-            # For now, let's assume the location field might be just the prefecture or need full replacement.
-            # If the user's intent is "normalize to alphabets", replacing "東京都渋谷区" with "Tokyo" might be lossy.
-            # But replacing "東京都" with "Tokyo" is correct.
-            # Let's stick to exact match or simple replacement if it's the dominant part?
-            
-            # Re-reading: "normalize location to be in alphabets"
-            # If I have "東京都", I want "Tokyo".
-            # If I have "Tokyo", I keep "Tokyo".
-            pass
+    # Check if the text matches a value (English name) already
+    # This prevents double normalization or returning English when English is passed
+    # We can iterate values or just return if it looks like English?
+    # Actually, if it's already "Tokyo", we want "Tokyo".
+    if cleaned in PREFECTURES_JP_TO_EN.values():
+        return cleaned
 
-    return PREFECTURES_JP_TO_EN.get(text, text)
+    # Try matching keys contained in text
+    # e.g. "東京都渋谷区" -> "Tokyo" logic?
+    # User requirement: "location with multiple values are not being normalized" 
+    # and "normalize location to be in alphabets".
+    # So if we see "東京都...", we should probably return "Tokyo".
+    for jp_name, en_name in PREFECTURES_JP_TO_EN.items():
+        if jp_name in cleaned:
+            return en_name
+
+    return PREFECTURES_JP_TO_EN.get(cleaned, text)
