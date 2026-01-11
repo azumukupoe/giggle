@@ -25,15 +25,15 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
         .map(loc => {
             const lower = loc.toLowerCase().trim();
 
-            // Handle English localization preference
+
             if (language === 'en') {
-                // Check if it's a known prefecture key (e.g. "tokyo")
+
                 if (prefectures[lower]) {
-                    // Capitalize first letter
+
                     return lower.charAt(0).toUpperCase() + lower.slice(1);
                 }
 
-                // Try to find key by value (Japanese -> English)
+
                 const entry = Object.entries(prefectures).find(([_, value]) => value === loc);
                 if (entry) {
                     const key = entry[0];
@@ -43,18 +43,20 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
                 return loc;
             }
 
-            // Japanese logic
-            // Try explicit match first
+
             if (prefectures[lower]) return prefectures[lower];
-            // Try stripping common suffixes for match
+
             const stripped = lower.replace(/\s+(prefecture|city)$/, "");
             if (prefectures[stripped]) return prefectures[stripped];
             return loc;
         })
         .join(", ");
 
-    // Format dates into a single string for the tooltip/truncation
-    const sortedAllDates = [...(event.displayDates && event.displayDates.length > 0 ? event.displayDates : event.date)]
+
+    const sortedAllDates = Array.from(new Set([
+        ...(event.date || []),
+        ...(event.displayDates || [])
+    ]))
         .flatMap(d => d.split(/\s+/))
         .filter(d => isValid(parseISO(d)))
         .sort();
@@ -65,21 +67,41 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
         const lastDate = parseISO(sortedAllDates[sortedAllDates.length - 1]);
 
         if (isValid(firstDate) && isValid(lastDate)) {
-            const startFmt = format(firstDate, language === 'ja' ? "M月d日" : "MMM d", { locale: language === 'ja' ? ja : enUS });
+            const currentYear = new Date().getFullYear();
+            const startYear = firstDate.getFullYear();
+            const endYear = lastDate.getFullYear();
+
+            const getFormat = (showYear: boolean) =>
+                language === 'ja'
+                    ? (showYear ? "yyyy年M月d日" : "M月d日")
+                    : (showYear ? "MMMM d, yyyy" : "MMMM d");
+
+
+
+            const isSameYear = startYear === endYear;
+            const isCurrentYear = startYear === currentYear;
+
             if (firstDate.getTime() === lastDate.getTime()) {
-                dateString = startFmt;
+                dateString = format(firstDate, getFormat(!isCurrentYear), { locale: language === 'ja' ? ja : enUS });
             } else {
-                const endFmt = format(lastDate, language === 'ja' ? "M月d日" : "MMM d", { locale: language === 'ja' ? ja : enUS });
-                const sep = language === 'ja' ? ' ～ ' : ' - ';
-                dateString = `${startFmt}${sep}${endFmt}`;
+                if (isSameYear) {
+                    const startFmt = format(firstDate, language === 'ja' ? "M月d日" : "MMMM d", { locale: language === 'ja' ? ja : enUS });
+                    const endFmt = format(lastDate, getFormat(!isCurrentYear), { locale: language === 'ja' ? ja : enUS });
+                    const sep = language === 'ja' ? ' ～ ' : ' - ';
+                    dateString = `${startFmt}${sep}${endFmt}`;
+                } else {
+                    const startFmt = format(firstDate, getFormat(true), { locale: language === 'ja' ? ja : enUS });
+                    const endFmt = format(lastDate, getFormat(true), { locale: language === 'ja' ? ja : enUS });
+                    const sep = language === 'ja' ? ' ～ ' : ' - ';
+                    dateString = `${startFmt}${sep}${endFmt}`;
+                }
             }
         }
     }
 
     const rawPerformer = event.performer;
 
-    // --- Ticket Button Logic ---
-    // (Rendered directly in modal)
+
 
     return (
         <>
@@ -92,7 +114,7 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
             >
                 <div className="p-4 flex flex-col h-full">
 
-                    {/* Content: Title */}
+
                     <div className="flex flex-col flex-grow min-h-0 mb-2">
                         <div className="mb-1 shrink-0">
                             <h3 className="text-sm font-bold leading-tight line-clamp-3 break-words group-hover:text-primary transition-colors">
@@ -101,7 +123,7 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
                         </div>
                     </div>
 
-                    {/* Footer: Details */}
+
                     <div className="flex flex-col gap-1.5 shrink-0 border-t pt-2 border-border/50">
                         <div className="flex flex-col gap-1 text-xs text-muted-foreground">
                             <div className="flex items-center gap-2">
@@ -131,14 +153,14 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
                 </div>
             </motion.div>
 
-            {/* Full List Modal */}
+
             <Modal
                 isOpen={isIdsModalOpen}
                 onClose={() => setIsIdsModalOpen(false)}
             >
                 <div className="flex flex-col h-full overflow-hidden">
                     <div className="flex flex-col min-h-0">
-                        {/* Header with Image on Right */}
+
                         <div className="shrink-0 flex gap-4 pb-4 mb-4 pt-6 px-6">
                             <div className="flex-1 space-y-2">
                                 <h3 className="text-2xl font-bold leading-tight">{event.event.join(" ")}</h3>
@@ -155,7 +177,7 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
                                 </div>
                             </div>
 
-                            {/* Image Section */}
+
                             {event.image && event.image.length > 0 && (
                                 <div className="w-32 aspect-square shrink-0 rounded-lg overflow-hidden bg-muted/20 relative">
                                     <img
@@ -169,7 +191,7 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
 
                         <div className="flex-1 overflow-y-auto min-h-0 space-y-6 px-6">
 
-                            {/* Performers Section - Hidden if empty */}
+
                             {rawPerformer && rawPerformer.length > 0 && (
                                 <div className="bg-muted/30 p-3 rounded-lg max-h-40 overflow-y-auto custom-scrollbar">
                                     <div className="whitespace-pre-wrap text-sm leading-relaxed font-medium">
@@ -178,39 +200,46 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
                                 </div>
                             )}
 
-                            {/* Ticket Links Section */}
+
                             <div className="pb-6">
                                 <div className="flex flex-col gap-3">
                                     {event.sourceEvents.map((ev, i) => {
-                                        // Date Logic
+
                                         const sortedDates = [...(ev.date || [])].sort();
                                         let dateLabel = "";
                                         const timeSeparator = language === 'ja' ? '～' : '-';
 
-                                        if (sortedDates.length >= 2) {
+                                        if (sortedDates.length > 0) {
                                             const s = parseISO(sortedDates[0]);
                                             const e = parseISO(sortedDates[sortedDates.length - 1]);
+
                                             if (isValid(s) && isValid(e)) {
-                                                const sFmt = format(s, "M/d");
-                                                const eFmt = format(e, "M/d");
-                                                const sep = language === 'ja' ? '～' : '-';
-                                                dateLabel = `${sFmt}${sep}${eFmt}`;
-                                            }
-                                        } else if (sortedDates.length === 1) {
-                                            const d = parseISO(sortedDates[0]);
-                                            if (isValid(d)) {
-                                                // Usage: M/d + Time
-                                                dateLabel = format(d, "M/d");
-                                                if (ev.time && ev.time.length > 0) {
-                                                    let timeStr = ev.time[0].substring(0, 5);
-                                                    if (ev.time.length > 1) {
-                                                        // If end time exists if needed (usually just start time for ticket buttons is ok)
-                                                        // But let's show range if we have it? The prompt said "simplified like 1/1"
-                                                        // Maybe just date is enough or simplified time?
-                                                        // Let's stick to Date for now unless simple time is asked.
-                                                        // Start time is useful though.
+                                                const sYear = s.getFullYear();
+                                                const eYear = e.getFullYear();
+                                                const curYear = new Date().getFullYear();
+
+
+
+                                                const isSameYear = sYear === eYear;
+                                                const isCurrentYear = sYear === curYear;
+
+                                                const dateFormat = (d: Date, forceYear: boolean) =>
+                                                    format(d, (forceYear || d.getFullYear() !== curYear) ? "M/d/yy" : "M/d");
+
+                                                if (sortedDates.length === 1 || s.getTime() === e.getTime()) {
+                                                    dateLabel = dateFormat(s, false);
+                                                    if (ev.time && ev.time.length > 0) {
+                                                        const timeStr = ev.time[0].substring(0, 5);
+                                                        dateLabel += ` ${timeStr}`;
                                                     }
-                                                    dateLabel += ` ${timeStr}`;
+                                                } else {
+
+
+                                                    const startStr = format(s, !isSameYear || !isCurrentYear ? "M/d/yy" : "M/d");
+                                                    const endStr = format(e, !isSameYear || !isCurrentYear ? "M/d/yy" : "M/d");
+
+                                                    const sep = language === 'ja' ? '～' : '-';
+                                                    dateLabel = `${startStr}${sep}${endStr}`;
                                                 }
                                             }
                                         }
@@ -236,12 +265,12 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
                                                     )}
 
                                                     <div className="flex flex-col gap-1.5 min-w-0 flex-1">
-                                                        {/* Date and Time */}
+
                                                         <div className="font-semibold text-sm">
                                                             {dateLabel || (t('common.check_site') || "Check Site")}
                                                         </div>
 
-                                                        {/* Ticket List - New Lines */}
+
                                                         {ev.ticket && ev.ticket.length > 0 && (
                                                             <div className="flex flex-col gap-0.5">
                                                                 {ev.ticket.map((ticketItem, idx) => (

@@ -1,5 +1,5 @@
 export const prefectures: Record<string, string> = {
-    // Standard map
+
     "hokkaido": "北海道",
     "aomori": "青森県",
     "iwate": "岩手県",
@@ -53,13 +53,12 @@ export const normalizePrefecture = (input: string): string => {
     if (!input) return "";
     const lower = input.toLowerCase().trim();
 
-    // Check direct match
+
     if (prefectures[lower]) return prefectures[lower];
 
-    // Check with "prefecture" suffix stripped (though keys are already stripped mostly)
-    // Most keys are just the name.
 
-    // Reverse lookup (Japanese -> Japanese)
+
+
     if (Object.values(prefectures).includes(input)) return input;
 
     return input;

@@ -1,7 +1,7 @@
 import { parseISO } from "date-fns";
 
 
-// Bracket pairs for balancing logic
+
 const BRACKETS: Record<string, string> = {
     '(': ')',
     '[': ']',
@@ -54,7 +54,7 @@ function refineCommonString(common: string, originals: string[]): string {
     let trimStart = 0;
     let trimEnd = 0;
 
-    // 1. Analyze Left Side Requirements
+
     for (const original of originals) {
         // Find where common starts in this original
         const idx = original.indexOf(common);
@@ -62,7 +62,7 @@ function refineCommonString(common: string, originals: string[]): string {
 
         const left = original.substring(0, idx);
 
-        // Check unbalanced opens in Left
+
         const openStack = getUnbalancedOpens(left);
         if (openStack.length > 0) {
             // We need to resolve these opens within `common`.
@@ -108,7 +108,7 @@ function refineCommonString(common: string, originals: string[]): string {
         }
     }
 
-    // 2. Analyze Right Side Requirements
+
     for (const original of originals) {
         const idx = original.lastIndexOf(common);
         if (idx === -1) continue;
@@ -183,7 +183,7 @@ export function getCommonSubstring(strings: string[]): string {
 function getLongestCommonSubstringTwoStrings(str1: string, str2: string): string {
     if (!str1 || !str2) return "";
 
-    // Optimization: if one contains the other, return the shorter one
+
     if (str1.includes(str2)) return str2;
     if (str2.includes(str1)) return str1;
 
@@ -270,7 +270,7 @@ export const areStringsSimilar = (s1: string | null | undefined, s2: string | nu
     return n1.includes(n2) || n2.includes(n1);
 };
 
-// Create safe ISO strings
+
 export const createIsoDate = (date: string, time: string | string[] | null): string => {
     if (!time) return date;
 
@@ -294,7 +294,7 @@ export const getDomain = (url: string): string => {
     }
 };
 
-// Extract sortable Date
+
 export function getStartDate(dateInput: string | string[]): Date {
     if (Array.isArray(dateInput)) {
         if (dateInput.length === 0) return new Date("2999-12-31");
@@ -336,7 +336,7 @@ export function getEndDate(dateInput: string | string[]): Date {
 
 export function cleanEventName(name: string): string {
     if (!name) return "";
-    // Basic cleanup first
+
     const n = name
         .replace(/’/g, "'")
         .replace(/[“”]/g, '"')

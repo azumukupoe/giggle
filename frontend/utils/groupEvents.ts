@@ -44,117 +44,100 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
         const eventEndDate = getEndDate(event.date);
         const dateTimeStrs = event.date.map(d => createIsoDate(d, event.time));
 
-        // Determine if current event is a range
+
         const isEventRange = differenceInCalendarDays(eventEndDate, eventDate) > 0;
 
         let matched = false;
 
-        // Helper to perform matching logic
+
         const checkMatch = (group: IntermediateGroup): boolean => {
-            // 1. Location Logic
-            let locationConflict = false;
-            let hasCommonLocation = false;
 
-            if (event.location && event.location.length > 0) {
-                const locs1 = event.location.map(l => normalizeLocation(l)).filter(Boolean);
-
-                if (locs1.length > 0 && group.locations.size > 0) {
-                    const groupLocs = Array.from(group.locations).map(l => normalizeLocation(l)).filter(Boolean);
-
-                    const hasOverlap = locs1.some(l1 => groupLocs.includes(l1));
-
-                    if (!hasOverlap) {
-                        locationConflict = true;
-                    } else {
-                        hasCommonLocation = true;
-                    }
-                }
-            }
-
-
-            if (locationConflict) return false;
-
-            // 2. Venue Matching
-            const eventVenues = event.venue || [];
-
-            const strictVenueMatch = Array.from(group.venues).some(v => {
-                return eventVenues.some(evV => areStringsSimilar(v, evV));
-            });
-
-            const partialVenueMatch = Array.from(group.venues).some(v => {
-                return eventVenues.some(evV => {
-                    const norm1 = normalizeVenue(v);
-                    const norm2 = normalizeVenue(evV);
-                    const common = getCommonSubstring([norm1, norm2]);
-                    const isNonAscii = /[^\x00-\x7F]/.test(common);
-                    if (isNonAscii) return common.length >= 2;
-                    return common.length >= 5;
-                });
-            });
-
-            // --- Pass 1 Check: Strict Event Name Match ---
-            const name1List = event.event || [];
-            const pass1Match = name1List.some(n1 => {
-                const base1 = getEventBaseName(n1);
-                return Array.from(group.eventNames).some(n2 => getEventBaseName(n2) === base1);
-            });
-
-            // --- Pass 2 Check: Fuzzy Match (Event or Performer) ---
-            const perf1List = event.performer || [];
-
-            const fuzzyEventMatch = name1List.some(n1 => {
-                const n1Norm = normalizeEventName(getEventBaseName(n1));
-                return Array.from(group.eventNames).some(n =>
-                    areStringsSimilar(normalizeEventName(getEventBaseName(n)), n1Norm)
+            // We require that if both have locations, they must share at least one exact match.
+            // If one is missing location, we might permit it (or strictly require it?)
+            // "location is exact match" implies a strong condition.
+            const eventLocs = event.location || [];
+            if (eventLocs.length > 0 && group.locations.size > 0) {
+                const groupLocs = Array.from(group.locations);
+                const hasLocationMatch = eventLocs.some(l1 =>
+                    groupLocs.some(l2 => normalizeLocation(l1) === normalizeLocation(l2))
                 );
-            });
-
-            const fuzzyPerformerMatch =
-                // Group performers vs Event Name Match
-                Array.from(group.performers).some(p =>
-                    name1List.some(n1 => areStringsSimilar(normalizeEventName(p), normalizeEventName(getEventBaseName(n1))))
-                ) ||
-                // Group Names vs Event Perf Match
-                (perf1List.length > 0 && Array.from(group.eventNames).some(n =>
-                    perf1List.some(p1 => areStringsSimilar(normalizeEventName(getEventBaseName(n)), normalizeEventName(p1)))
-                )) ||
-                // Group Perf vs Event Perf Match
-                (perf1List.length > 0 && Array.from(group.performers).some(p =>
-                    perf1List.some(p1 => areStringsSimilar(normalizeEventName(p), normalizeEventName(p1)))
-                ));
-
-            const pass2Match = fuzzyEventMatch || fuzzyPerformerMatch;
-
-            const venueOk = (pass1Match && partialVenueMatch) || strictVenueMatch;
-            let shouldMerge = venueOk && (pass1Match || pass2Match);
-
-            // Special handling for "Pass Tickets" (Date Range Containment)
-            if (!shouldMerge && pass1Match && strictVenueMatch) {
-                const checkCoverage = (rangeDateStr: string, targetDate: Date) => {
-                    const parts = rangeDateStr.split(/\s+/);
-                    if (parts.length >= 2) {
-                        const start = getStartDate(parts[0]);
-                        const end = getStartDate(parts[parts.length - 1]);
-                        return targetDate >= start && targetDate <= end;
-                    }
-                    return false;
-                };
-
-                // Does group contain this event?
-                const isContainedInGroup = Array.from(group.dates).some(d => checkCoverage(d.split('T')[0], eventDate));
-
-                // Does this event contain the group?
-                let isGroupContainedInEvent = false;
-                if (isEventRange) {
-                    isGroupContainedInEvent = eventDate <= group.latestDate && eventEndDate >= group.latestDate;
-                }
-
-                if (isContainedInGroup || isGroupContainedInEvent) {
-                    shouldMerge = true;
-                }
+                if (!hasLocationMatch) return false;
             }
 
-            return shouldMerge;
+
+            const eventVenues = event.venue || [];
+            if (eventVenues.length > 0 && group.venues.size > 0) {
+                const groupVenues = Array.from(group.venues);
+                const hasVenueMatch = eventVenues.some(v1 =>
+                    groupVenues.some(v2 => {
+                        const n1 = normalizeVenue(v1);
+                        const n2 = normalizeVenue(v2);
+                        return n1.includes(n2) || n2.includes(n1);
+                    })
+                );
+                if (!hasVenueMatch) return false;
+            }
+
+
+            const nameMatch = (
+                event.event &&
+                event.event.length > 0 &&
+                group.baseEvent.event &&
+                group.baseEvent.event.length > 0 &&
+                normalizeEventName(event.event[0]) === normalizeEventName(group.baseEvent.event[0])
+            );
+
+            const performerMatch = (
+                event.performer &&
+                event.performer.length > 0 &&
+                group.performers.size > 0 &&
+                event.performer.some(p => group.performers.has(p))
+            );
+
+            if (!nameMatch && !performerMatch) return false;
+
+
+            const groupDates = Array.from(group.dates);
+            const hasDateOverlap = dateTimeStrs.some(d => groupDates.includes(d));
+            if (hasDateOverlap) return true;
+
+
+            const lastGroupDate = group.latestDate;
+            // Also check vs earliest group date? Use rangeGroups?
+            // "consecutive" usually means adjacent days.
+            // Check if eventDate is adjacent to ANY date in group? 
+            // Or typically just the end of the group?
+            // Since events are sorted by date, we mostly assume checking against the latest part of the group.
+            // But let's check strict adjacency (1 day difference)
+            const diff = Math.abs(differenceInCalendarDays(eventDate, group.latestDate));
+            if (diff <= 1) return true;
+
+
+            // If the group spans a range (minDate to maxDate), and eventDate is inside.
+            // We need the min date of the group.
+            let minGroupDate = group.latestDate;
+            let maxGroupDate = group.latestDate;
+
+            // This is O(N) on dates, but N is small.
+            // Ideally should store minDate on IntermediateGroup, but we can compute or use sortedDates logic
+            if (group.dates.size > 0) {
+                const dates = Array.from(group.dates).sort();
+                minGroupDate = getStartDate(dates[0]);
+                maxGroupDate = getStartDate(dates[dates.length - 1]);
+            }
+
+            const rangeStart = minGroupDate < eventDate ? minGroupDate : eventDate;
+            const rangeEnd = maxGroupDate > eventEndDate ? maxGroupDate : eventEndDate;
+
+
+            // If event is fully inside the group range? OR if the combined range is valid?
+            // "within the longest range" usually means the event falls inside the existing group's start/end.
+            if (eventDate >= minGroupDate && eventEndDate <= maxGroupDate) return true;
+
+            // Also checking if the group falls within the event (if event is a long festival)
+            if (minGroupDate >= eventDate && maxGroupDate <= eventEndDate) return true;
+
+            return false;
         };
 
         // Pass 1: Check recent groups (Optimization: only look back 1 day)
@@ -163,12 +146,12 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
             const diff = Math.abs(differenceInCalendarDays(eventDate, group.latestDate));
 
             if (diff > 1) {
-                // Optimization: Stop looking back in the main list
+
                 break;
             }
 
             if (checkMatch(group)) {
-                // Merge Logic
+
                 group.urls.add(event.url);
                 (event.event || []).forEach(n => group.eventNames.add(n));
                 if (event.performer) event.performer.forEach(p => group.performers.add(p));
@@ -217,7 +200,7 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
                         }
                     }
 
-                    // Already in rangeGroups
+
                     matched = true;
                     break;
                 }
@@ -250,7 +233,7 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
 
             let time: string[] | null = g.baseEvent.time;
 
-            // Resolve Venue
+
             // Prefer one with most info? For now just take first.
             const venues = Array.from(g.venues);
             const resolvedVenue = venues;
