@@ -1,5 +1,6 @@
 from typing import Optional
 from geopy.geocoders import Nominatim
+from .locations import PREFECTURES_JP_TO_EN
 from timezonefinder import TimezoneFinder
 from functools import lru_cache
 import logging
@@ -52,8 +53,12 @@ def get_timezone_from_location(location_name: str, country_code: Optional[str] =
     ]
     # Common cities or variants
     # If country code wasn't provided, check for Japan-specific names
+    english_prefectures = set(PREFECTURES_JP_TO_EN.values())
     
-    if any(p in location_name for p in jp_prefectures) or "Japan" in location_name or "Tokyo" in location_name:
+    if (any(p in location_name for p in jp_prefectures) or 
+        location_name in english_prefectures or 
+        "Japan" in location_name or 
+        "Tokyo" in location_name):
         return "Asia/Tokyo"
     
     try:

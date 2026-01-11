@@ -390,6 +390,20 @@ export function mergeEventNames(namesSet: Set<string>): string[] {
         return [common];
     }
 
+    // Check if there is a "Superset" name that contains all other names.
+    // e.g. ["GMO SONIC", "2026", "GMO SONIC 2026"] -> "GMO SONIC 2026"
+    for (const name of uniqueNames) {
+        const norm = normalizeEventName(name);
+        const isSuperset = uniqueNames.every(other => {
+            if (other === name) return true;
+            return norm.includes(normalizeEventName(other));
+        });
+
+        if (isSuperset) {
+            return [name];
+        }
+    }
+
     return uniqueNames;
 }
 

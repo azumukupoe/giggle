@@ -7,7 +7,7 @@ import { enUS, ja } from "date-fns/locale";
 import { ExternalLink, MapPin, Calendar, Ticket } from "lucide-react";
 import { motion } from "framer-motion";
 import { useLanguage } from "../../providers/LanguageContext";
-import { getDomain } from "@/utils/eventUtils";
+import { getDomain, normalizeEventName } from "@/utils/eventUtils";
 import { prefectures } from "@/utils/prefectures";
 import { Modal } from "../../ui/Modal";
 
@@ -119,8 +119,16 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
     const groupedSourceEvents: Record<string, Event[]> = {};
     const noSubtitleEvents: Event[] = [];
 
+    const normMain = normalizeEventName(mainTitle);
+
     event.sourceEvents.forEach(ev => {
-        const sub = ev.event && ev.event.length > 1 ? ev.event[1] : null;
+        let sub = ev.event && ev.event.length > 1 ? ev.event[1] : null;
+
+        // If subtitle is part of the main title (e.g. "2026" in "GMO SONIC 2026"), ignore it for grouping
+        if (sub && normMain.includes(normalizeEventName(sub))) {
+            sub = null;
+        }
+
         if (sub) {
             if (!groupedSourceEvents[sub]) {
                 groupedSourceEvents[sub] = [];

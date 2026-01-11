@@ -91,6 +91,14 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
                 normalizeEventName(event.event[0]) === normalizeEventName(group.baseEvent.event[0])
             );
 
+            // Check if joining valid event parts results in a match
+            // e.g. ["GMO SONIC", "2026"] vs ["GMO SONIC 2026"]
+            const eventJoined = normalizeEventName((event.event || []).join(" "));
+            const groupJoined = normalizeEventName((group.baseEvent.event || []).join(" "));
+            const isCombinedMatch = eventJoined.length > 0 && eventJoined === groupJoined;
+
+            const finalNameMatch = nameMatch || isCombinedMatch;
+
             const performerMatch = (
                 event.performer &&
                 event.performer.length > 0 &&
@@ -98,7 +106,7 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
                 event.performer.some(p => group.performers.has(p))
             );
 
-            if (!nameMatch && !performerMatch) return false;
+            if (!finalNameMatch && !performerMatch) return false;
 
 
             const groupDates = Array.from(group.dates);
