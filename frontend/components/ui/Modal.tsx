@@ -2,6 +2,7 @@
 
 import { createPortal } from "react-dom";
 import { motion } from "framer-motion";
+import { X } from "lucide-react";
 
 export const Modal = ({
     isOpen,
@@ -30,9 +31,20 @@ export const Modal = ({
                 className="relative bg-card text-card-foreground p-6 rounded-xl shadow-xl w-full max-w-3xl max-h-[85vh] flex flex-col overflow-hidden"
                 onClick={(e) => e.stopPropagation()}
             >
+                <button
+                    onClick={onClose}
+                    className="absolute top-4 right-4 p-2 rounded-full hover:bg-muted/50 transition-colors z-10"
+                    aria-label="Close modal"
+                >
+                    <X className="w-5 h-5 text-muted-foreground" />
+                </button>
                 {children}
             </motion.div>
         </div>,
         document.body
+    );
+};
+        </div >,
+    document.body
     );
 };

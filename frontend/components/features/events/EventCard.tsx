@@ -12,7 +12,7 @@ import { prefectures } from "@/utils/prefectures";
 import { Modal } from "../../ui/Modal";
 
 export const EventCard = ({ event }: { event: GroupedEvent }) => {
-    const { language, t } = useLanguage();
+    const { language } = useLanguage();
     const [isIdsModalOpen, setIsIdsModalOpen] = useState(false);
 
     // Parse event title
@@ -267,9 +267,6 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
                                     {/* Render events with no performer info */}
                                     {noPerformerEvents.length > 0 && (
                                         <div className="mb-4">
-                                            <h4 className="text-sm font-semibold mb-2 sticky top-0 bg-background/95 backdrop-blur py-1 z-10 border-b border-border/50 text-foreground/80">
-                                                {t('event.general_tickets') || "General Tickets"}
-                                            </h4>
                                             <div className="flex flex-col gap-2">
                                                 {noPerformerEvents.map((ev, i) => (
                                                     <TicketButton key={`noperf-${i}`} ev={ev} language={language} getDomain={getDomain} getTicketDateLabel={getTicketDateLabel} />
@@ -283,16 +280,8 @@ export const EventCard = ({ event }: { event: GroupedEvent }) => {
                     </div>
                 </div>
 
-                {/* Footer - Fixed */}
-                <div className="flex justify-end p-4 shrink-0 mt-auto border-t border-border/40">
-                    <button
-                        onClick={() => setIsIdsModalOpen(false)}
-                        className="px-6 py-2 bg-primary text-primary-foreground rounded-full text-sm font-medium hover:bg-primary/90 transition-colors shadow-sm"
-                    >
-                        {t('common.close')}
-                    </button>
-                </div>
-        </Modal>
+
+            </Modal>
         </>
     );
 };
