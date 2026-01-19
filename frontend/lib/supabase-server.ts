@@ -25,11 +25,11 @@ export function createServerSupabaseClient() {
 }
 
 // Lazy-initialized singleton for server-side use
-let serverSupabase: ReturnType<typeof createClient> | null = null
+let serverSupabase: ReturnType<typeof createServerSupabaseClient> | null = null
 
 export function getServerSupabase() {
     if (!serverSupabase) {
         serverSupabase = createServerSupabaseClient()
     }
-    return serverSupabase
+    return serverSupabase!
 }
