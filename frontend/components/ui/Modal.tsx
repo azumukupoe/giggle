@@ -44,7 +44,4 @@ export const Modal = ({
         document.body
     );
 };
-        </div >,
-    document.body
-    );
-};
+
