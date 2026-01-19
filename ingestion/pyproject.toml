@@ -1,8 +1,7 @@
 [project]
-name = "giggle-ingestion"
+name = "ingestion"
 version = "0.1.0"
-description = "Add your description here"
-readme = "README.md"
+description = "Giggle event ingestion pipeline"
 requires-python = ">=3.13"
 dependencies = [
     "beautifulsoup4>=4.14.3",
@@ -13,7 +12,9 @@ dependencies = [
     "supabase>=2.27.0",
     "tzdata>=2025.3",
     "pytz>=2025.2",
-
     "geopy>=2.4.1",
     "timezonefinder>=8.2.1",
 ]
+
+[tool.uv]
+dev-dependencies = []

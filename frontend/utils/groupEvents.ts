@@ -10,9 +10,6 @@ import {
     filterRedundantDates,
     getStartDate,
     getEndDate,
-    areStringsSimilar,
-    getCommonSubstring,
-    getEventBaseName
 } from "./eventUtils";
 
 interface IntermediateGroup {
@@ -114,7 +111,7 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
             if (hasDateOverlap) return true;
 
 
-            const lastGroupDate = group.latestDate;
+            // lastGroupDate not needed - using group.latestDate directly
             // Also check vs earliest group date? Use rangeGroups?
             // "consecutive" usually means adjacent days.
             // Check if eventDate is adjacent to ANY date in group? 
@@ -138,8 +135,7 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
                 maxGroupDate = getStartDate(dates[dates.length - 1]);
             }
 
-            const rangeStart = minGroupDate < eventDate ? minGroupDate : eventDate;
-            const rangeEnd = maxGroupDate > eventEndDate ? maxGroupDate : eventEndDate;
+            // rangeStart and rangeEnd computed but not needed for current logic
 
 
             // If event is fully inside the group range? OR if the combined range is valid?
@@ -241,9 +237,7 @@ export function groupEvents(events: Event[]): GroupedEvent[] {
 
     return groups
         .map(g => {
-            const sortedDates = Array.from(g.dates).sort();
-
-            let time: string[] | null = g.baseEvent.time;
+            const time: string[] | null = g.baseEvent.time;
 
 
             // Prefer one with most info? For now just take first.

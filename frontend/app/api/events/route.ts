@@ -2,7 +2,7 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { groupEvents } from "@/utils/groupEvents";
-import { createIsoDate, mergeEventNames, getStartDate } from "@/utils/eventUtils";
+import { getStartDate } from "@/utils/eventUtils";
 
 import { Event, GroupedEvent } from "@/types/event";
 import { unstable_cache } from "next/cache";
@@ -40,10 +40,10 @@ const getCachedGroupedEvents = unstable_cache(
 
             if (data) {
                 // Ensure correct types (map nullable format to expected format)
-                const mapped = data.map((d: any) => ({
+                const mapped = data.map((d: Record<string, unknown>) => ({
                     ...d,
-                    venue: d.venue || [],
-                    location: d.location || [],
+                    venue: (d.venue as string[]) || [],
+                    location: (d.location as string[]) || [],
                 })) as Event[];
 
                 allData = [...allData, ...mapped];

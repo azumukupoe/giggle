@@ -1,21 +1,22 @@
 "use client"
 
-import * as React from "react"
+import { useState, useSyncExternalStore } from "react"
 import { Moon, Sun, Laptop } from "lucide-react"
 import { useTheme } from "next-themes"
 import { motion, AnimatePresence } from "framer-motion"
 
-import { useLanguage } from "../providers/LanguageContext"
+import { useLanguage } from "@/components/providers/LanguageContext"
+
+// Hydration-safe mounted check using useSyncExternalStore
+const subscribe = () => () => {}
+const getSnapshot = () => true
+const getServerSnapshot = () => false
 
 export function ThemeToggle() {
     const { setTheme, theme } = useTheme()
     const { t } = useLanguage()
-    const [isOpen, setIsOpen] = React.useState(false)
-    const [mounted, setMounted] = React.useState(false)
-
-    React.useEffect(() => {
-        setMounted(true)
-    }, [])
+    const [isOpen, setIsOpen] = useState(false)
+    const mounted = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot)
 
     if (!mounted) {
         // Render a placeholder to avoid layout shift

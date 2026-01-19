@@ -1,16 +1,17 @@
 "use client";
 
-import { ThemeToggle } from "../ui/ThemeToggle";
-import { useLanguage } from "../providers/LanguageContext";
-import { useEffect, useState } from "react";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
+import { useLanguage } from "@/components/providers/LanguageContext";
+import { useSyncExternalStore } from "react";
+
+// Hydration-safe mounted check using useSyncExternalStore
+const subscribe = () => () => {};
+const getSnapshot = () => true;
+const getServerSnapshot = () => false;
 
 export const Navbar = () => {
     const { language, setLanguage } = useLanguage();
-    const [mounted, setMounted] = useState(false);
-
-
-
-    useEffect(() => { setMounted(true); }, []);
+    const mounted = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
     const toggleLanguage = () => {
         setLanguage(language === "en" ? "ja" : "en");

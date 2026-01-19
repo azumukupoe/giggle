@@ -4,7 +4,7 @@
 import { useEffect, useState, useRef, useMemo } from "react";
 import { EventCard } from "./EventCard";
 import { GroupedEvent } from "@/types/event";
-import { useLanguage } from "../../providers/LanguageContext";
+import { useLanguage } from "@/components/providers/LanguageContext";
 import { Search } from "lucide-react";
 import { normalizeJapanese } from "@/utils/stringUtils";
 
@@ -170,6 +170,7 @@ export const Feed = () => {
                             // Page reset handled in debounce effect
                         }}
                         placeholder={t('feed.searchPlaceholder')}
+                        aria-label={t('feed.searchPlaceholder')}
                         className="w-full pl-10 pr-4 py-3 rounded-xl bg-background/50 border border-input text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring transition-all"
                     />
                 </div>
@@ -220,10 +221,11 @@ export const Feed = () => {
 
             {/* Pagination Controls */}
             {totalPages > 1 && (
-                <div className="flex justify-center items-center mt-8 gap-2 shrink-0 select-none">
+                <div className="flex justify-center items-center mt-8 gap-2 shrink-0 select-none" role="navigation" aria-label="Pagination">
                     <button
                         onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                         disabled={currentPage === 1}
+                        aria-label="Previous page"
                         className="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         Previous
@@ -274,6 +276,7 @@ export const Feed = () => {
                     <button
                         onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                         disabled={currentPage === totalPages}
+                        aria-label="Next page"
                         className="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         Next

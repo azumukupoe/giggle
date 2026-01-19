@@ -274,7 +274,7 @@ export const areStringsSimilar = (s1: string | null | undefined, s2: string | nu
 export const createIsoDate = (date: string, time: string | string[] | null): string => {
     if (!time) return date;
 
-    let tStr = Array.isArray(time) ? (time.length > 0 ? time[0] : null) : time;
+    const tStr = Array.isArray(time) ? (time.length > 0 ? time[0] : null) : time;
     if (!tStr) return date;
 
     // Fix timezone offset
