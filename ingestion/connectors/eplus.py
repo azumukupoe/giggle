@@ -27,6 +27,18 @@ class EplusConnector(BaseConnector):
         self.api_url = "https://api.eplus.jp/v3/koen"
         self.headers = {"X-APIToken": "FGXySj3mTd"}
 
+    async def _get_all_ids_async(
+        self, client: httpx.AsyncClient, genre_code: str
+    ) -> Set[Tuple[str, str]]:
+        """Fetch all IDs for a genre to build exclusion set."""
+        items_per_page = 200
+        params = {
+            "shutoku_kensu": items_per_page,
+            "shutoku_start_ichi": 1,
+            "parent_genre_code_list": genre_code,
+            "streaming_haishin_kubun_list": "0",
+        }
+
         try:
             data = await self._fetch(client, params)
             if not data:

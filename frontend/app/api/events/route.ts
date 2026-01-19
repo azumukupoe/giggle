@@ -1,6 +1,6 @@
 
 import { NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { getServerSupabase } from "@/lib/supabase-server";
 import { groupEvents } from "@/utils/groupEvents";
 import { getStartDate } from "@/utils/eventUtils";
 
@@ -11,6 +11,9 @@ export const dynamic = 'force-dynamic';
 
 const getCachedGroupedEvents = unstable_cache(
     async () => {
+        // Get Supabase client at runtime (not module load time)
+        const supabase = getServerSupabase();
+        
         // Fetch future events
         let allData: Event[] = [];
         let hasMore = true;

@@ -6,7 +6,9 @@ Giggle is an event aggregation platform designed to collect and display event in
 - **Event Aggregation**: Automatically scrapes and standardizes event data from supported ticketing platforms.
 - **Unified Display**: Browse events from multiple sources in a single, clean interface.
 - **Search & Filter**: Filter events by date, venue, etc.
-- **Responsive Design**: optimized for both desktop and mobile viewing.
+- **Responsive Design**: Optimized for both desktop and mobile viewing.
+- **Dark Mode**: Toggle between light and dark themes.
+- **Internationalization**: Supports multiple languages.
 
 ## Project Structure
 
@@ -22,12 +24,18 @@ Giggle is an event aggregation platform designed to collect and display event in
 - **Animations**: [Framer Motion](https://www.framer.com/motion/)
 - **Icons**: [Lucide React](https://lucide.dev/)
 - **Database Client**: [Supabase JS](https://supabase.com/docs/reference/javascript/introduction)
+- **Date Utilities**: [date-fns](https://date-fns.org/)
+- **Theming**: [next-themes](https://github.com/pacocoursey/next-themes)
 
 ### Ingestion (Backend)
 - **Language**: Python 3.13+
 - **Dependency Management**: [uv](https://github.com/astral-sh/uv)
-- **HTTP Clients**: `httpx`, `aiohttp`, `requests`
+- **HTTP Client**: `httpx`
 - **Parsing**: `BeautifulSoup4`
+- **Data Validation**: `Pydantic`
+- **Retry Logic**: `tenacity`
+- **Timezone Handling**: `pytz`, `timezonefinder`
+- **Geocoding**: `geopy`
 - **Database Client**: `supabase-py`
 
 ## Setup & Installation
@@ -91,6 +99,11 @@ create policy "Allow public read access"
    ```bash
    uv run main.py
    ```
+
+   **CLI Options:**
+   - `--source <name>` - Run only a specific connector (e.g., `songkick`, `eplus`, `pia`)
+   - `--dry-run` - Run without writing to the database
+   - `--debug` - Enable verbose debug logging
 
 ### 3. Frontend Setup
 
