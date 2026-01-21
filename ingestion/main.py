@@ -1,7 +1,7 @@
 import argparse
 import logging
 import concurrent.futures
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 
 from ingestion.utils.config import load_dotenv
 from ingestion.services.importer import Importer
@@ -46,7 +46,7 @@ def main():
     import ingestion.connectors.eplus
     import ingestion.connectors.pia
 
-    def run_connector(connector_cls, std) -> Tuple[str, List[Event]]:
+    def run_connector(connector_cls, std) -> Tuple[str, Optional[List[Event]]]:
         """Instantiate and run a connector, returning (name, events)."""
         connector_name = "Unknown"
         try:
@@ -87,7 +87,7 @@ def main():
             return connector_name, events
         except Exception as ex:
             print(f"[{connector_name}] Failed: {ex}")
-            return connector_name, []
+            return connector_name, None
 
     all_events: List[Event] = []
 
@@ -130,12 +130,20 @@ def main():
         for future in concurrent.futures.as_completed(futures):
             try:
                 source_name, events = future.result()
-                if events:
-                    print(f"[{source_name}] Finished. Found {len(events)} events.")
-                    all_events.extend(events)
+
+                if events is not None:
+                    # Mark source as successful even if 0 events found
                     successful_sources.append(source_name)
+
+                    if events:
+                        print(f"[{source_name}] Finished. Found {len(events)} events.")
+                        all_events.extend(events)
+                    else:
+                        print(f"[{source_name}] Finished with 0 events.")
                 else:
-                    print(f"[{source_name}] Finished with 0 events.")
+                    # None means failure
+                    pass
+
             except Exception as e:
                 # Should be caught inside run_connector but just in case
                 cls = futures[future]
